@@ -347,7 +347,7 @@ def load_config(path: str, *, force: bool = False) -> dict[str, Any]:
     """加载 YAML 配置（带 mtime 缓存）"""
     abspath = str(Path(path).resolve())
     if not os.path.isfile(abspath):
-        logger.warning(f"Config not found: {abspath}")
+        logger.warning(f"配置文件不存在: {abspath}")
         return {}
 
     if not force and abspath in _cache:

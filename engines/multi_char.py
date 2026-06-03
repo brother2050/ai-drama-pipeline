@@ -8,13 +8,16 @@ logger = logging.getLogger(__name__)
 __all__ = ["MultiCharacterHandler"]
 
 # CLIP tokenizer 限制：超过此长度的 prompt 会被截断，多人场景容易超
-_CLIP_TOKEN_LIMIT = 75
+# 默认 CLIP token 限制（SD1.5/SDXL）。Flux 使用 T5 无此限制。
+# 可通过构造函数或配置覆盖。
+_DEFAULT_CLIP_TOKEN_LIMIT = 75
 
 
 class MultiCharacterHandler:
     """多人同框场景处理器"""
 
-    def generate_multi_char_prompt(self, characters: list[dict], layout: str = "side_by_side") -> str:
+    def generate_multi_char_prompt(self, characters: list[dict], layout: str = "side_by_side",
+                                     clip_token_limit: int = _DEFAULT_CLIP_TOKEN_LIMIT) -> str:
         """生成多人同框 prompt。超过 CLIP 限制时记录警告。"""
         if not characters:
             return ""
@@ -34,9 +37,9 @@ class MultiCharacterHandler:
 
         # 粗略估算 token 数（英文约 1 token/4 字符）
         est_tokens = len(prompt) // 4
-        if est_tokens > _CLIP_TOKEN_LIMIT:
+        if est_tokens > clip_token_limit:
             logger.warning(
-                f"多人 prompt 约 {est_tokens} tokens，超过 CLIP 限制 {_CLIP_TOKEN_LIMIT}，"
+                f"多人 prompt 约 {est_tokens} tokens，超过 CLIP 限制 {clip_token_limit}，"
                 f"画面可能丢失细节。建议减少角色数量或缩短外貌描述。"
             )
         return prompt

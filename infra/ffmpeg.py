@@ -108,7 +108,7 @@ class FFmpeg:
         cmd = [_FFMPEG, "-y", "-i", video, "-vf", sub_filter, "-c:a", "copy", output]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=1200)
         if r.returncode != 0:
-            raise RuntimeError(f"subtitle failed: {r.stderr[-300:]}")
+            raise RuntimeError(f"字幕烧录失败: {r.stderr[-300:]}")
         return output
 
     @staticmethod
@@ -120,5 +120,5 @@ class FFmpeg:
                "-c:v", "copy", "-shortest", output]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=1200)
         if r.returncode != 0:
-            raise RuntimeError(f"mix_audio failed: {r.stderr[-300:]}")
+            raise RuntimeError(f"音频混合失败: {r.stderr[-300:]}")
         return output

@@ -67,7 +67,10 @@ class AdaptiveBatchProcessor:
         )
     """
 
-    def __init__(self, llm, *, model_name: str = ""):
+    def __init__(self, llm, *, model_name: str = "",
+                 hard_cap_tokens: int = 60000,
+                 max_retries: int = 2,
+                 retry_base_delay: float = 3.0):
         """
         Args:
             llm: LLM 后端实例（需有 chat 方法和 context_length 属性）
@@ -75,10 +78,12 @@ class AdaptiveBatchProcessor:
         """
         self._llm = llm
         self._model_name = model_name or getattr(llm, "_model", "") or ""
+        self._max_retries = max_retries
+        self._retry_base_delay = retry_base_delay
 
         # 从注册表查询模型限制
         limits = self._get_limits(llm)
-        self._input_budget = min(int(limits["context_window"] * 0.6), HARD_CAP_TOKENS)
+        self._input_budget = min(int(limits["context_window"] * 0.6), hard_cap_tokens)
         self._output_budget = int(limits["max_output"] * 0.8)  # 留 20% 给格式开销
 
     def _get_limits(self, llm) -> dict:
@@ -163,7 +168,7 @@ class AdaptiveBatchProcessor:
     ) -> Any:
         """执行单个批次，带指数退避重试"""
         last_error = None
-        for attempt in range(MAX_BATCH_RETRIES + 1):
+        for attempt in range(self._max_retries + 1):
             try:
                 prompts = build_prompts(batch)
                 raw = self._llm.chat(
@@ -176,8 +181,8 @@ class AdaptiveBatchProcessor:
                 last_error = e
                 # 记录错误用于学习
                 self._last_error = e
-                if attempt < MAX_BATCH_RETRIES:
-                    wait = RETRY_BASE_DELAY * (2 ** attempt)
+                if attempt < self._max_retries:
+                    wait = self._retry_base_delay * (2 ** attempt)
                     logger.warning(f"批次失败 (尝试 {attempt+1}), {wait}s 后重试: {e}")
                     time.sleep(wait)
         raise last_error
