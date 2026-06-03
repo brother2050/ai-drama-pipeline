@@ -71,7 +71,7 @@ flowchart LR
 **产出文件：**
 - `projects/<项目>/config/characters/*.yaml` — 角色配置（唯一数据源）
 - `projects/<项目>/config/scenes/*.yaml` — 场景配置（唯一数据源）
-- PostgreSQL 数据库 — 分镜表 / 生成状态 / 集（shots / generation_status / episodes 表）
+- PostgreSQL 数据库 — 分镜表 / 生成状态（shots / generation_status 表）
 
 ---
 

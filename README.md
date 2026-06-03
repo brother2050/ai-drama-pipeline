@@ -780,17 +780,13 @@ ai-drama-pipeline-v2/
 │   ├── asset_tracker.py          #   ComfyUI 资产跟踪（PostgreSQL 持久化）
 │   ├── batch_processor.py        #   自适应批处理器（双重约束分批 + 错误驱动学习）
 │   ├── concurrency.py            #   并发控制（错开启动 + 信号量限流）
-│   └── database/                 #   PostgreSQL（分镜/生成状态/集为 DB 数据源，角色/场景以 YAML 为唯一数据源）
+│   └── database/                 #   PostgreSQL（分镜表/生成状态/资产跟踪）
 │       ├── schema.py             #     表结构定义（CREATE IF NOT EXISTS）
 │       ├── pool.py               #     连接池（ThreadedConnectionPool）
 │       ├── _db.py                #     共享工具（项目自动解析 + query 上下文管理器）
-│       ├── characters.py         #     角色 CRUD
-│       ├── scenes.py             #     场景 CRUD
-│       ├── episodes.py           #     集 CRUD
 │       ├── storyboard_db.py      #     分镜 CRUD + CSV 导出
 │       ├── generation.py         #     生成状态 CRUD
-│       ├── comfyui_assets.py     #     ComfyUI 资产跟踪表
-│       └── sync.py               #     YAML → DB 按需同步（手动触发，用于 DB 索引刷新）
+│       └── comfyui_assets.py     #     ComfyUI 资产跟踪表
 │
 ├── web/                          # FastAPI Web 工作台
 │   ├── app.py                    #   应用工厂 + 日志配置 + lifespan
