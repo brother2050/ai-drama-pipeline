@@ -36,7 +36,7 @@ __all__ = [
 #  IP-Adapter Plus 注入（SD1.5/SDXL UNet 架构）
 # ══════════════════════════════════════════════════════════
 
-def inject_character_refs(builder, wf: dict, char_ids: list[str],
+def inject_character_refs(builder: object, wf: dict, char_ids: list[str],
                           ip_config: dict, outfit: str = "") -> dict:
     """注入角色参考图到工作流（IP-Adapter Plus 链式注入）
 
@@ -73,7 +73,7 @@ def inject_character_refs(builder, wf: dict, char_ids: list[str],
     return wf
 
 
-def update_existing_ip_adapter(builder, wf: dict, char_ids: list[str],
+def update_existing_ip_adapter(builder: object, wf: dict, char_ids: list[str],
                                 ip_config: dict, outfit: str = "") -> dict:
     """更新模板中已有的 IP-Adapter 节点（参考图 + 权重）"""
     weight = ip_config.get("weight", 0.75)
@@ -164,7 +164,7 @@ def _build_ip_adapter_nodes(wf: dict, ksampler: str, model_source: str,
     return wf
 
 
-def inject_ip_adapter_chain(builder, wf: dict, char_id: str, ref_images: list[str],
+def inject_ip_adapter_chain(builder: object, wf: dict, char_id: str, ref_images: list[str],
                              weight: float = 0.45, ip_config: dict | None = None) -> dict:
     """链式注入第二个角色的 IP-Adapter（串联在已有 IP-Adapter 之后）"""
     wf = copy.deepcopy(wf)
@@ -250,7 +250,7 @@ def _resolve_model_source(wf: dict, ksampler: str) -> str:
             or find_first_node(wf, "CheckpointLoaderSimple"))
 
 
-def inject_pulid_flux(builder, wf: dict, char_ids: list[str],
+def inject_pulid_flux(builder: object, wf: dict, char_ids: list[str],
                       pulid_config: dict, outfit: str = "") -> dict:
     """注入 PuLID-Flux 面部一致性节点（Flux 后端专用）"""
     wf = copy.deepcopy(wf)
@@ -318,7 +318,7 @@ def _inject_pulid_nodes(wf: dict, ksampler: str, model_source: str,
     return wf
 
 
-def inject_pulid_flux_chain(builder, wf: dict, char_id: str, ref_images: list[str],
+def inject_pulid_flux_chain(builder: object, wf: dict, char_id: str, ref_images: list[str],
                              weight: float = 0.6, pulid_config: dict | None = None) -> dict:
     """链式注入第二个角色的 PuLID-Flux（串联在已有 PuLID 之后）"""
     wf = copy.deepcopy(wf)
@@ -383,8 +383,18 @@ def inject_pulid_flux_chain(builder, wf: dict, char_id: str, ref_images: list[st
 #  LoRA 查找与注入
 # ══════════════════════════════════════════════════════════
 
-def find_character_lora(builder, char_id: str) -> str | None:
-    """查找已训练的角色 LoRA 文件"""
+def find_character_lora(builder: object, char_id: str) -> str | None:
+    """查找已训练的角色 LoRA 文件。
+
+    搜索顺序：comfyui_asset_name 规范名 → 原始名 → 角色 lora 子目录。
+
+    Args:
+        builder: WorkflowBuilder 实例
+        char_id: 角色 ID
+
+    Returns:
+        LoRA 文件路径，未找到返回 None
+    """
     lora_dir = builder._paths.loras_dir
     from infra.asset_tracker import comfyui_asset_name
     lora_name = comfyui_asset_name(builder.project_dir, char_id, f"{char_id}_lora.safetensors")
@@ -404,8 +414,16 @@ def find_character_lora(builder, char_id: str) -> str | None:
     return None
 
 
-def find_style_lora(builder, genre: str) -> str | None:
-    """查找已训练的风格 LoRA 文件"""
+def find_style_lora(builder: object, genre: str) -> str | None:
+    """查找已训练的风格 LoRA 文件。
+
+    Args:
+        builder: WorkflowBuilder 实例
+        genre: 题材类型（如 urban、romance）
+
+    Returns:
+        LoRA 文件路径，未找到返回 None
+    """
     lora_dir = builder._paths.loras_dir
     candidates = [
         lora_dir / f"style_{genre}_lora.safetensors",
