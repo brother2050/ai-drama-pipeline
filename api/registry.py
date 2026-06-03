@@ -254,7 +254,8 @@ class Container:
         return cfg
 
     def reload(self, new_config: dict) -> list[str]:
-        changed = []
+        # 收集需要重建的后端（锁内只做比较）
+        to_rebuild = []
         with self._lock:
             self._config = new_config
             for key, inst in list(self._instances.items()):
@@ -262,11 +263,22 @@ class Container:
                 old = self._snapshots.get(key, {})
                 new = self._backend_config(stype, bname)
                 if old != new:
-                    if hasattr(inst, "shutdown"):
-                        inst.shutdown()
-                    self._instances[key] = registry.create(stype, bname, new)
-                    self._snapshots[key] = new
-                    changed.append(key)
+                    to_rebuild.append((key, inst, stype, bname, new))
+
+        # 锁外执行耗时的 shutdown + create
+        changed = []
+        for key, old_inst, stype, bname, new_cfg in to_rebuild:
+            if hasattr(old_inst, "shutdown"):
+                try:
+                    old_inst.shutdown()
+                except Exception:
+                    pass
+            new_inst = registry.create(stype, bname, new_cfg)
+            with self._lock:
+                self._instances[key] = new_inst
+                self._snapshots[key] = new_cfg
+            changed.append(key)
+
         return changed
 
     def shutdown_all(self):

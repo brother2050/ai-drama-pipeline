@@ -420,6 +420,9 @@ class WorkflowBuilder:
             logger.info(f"{consistency} 已禁用，跳过一致性注入")
             return wf
 
+        # 注入方法映射：注册表中的 inject_method → 实际函数
+        # 注意："_inject_ip_adapter_plus" 映射到 _inject_character_refs，
+        # 因为后者统一处理 IP-Adapter 注入（首次注入 + 更新已有节点）
         _INJECT_DISPATCH = {
             "_inject_ip_adapter_plus": _inject_character_refs,
             "_inject_pulid_flux": _inject_pulid_flux,

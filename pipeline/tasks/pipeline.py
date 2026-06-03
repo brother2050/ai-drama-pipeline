@@ -38,10 +38,25 @@ def _shot_task_inner(self, config_path: str, episode: int, shot_data: dict, shot
     _ensure_path()
     from infra.config import Config
     from api.registry import Container
+    from infra.database.pool import get_pool
+    from infra.database.storyboard_db import get_episode_shots
     cfg = Config(config_path)
     cont = Container(cfg.data)
 
     characters, scenes = _preload_shot_data(cfg)
+
+    # 始终从 DB 读取最新 shot 数据（排队期间用户可能已修改分镜）
+    fresh_shot = None
+    try:
+        for row in get_episode_shots(get_pool(), episode):
+            if row.get("shot_id") == shot_id:
+                fresh_shot = row
+                break
+    except Exception as e:
+        logger.debug(f"从 DB 读取最新 shot 失败，使用传入数据: {e}")
+    if fresh_shot:
+        shot_data = fresh_shot
+
     ctx = {"cfg": cfg, "cont": cont, "shot": shot_data, "characters": characters, "scenes": scenes}
 
     try:

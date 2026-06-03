@@ -180,7 +180,10 @@ def _build_ctx(config_path: str):
     with _ctx_lock:
         if _ctx_cache and _ctx_cache[0] == config_path:
             old_cfg = _ctx_cache[1]
-            if not old_cfg._check_reload():
+            # 如果其他线程已更新到同一 mtime，直接复用，丢弃当前创建的实例
+            if old_cfg._mtimes == cfg._mtimes:
+                if hasattr(cont, 'shutdown_all'):
+                    cont.shutdown_all()
                 return _ctx_cache[1], _ctx_cache[2]
         _ctx_cache = (config_path, cfg, cont)
     return cfg, cont
