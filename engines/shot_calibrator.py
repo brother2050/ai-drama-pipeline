@@ -50,7 +50,7 @@ _STAGE3_SYSTEM = _tpl("shot_stage3_system")
 #  主入口
 # ══════════════════════════════════════════════════════════
 
-def calibrate_storyboard(llm, params) -> list[dict]:
+def calibrate_storyboard(llm: object, params: object) -> list[dict]:
     """多阶段分镜校准（3 阶段：叙事骨架 → 视觉描述 → AI 绘图 Prompt）"""
     outline = params.outline
     characters = params.characters or []
@@ -105,7 +105,7 @@ def calibrate_storyboard(llm, params) -> list[dict]:
 #  内部实现
 # ══════════════════════════════════════════════════════════
 
-def _build_context(outline, characters, scenes, target_duration, style, genre) -> str:
+def _build_context(outline: str, characters: list[dict], scenes: list[dict], target_duration: int, style: str, genre: str) -> str:
     """构建共享上下文（各阶段复用）"""
     parts = [f"=== 剧情大纲 ===\n{outline}"]
 
@@ -136,7 +136,7 @@ def _build_context(outline, characters, scenes, target_duration, style, genre) -
     return "\n".join(parts)
 
 
-def _enrich_stage(llm, shots, system, label, required_fields=None):
+def _enrich_stage(llm: object, shots: list[dict], system: str, label: str, required_fields: list[str] | None = None) -> list[dict] | None:
     """对已有镜头列表执行一次 LLM 补充调用
 
     Args:
@@ -198,7 +198,7 @@ def _enrich_stage(llm, shots, system, label, required_fields=None):
     return merged
 
 
-def _fallback_generate(llm, params):
+def _fallback_generate(llm: object, params: object) -> list[dict]:
     """回退到单次生成（calibrate 不可用时）"""
     from engines.llm_generator import generate_storyboard, StoryboardGenParams
     return generate_storyboard(llm, StoryboardGenParams(
