@@ -102,12 +102,12 @@ def generate_characters(llm: object, descriptions: list[str], expected_ids: list
     return results
 
 
-def generate_scenes(llm, descriptions: list[str], expected_ids: list[str] | None = None) -> list[dict]:
+def generate_scenes(llm: object, descriptions: list[str], expected_ids: list[str] | None = None) -> list[dict]:
     """从描述生成场景配置 — 全部成功或抛异常"""
     return _generate_entities(llm, descriptions, expected_ids, SCENE_SYSTEM, "场景", max_tokens=1024)
 
 
-def _generate_entities(llm, descriptions: list[str], expected_ids: list[str] | None,
+def _generate_entities(llm: object, descriptions: list[str], expected_ids: list[str] | None,
                        system: str, label: str, max_tokens: int = 1024) -> list[dict]:
     """通用实体生成 — 重试 + 去重 + 失败收集"""
     results = []
@@ -156,7 +156,7 @@ def _generate_entities(llm, descriptions: list[str], expected_ids: list[str] | N
 EXPAND_SYSTEM = _tpl("expand_outline_system")
 
 
-def expand_outline(llm, outline: str) -> str:
+def expand_outline(llm: object, outline: str) -> str:
     """扩写简短大纲为详细版本"""
     if not outline.strip():
         return outline
@@ -171,7 +171,7 @@ def expand_outline(llm, outline: str) -> str:
 #  多阶段分镜生成
 # ══════════════════════════════════════════════════════════
 
-def generate_storyboard_multistage(llm, params: StoryboardGenParams) -> list[dict]:
+def generate_storyboard_multistage(llm: object, params: StoryboardGenParams) -> list[dict]:
     """多阶段分镜生成（推荐）
 
     将一次 LLM 调用拆分为 3 个聚焦阶段，每阶段独立重试，
