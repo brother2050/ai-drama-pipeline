@@ -138,6 +138,16 @@ music_backends:
       type: "command"
       command: "ffmpeg"
 
+  musicgen:
+    module: "api.backends.music.musicgen"
+    priority: 20
+    description: "MusicGen (RunPod Serverless) — AI 配乐生成"
+    requires_api_key: true
+    api_key_env: "RUNPOD_API_TOKEN"
+    health_check:
+      type: "api_key_env"
+      env: "RUNPOD_API_TOKEN"
+
 # ══════════════════════════════════════════════════════════
 #  图像后端
 # ══════════════════════════════════════════════════════════

@@ -43,6 +43,12 @@ training:
     timestep_type: sigmoid
     save_format: diffusers
     use_ema: false
+# MusicGen 配乐（RunPod Serverless）
+# 部署: https://github.com/alcunii/musicgen-serverless
+# 获取 API Key: https://www.runpod.io/console/user/settings
+music:
+  api_url: ''
+  api_key: ''
 server:
   port: 8888
   host: 0.0.0.0

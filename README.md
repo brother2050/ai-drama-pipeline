@@ -550,7 +550,8 @@ api/__init__.py (懒加载)
   ├─ image/comfyui         → 需要 httpx + ComfyUI
   ├─ video/animatediff     → 需要 ComfyUI
   ├─ llm/ollama            → 需要 httpx + Ollama
-  └─ music/template        → 仅需 ffmpeg（无额外依赖）
+  ├─ music/template        → 仅需 ffmpeg（无额外依赖）
+  └─ music/musicgen        → 需要 httpx + RunPod API Key（AI 配乐）
 ```
 
 ### 注册表驱动
@@ -621,6 +622,7 @@ models:
   tts_backend: "mimo-voicedesign"      # 云 API，开箱即用
   lip_sync_backend: "musetalk"
   music_backend: "template"            # ffmpeg 模板，无需额外服务
+  # music_backend: "musicgen"          # MusicGen (RunPod Serverless)，需配置 music.api_url + api_key
   image_backend: "sd15"
   video_backend: "animatediff"
 
@@ -720,7 +722,7 @@ ai-drama-pipeline-v2/
 │       ├── image/                #   图像生成: comfyui（SD1.5/Flux/Cosmos/HiDream）
 │       ├── video/                #   视频生成: animatediff（AnimateDiff/CogVideoX/Cosmos-Video）
 │       ├── llm/                  #   LLM: ollama（Ollama + OpenAI 兼容）
-│       ├── music/                #   配乐: template（FFmpeg 模板）
+│       ├── music/                #   配乐: template（FFmpeg 模板）、musicgen（RunPod AI 配乐）
 │       ├── seko/                 #   Seko 影视策划案
 │       └── training/             #   LoRA 训练: ai_toolkit
 │
