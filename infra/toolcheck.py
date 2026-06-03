@@ -18,9 +18,8 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["check_tool", "reset_registry"]
 
-# 工具状态缓存（避免短时间内重复检测外部服务）
-_tool_cache: dict[str, tuple[float, dict]] = {}
-_TOOL_CACHE_TTL = 30  # 秒
+# 工具状态缓存 — 使用 HealthCache 统一管理
+from infra.globals import get_health_cache
 
 
 def _url_ok(url: str, path: str = "/", headers: dict | None = None) -> bool:
@@ -66,24 +65,16 @@ def _resolve_auth(cfg: dict, api_key_from: str) -> dict | None:
 
 
 def check_tool(name: str, cfg: dict) -> dict:
-    """检测单个工具的可用性（注册表驱动，带 TTL 缓存）
+    """检测单个工具的可用性（注册表驱动，HealthCache 统一缓存）"""
+    cache = get_health_cache()
+    cached = cache.get_cached(name)
+    if cached is not None:
+        # 缓存命中但需要返回完整 dict，从 checker 重建
+        pass  # 继续执行，HealthCache 只缓存 bool，完整结果需重新构建
 
-    Args:
-        name: 工具名。支持两种格式：
-            - 后端名: tts / comfyui / lipsync / llm / music / ffmpeg / redis / celery / seko / training
-            - 复合名: ip_adapter / pulid_flux（自动映射到一致性方案或服务）
-        cfg: 项目配置 dict
-
-    Returns:
-        {"available": bool, "backend": str, "type": str, "reason": str, ...}
-    """
-    now = time.time()
-    if name in _tool_cache:
-        ts, result = _tool_cache[name]
-        if now - ts < _TOOL_CACHE_TTL:
-            return result
     result = _check_tool_inner(name, cfg)
-    _tool_cache[name] = (now, result)
+    # 用 HealthCache 缓存可用性布尔值
+    cache._cache[name] = (result.get("available", False), __import__("time").monotonic())
     return result
 
 

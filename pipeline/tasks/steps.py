@@ -42,20 +42,7 @@ logger = logging.getLogger(__name__)
 
 def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
              force: bool = False, characters: dict | None = None) -> dict:
-    """TTS 核心逻辑 — 合成台词为音频
-
-    Args:
-        shot_id: 镜头 ID
-        shot: 镜头数据
-        cfg: Config 对象
-        cont: DI 容器
-        out_dir: 输出目录
-        force: True 时覆盖已有文件，False 时跳过
-        characters: 预加载的角色字典 {id: char_data}，避免重复读 YAML
-
-    Returns:
-        {"status": STATUS_DONE/"skipped"/"error", ...}
-    """
+    """TTS 核心逻辑 — 合成台词为音频（带看门狗跟踪 + 并发组限流）"""
     dialogue = shot.get("dialogue", "").strip()
     if not dialogue or set(dialogue) <= {".", "…"}:
         return _skip(shot_id, "tts", "无台词")
@@ -63,33 +50,34 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
     out_dir.mkdir(parents=True, exist_ok=True)
     audio_path = str(out_dir / "audio.wav")
 
-    # 已有文件且非强制模式 → 跳过
     if not force and Path(audio_path).exists():
         return _skip(shot_id, "tts", "音频已存在")
 
     char_ids = [c.strip() for c in shot.get("characters", "").split("+") if c.strip()]
-
-    # 优先用预加载的角色数据，避免每次创建 ShotManager 读全部 YAML
     if characters:
         char_data = characters.get(char_ids[0], {}) if char_ids else {}
     else:
         from engines.shot_manager import ShotManager
-        paths = cfg.paths
-        sm = ShotManager(str(paths.config_dir))
+        sm = ShotManager(str(cfg.paths.config_dir))
         char_data = sm.get_character(char_ids[0]) if char_ids else {}
 
     if char_ids and not char_data:
         logger.warning(f"[{shot_id}] 角色 {char_ids[0]} 不存在，使用默认声音")
-    # TTS 统一读 bible.core_traits 作为声音描述
     core_traits = (char_data.get("bible") or {}).get("core_traits", "")
     voice_config = {"core_traits": core_traits} if core_traits else {}
     emotion = shot.get("emotion", "neutral")
     language = shot.get("language", "zh")
 
+    from infra.globals import get_watchdog, get_concurrency_groups
+    wd = get_watchdog()
+    groups = get_concurrency_groups()
+
     try:
-        tts_inst, tts_name = cont.get_with_fallback("tts")
-        tts_inst.synthesize(dialogue, audio_path, voice_config=voice_config,
-                            emotion=emotion, language=language)
+        with groups.acquire("tts"):
+            with wd.track(f"{shot_id}:tts", backend="tts"):
+                tts_inst, tts_name = cont.get_with_fallback("tts")
+                tts_inst.synthesize(dialogue, audio_path, voice_config=voice_config,
+                                    emotion=emotion, language=language)
     except Exception as e:
         return _err(shot_id, "tts", f"TTS 合成失败: {e}")
     err = _validate_output(audio_path, "tts", min_size=1000)
@@ -277,12 +265,18 @@ def first_frame_core(p: FirstFrameParams) -> dict:
     if not wf:
         return _err(p.shot_id, "first_frame", "首帧工作流为空（缺少模板）")
 
+    from infra.globals import get_watchdog, get_concurrency_groups
+    wd = get_watchdog()
+    groups = get_concurrency_groups()
+
     comfyui = p.cont.get("image")
     _check_lora_availability(wf, paths, p.cfg, comfyui)
     wf = _upload_reference_images(wf, shot, wb, comfyui, paths)
 
     try:
-        files = comfyui.generate(wf, str(p.out_dir))
+        with groups.acquire("comfyui"):
+            with wd.track(f"{p.shot_id}:first_frame", backend="comfyui"):
+                files = comfyui.generate(wf, str(p.out_dir))
     except Exception as e:
         return _err(p.shot_id, "first_frame", f"ComfyUI 首帧生成失败: {e}")
     if not files:
@@ -373,8 +367,14 @@ def video_core(shot_id: str, cfg, cont, out_dir: Path, *, shot: dict | None = No
     server_filename = _safe_server_filename(project_name, ep_tag, shot_id)
     video_wf = _upload_first_frame_if_needed(video_wf, frame_path, server_filename, paths, cont.get("video"))
 
+    from infra.globals import get_watchdog, get_concurrency_groups
+    wd = get_watchdog()
+    groups = get_concurrency_groups()
+
     try:
-        files = cont.get("video").generate(video_wf, str(out_dir))
+        with groups.acquire("comfyui"):
+            with wd.track(f"{shot_id}:video", backend="comfyui"):
+                files = cont.get("video").generate(video_wf, str(out_dir))
     except Exception as e:
         return _err(shot_id, "video", f"视频生成失败: {e}")
 
@@ -412,9 +412,15 @@ def lipsync_core(shot_id: str, cont, out_dir: Path, *, force: bool = False) -> d
         return _skip(shot_id, "lipsync", "口型同步视频已存在")
 
     synced_path = str(out_dir / "synced.mp4")
+    from infra.globals import get_watchdog, get_concurrency_groups
+    wd = get_watchdog()
+    groups = get_concurrency_groups()
+
     try:
-        lipsync_inst, lipsync_name = cont.get_with_fallback("lipsync")
-        lipsync_inst.sync(str(video_path), str(audio_path), synced_path)
+        with groups.acquire("lipsync"):
+            with wd.track(f"{shot_id}:lipsync", backend="lipsync"):
+                lipsync_inst, lipsync_name = cont.get_with_fallback("lipsync")
+                lipsync_inst.sync(str(video_path), str(audio_path), synced_path)
     except Exception as e:
         return _err(shot_id, "lipsync", f"口型同步失败: {e}")
     err = _validate_output(synced_path, "lipsync", min_size=10000)
@@ -486,10 +492,15 @@ def _run_lipsync(config_path: str, episode: int, shot_id: str, *,
 # ══════════════════════════════════════════════════════════
 
 def _step_task(self, step: str, fn, config_path: str, episode: int, shot_id: str, *, force: bool = False):
-    """通用 Celery 步骤任务包装"""
+    """通用 Celery 步骤任务包装（带结构化错误恢复）"""
+    from infra.safe_executor import safe_run
     self.update_state(state="PROGRESS", meta={"step": step, "shot_id": shot_id, "progress": 10, "message": f"[{shot_id}] {step} 开始..."})
     try:
-        result = fn(config_path, episode, shot_id, force=force)
+        result = safe_run(
+            fn, args=(config_path, episode, shot_id), kwargs={"force": force},
+            retries=1, task_id=f"{shot_id}:{step}",
+            retryable=(ConnectionError, TimeoutError, OSError),
+        )
     except SoftTimeLimitExceeded:
         logger.warning(f"[{shot_id}] {step} 超时（soft_time_limit）")
         _db_record_step(episode, shot_id, step, {"status": STATUS_ERROR, "reason": "执行超时"})

@@ -116,6 +116,9 @@ def _ensure_deps():
         sys.exit(1)
     if not _ensure_postgres():
         sys.exit(1)
+    # 初始化全局基础设施（看门狗、健康缓存、并发组）
+    from infra.globals import init_globals
+    init_globals()
 
 
 def _ensure_postgres():
@@ -173,8 +176,13 @@ def serve(port, host, reload) -> None:
     _load_env()
     if not _ensure_redis():
         sys.exit(1)
+    # 初始化全局基础设施
+    from infra.globals import init_globals, shutdown_globals
+    init_globals()
     console.print(f"\n[bold green]🎬 Web 工作台启动中 — http://localhost:{port}[/bold green]\n")
     console.print("[dim]需要同时启动 worker: python cli.py worker[/dim]\n")
+    import atexit
+    atexit.register(shutdown_globals)
     import uvicorn
     uvicorn.run("web.app:create_app", factory=True, host=host, port=port, reload=reload, log_level="info")
 
