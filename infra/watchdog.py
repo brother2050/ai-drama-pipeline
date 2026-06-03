@@ -23,9 +23,10 @@ import threading
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any, Callable, TypeVar
 
 logger = logging.getLogger(__name__)
+T = TypeVar("T")
 
 __all__ = ["WatchDog", "TaskHandle", "HealthCache"]
 
@@ -203,6 +204,7 @@ class HealthCache:
         self._ttl = ttl
         self._lock = threading.Lock()
         self._cache: dict[str, tuple[bool, float]] = {}
+        self._full_cache: dict[str, tuple[Any, float]] = {}
 
     def get_or_check(self, key: str, checker: Callable[[], bool]) -> bool:
         """获取缓存的健康状态，超时则重新检查"""
@@ -223,13 +225,33 @@ class HealthCache:
             self._cache[key] = (ok, time.monotonic())
         return ok
 
+    def get_or_check_full(self, key: str, checker: Callable[[], T]) -> T:
+        """缓存任意类型结果（如完整 dict），超时则重新检查
+
+        与 get_or_check 的区别：缓存完整返回值而非仅 bool。
+        适合 toolcheck 等需要返回详细信息的场景。
+        """
+        now = time.monotonic()
+        with self._lock:
+            if key in self._full_cache:
+                value, ts = self._full_cache[key]
+                if now - ts < self._ttl:
+                    return value
+
+        value = checker()
+        with self._lock:
+            self._full_cache[key] = (value, time.monotonic())
+        return value
+
     def invalidate(self, key: str | None = None) -> None:
         """清除缓存（key=None 清除全部）"""
         with self._lock:
             if key:
                 self._cache.pop(key, None)
+                self._full_cache.pop(key, None)
             else:
                 self._cache.clear()
+                self._full_cache.clear()
 
     def get_cached(self, key: str) -> bool | None:
         """获取缓存值（不触发检查），无缓存返回 None"""

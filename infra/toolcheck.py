@@ -65,17 +65,19 @@ def _resolve_auth(cfg: dict, api_key_from: str) -> dict | None:
 
 
 def check_tool(name: str, cfg: dict) -> dict:
-    """检测单个工具的可用性（注册表驱动，HealthCache 统一缓存）"""
-    cache = get_health_cache()
-    cached = cache.get_cached(name)
-    if cached is not None:
-        # 缓存命中但需要返回完整 dict，从 checker 重建
-        pass  # 继续执行，HealthCache 只缓存 bool，完整结果需重新构建
+    """检测单个工具的可用性（注册表驱动，HealthCache 统一缓存）
 
-    result = _check_tool_inner(name, cfg)
-    # 用 HealthCache 缓存可用性布尔值
-    cache._cache[name] = (result.get("available", False), __import__("time").monotonic())
-    return result
+    Args:
+        name: 工具名。支持两种格式：
+            - 后端名: tts / comfyui / lipsync / llm / music / ffmpeg / redis / celery / seko / training
+            - 复合名: ip_adapter / pulid_flux（自动映射到一致性方案或服务）
+        cfg: 项目配置 dict
+
+    Returns:
+        {"available": bool, "backend": str, "type": str, "reason": str, ...}
+    """
+    cache = get_health_cache()
+    return cache.get_or_check_full(name, lambda: _check_tool_inner(name, cfg))
 
 
 def _check_tool_inner(name: str, cfg: dict) -> dict:

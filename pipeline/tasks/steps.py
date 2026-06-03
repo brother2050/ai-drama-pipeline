@@ -492,15 +492,10 @@ def _run_lipsync(config_path: str, episode: int, shot_id: str, *,
 # ══════════════════════════════════════════════════════════
 
 def _step_task(self, step: str, fn, config_path: str, episode: int, shot_id: str, *, force: bool = False):
-    """通用 Celery 步骤任务包装（带结构化错误恢复）"""
-    from infra.safe_executor import safe_run
+    """通用 Celery 步骤任务包装"""
     self.update_state(state="PROGRESS", meta={"step": step, "shot_id": shot_id, "progress": 10, "message": f"[{shot_id}] {step} 开始..."})
     try:
-        result = safe_run(
-            fn, args=(config_path, episode, shot_id), kwargs={"force": force},
-            retries=1, task_id=f"{shot_id}:{step}",
-            retryable=(ConnectionError, TimeoutError, OSError),
-        )
+        result = fn(config_path, episode, shot_id, force=force)
     except SoftTimeLimitExceeded:
         logger.warning(f"[{shot_id}] {step} 超时（soft_time_limit）")
         _db_record_step(episode, shot_id, step, {"status": STATUS_ERROR, "reason": "执行超时"})
