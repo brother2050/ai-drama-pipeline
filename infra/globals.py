@@ -16,6 +16,8 @@ import threading
 
 logger = logging.getLogger(__name__)
 
+__all__ = ["init_globals", "get_watchdog", "get_health_cache", "get_concurrency_groups", "shutdown_globals"]
+
 _watchdog = None
 _health_cache = None
 _concurrency_groups = None

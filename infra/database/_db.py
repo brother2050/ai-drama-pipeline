@@ -1,6 +1,8 @@
 """数据库共享工具 — 单一数据源，所有 DB 模块共用"""
 from __future__ import annotations
 
+__all__ = ["project_scope", "_reset_project_cache", "query", "row_to_dict", "safe_float", "dict_cursor", "_get_project"]
+
 import os
 import threading
 from contextlib import contextmanager

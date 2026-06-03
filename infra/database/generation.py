@@ -23,7 +23,18 @@ class StatusRecord:
 def upsert_status(pool, episode: int, shot_id: str, stage: str,
                   status: str = STATUS_PENDING, path: str = "", error: str = "",
                   elapsed: float = 0.0):
-    """写入/更新生成状态"""
+    """写入/更新生成状态
+
+    Args:
+        pool: 数据库连接池
+        episode: 集数
+        shot_id: 镜头 ID
+        stage: 阶段名（tts / first_frame / video / lipsync）
+        status: 状态（pending / running / done / error / skipped）
+        path: 输出文件路径
+        error: 错误信息（status 为 error/skipped 时）
+        elapsed: 耗时（秒）
+    """
     project = _get_project()
     with query(pool) as cur:
         cur.execute("""

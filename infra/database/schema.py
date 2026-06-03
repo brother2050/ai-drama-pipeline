@@ -1,6 +1,8 @@
 """数据库 Schema — 面向新用户，干净建表，无迁移逻辑"""
 from __future__ import annotations
 
+__all__ = ["init_schema"]
+
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS shots (
     project TEXT NOT NULL DEFAULT 'default',

@@ -19,7 +19,7 @@ from rich.console import Console
 
 console = Console()
 
-from infra.config import get_root as _get_root, SYSTEM_CONFIG_PATH, load_yaml_full
+from infra.config import get_root as _get_root
 
 ROOT = _get_root()
 

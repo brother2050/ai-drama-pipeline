@@ -1,6 +1,8 @@
 """数据库连接池 — PostgreSQL（必须）"""
 from __future__ import annotations
 
+__all__ = ["PgPool", "get_pool", "placeholder"]
+
 import logging
 import os
 import threading
