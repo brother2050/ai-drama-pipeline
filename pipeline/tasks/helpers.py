@@ -154,6 +154,7 @@ def _build_ctx(config_path: str):
 
     Config 有 mtime 热重载，检测到重载时重建 Container。
     锁粒度：仅保护缓存读写，Config/Container 构建在锁外执行。
+    使用双重检查锁：慢路径完成后再次检查缓存，避免重复创建。
     """
     global _ctx_cache
 
@@ -163,7 +164,6 @@ def _build_ctx(config_path: str):
             cfg, cont = _ctx_cache[1], _ctx_cache[2]
             if not cfg._check_reload():
                 return cfg, cont
-            # 发生重载，需要重建 — 释放锁后执行
             logger.info("Config 热重载，重建 Container")
 
     # 慢路径：首次创建 或 热重载后重建（锁外执行，不阻塞其他 worker）
@@ -176,8 +176,12 @@ def _build_ctx(config_path: str):
     cfg = Config(config_path)
     cont = Container(cfg.data)
 
-    # 更新缓存
+    # 双重检查：另一个线程可能已经更新了缓存
     with _ctx_lock:
+        if _ctx_cache and _ctx_cache[0] == config_path:
+            old_cfg = _ctx_cache[1]
+            if not old_cfg._check_reload():
+                return _ctx_cache[1], _ctx_cache[2]
         _ctx_cache = (config_path, cfg, cont)
     return cfg, cont
 

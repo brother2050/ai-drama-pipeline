@@ -25,6 +25,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from infra.constants import is_ascii_only
+
 logger = logging.getLogger(__name__)
 
 __all__ = ["PromptCompiler", "get_compiler"]
@@ -268,7 +270,7 @@ class PromptCompiler:
         character = variables.get("character", "")
         action = variables.get("action", "")
         emotion = variables.get("emotion", "neutral")
-        action_ok = action and all(ord(c) < 127 for c in action)
+        action_ok = action and is_ascii_only(action)
         parts_2 = []
         if character:
             parts_2.append(character[0].upper() + character[1:] if character else "")

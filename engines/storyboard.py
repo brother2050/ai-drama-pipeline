@@ -54,7 +54,7 @@ def append_storyboard(shots: list[dict], episode: int | None = None, pool=None) 
     pool = pool or _pool()
     count = 0
     for shot in shots:
-        ep = episode or int(shot.get("episode", 0) or 0)
+        ep = episode if episode is not None else int(shot.get("episode", 0) or 0)
         try:
             ep = int(ep)
         except (ValueError, TypeError):

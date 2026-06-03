@@ -6,6 +6,7 @@ import time as _time
 from dataclasses import dataclass, field
 
 from engines.shot_utils import strip_dialogue
+from infra.constants import contains_non_ascii, is_ascii_only
 
 logger = logging.getLogger(__name__)
 
@@ -299,7 +300,7 @@ def build_prompt(params: PromptBuildParams) -> str:
     # 清理输入
     scene_clean = ""
     if params.scene_desc:
-        if any(ord(c) > 127 for c in params.scene_desc):
+        if contains_non_ascii(params.scene_desc):
             from infra.constants import ERR_NOT_PREPARED_CN
             logger.warning(f"场景描述仍为中文，{ERR_NOT_PREPARED_CN}")
         scene_clean = params.scene_desc
@@ -311,7 +312,7 @@ def build_prompt(params: PromptBuildParams) -> str:
         action = shot.get("action", "")
         if action:
             action = strip_dialogue(action)
-            if any(ord(c) > 127 for c in action):
+            if contains_non_ascii(action):
                 from infra.constants import ERR_NOT_PREPARED_CN
                 logger.warning(f"动作描述仍为中文（action_en 缺失），{ERR_NOT_PREPARED_CN}")
     else:
@@ -378,7 +379,7 @@ def translate_to_english(text: str, llm: object = None) -> str:
     """中文→英文翻译（LLM）"""
     if not text:
         return ""
-    if all(ord(c) < 128 for c in text):
+    if is_ascii_only(text):
         return text
     if not llm:
         logger.warning(f"LLM 不可用，中文描述将原样传入（可能无效）: {text[:50]}...")
@@ -428,7 +429,7 @@ def _split_translate_texts(texts: list[str]) -> tuple[list[int], list[str], list
     for i, t in enumerate(texts):
         if not t:
             results[i] = ""
-        elif all(ord(c) < 128 for c in t):
+        elif is_ascii_only(t):
             results[i] = t
         else:
             need_idx.append(i)
@@ -447,14 +448,27 @@ def _parse_numbered_lines(raw: str) -> dict:
 
 
 def _merge_translate_results(results: list[str], batch_items: list[tuple[int, str]], batch_result: dict) -> None:
-    """合并批次翻译结果，未翻译的回退单条翻译"""
+    """合并批次翻译结果，未翻译的回退单条翻译
+
+    batch_result 结构: {"results": [parsed_dict | None, ...], "total_batches": N}
+    每个 parsed_dict 是 {line_num: translated_text}，None 表示批次失败。
+    """
+    total_items = len(batch_items)
+    items_per_batch = total_items // max(batch_result.get("total_batches", 1), 1)
     offset = 0
+
     for batch_idx, batch_data in enumerate(batch_result["results"]):
-        batch_len = len(batch_data) if batch_data else 0
+        # 估算本批次大小：均匀分配或用剩余项
+        remaining = total_items - offset
+        batches_left = len(batch_result["results"]) - batch_idx
+        batch_len = max(remaining // max(batches_left, 1), 1) if remaining > 0 else 0
+
         if batch_data is None:
             offset += batch_len
             continue
         for local_idx in range(batch_len):
+            if offset + local_idx >= total_items:
+                break
             orig_idx, orig_text = batch_items[offset + local_idx]
             translated = batch_data.get(local_idx + 1, "")
             if translated:

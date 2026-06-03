@@ -85,5 +85,19 @@ STATUS_SKIPPED = "skipped"
 #  通用错误消息（消除重复字符串）
 # ══════════════════════════════════════════════════════════
 
-ERR_NOT_PREPARED = "请先运行: drama prepare <episode>"
-ERR_NOT_PREPARED_CN = "请先执行: drama prepare <集数>"
+ERR_NOT_PREPARED = "请先执行: drama prepare <集数>"
+ERR_NOT_PREPARED_CN = ERR_NOT_PREPARED  # 合并为统一中文消息
+
+
+# ══════════════════════════════════════════════════════════
+#  文本工具
+# ══════════════════════════════════════════════════════════
+
+def contains_non_ascii(text: str) -> bool:
+    """检查文本是否包含非 ASCII 字符（中文、日文、韩文等）"""
+    return any(ord(c) > 127 for c in text)
+
+
+def is_ascii_only(text: str) -> bool:
+    """检查文本是否只包含 ASCII 字符"""
+    return all(ord(c) < 128 for c in text)
