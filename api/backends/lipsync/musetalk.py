@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class MuseTalk:
+    """MuseTalk 口型同步后端"""
     def __init__(self, config: dict):
         self._url = config.get("api_url", "")
         if not self._url:

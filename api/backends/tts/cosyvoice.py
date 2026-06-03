@@ -8,6 +8,7 @@ from infra.http_pool import get_client
 logger = logging.getLogger(__name__)
 
 class CosyVoice:
+    """CosyVoice TTS 后端"""
     def __init__(self, config: dict):
         self._url = config.get("api_url", "")
         if not self._url:

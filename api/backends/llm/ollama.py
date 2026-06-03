@@ -20,6 +20,7 @@ def _try_learn_limits(model: str, error: Exception) -> None:
 
 
 class OllamaLLM:
+    """Ollama LLM 后端"""
     def __init__(self, config: dict):
         self._url = config.get("base_url", "")
         if not self._url:
@@ -79,6 +80,7 @@ registry.register(BackendMeta(name="ollama", service_type="llm", factory=_f,
 
 
 class OpenAICompatLLM:
+    """OpenAI 兼容 LLM 后端"""
     _MODEL_CTX_MAP = {
         "qwen3": 131072, "qwen2.5": 32768, "qwen2": 32768, "qwen": 32768,
         "deepseek-v3": 65536, "deepseek-r1": 65536, "deepseek": 32768,

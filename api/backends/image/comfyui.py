@@ -9,6 +9,7 @@ from infra.http_pool import get_client, auth_headers
 logger = logging.getLogger(__name__)
 
 class ComfyUI:
+    """ComfyUI 图像/视频生成后端"""
     def __init__(self, config: dict):
         self._url = (config.get("url") or "").rstrip("/")
         if not self._url:

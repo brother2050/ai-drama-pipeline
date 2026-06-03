@@ -56,6 +56,7 @@ class StoryboardBatchDeleteRequest(BaseModel):
 # ── 镜头步骤 ──
 
 class StepRequest(BaseModel):
+    """单镜头步骤执行请求"""
     episode: int = Field(..., ge=1, description="集数")
     shot_id: str = Field(..., min_length=1, max_length=20, description="镜头 ID")
     force: bool = Field(False, description="强制覆盖已有文件")
@@ -71,6 +72,7 @@ class StepRequest(BaseModel):
 # ── TTS ──
 
 class TTSRequest(BaseModel):
+    """语音合成请求"""
     text: str = Field(..., min_length=1, max_length=5000, description="合成文本")
     voice_config: dict | None = None
     emotion: str = Field("neutral", pattern=r"^[a-z_]+$")
@@ -80,6 +82,7 @@ class TTSRequest(BaseModel):
 # ── 后期 ──
 
 class PostRequest(BaseModel):
+    """后期合成请求"""
     episode: int = Field(..., ge=1)
     vertical: bool = False
 
@@ -87,6 +90,7 @@ class PostRequest(BaseModel):
 # ── 配乐 ──
 
 class MusicRequest(BaseModel):
+    """配乐生成请求"""
     duration: float = Field(..., gt=0, le=600, description="时长（秒）")
     mood: str = Field("neutral", max_length=50)
 
@@ -94,12 +98,14 @@ class MusicRequest(BaseModel):
 # ── 字幕 ──
 
 class SubtitleRequest(BaseModel):
+    """字幕生成请求"""
     episode: int = Field(..., ge=1)
 
 
 # ── 管线 ──
 
 class PipelineRequest(BaseModel):
+    """管线执行请求"""
     episode: int = Field(..., ge=1)
     command: str = Field("produce", pattern=r"^(preview|produce|post)$")
     level: str = Field("draft", pattern=r"^(draft|standard|high)$")
@@ -110,6 +116,7 @@ class PipelineRequest(BaseModel):
 # ── 角色 ──
 
 class CharacterData(BaseModel):
+    """角色数据（创建/更新）"""
     id: str = Field(..., min_length=1, max_length=50)
     name: str = Field("", max_length=100)
     gender: str = Field("", max_length=10)
@@ -129,6 +136,7 @@ class CharacterData(BaseModel):
 # ── 场景 ──
 
 class SceneData(BaseModel):
+    """场景数据（创建/更新）"""
     id: str = Field(..., min_length=1, max_length=50)
     name: str = Field("", max_length=100)
     description: str = Field("", max_length=2000)
@@ -146,6 +154,7 @@ class SceneData(BaseModel):
 # ── 项目 ──
 
 class ProjectCreate(BaseModel):
+    """项目创建请求"""
     name: str = Field(..., min_length=1, max_length=100)
     style: str = Field("cinematic", max_length=50, description="视觉风格")
     genre: str = Field("urban", max_length=50, description="题材类型")
@@ -159,6 +168,7 @@ class ProjectCreate(BaseModel):
 
 
 class ProjectSwitch(BaseModel):
+    """项目切换请求"""
     name: str = Field(..., min_length=1, max_length=100)
 
     @field_validator("name")
@@ -182,6 +192,7 @@ class ConfigUpdate(BaseModel):
 # ── LLM 生成 ──
 
 class StoryboardGenRequest(BaseModel):
+    """分镜 AI 生成请求"""
     episode: int = Field(1, ge=1, description="集数")
     outline: str = Field(..., min_length=10, max_length=10000, description="剧情大纲")
     duration: int = Field(90, ge=10, le=600, description="目标时长（秒）")
@@ -189,6 +200,7 @@ class StoryboardGenRequest(BaseModel):
 
 
 class CharacterGenRequest(BaseModel):
+    """角色 AI 生成请求"""
     descriptions: list[str] = Field(..., min_length=1, max_length=10, description="角色描述列表")
 
     @field_validator("descriptions")
@@ -198,6 +210,7 @@ class CharacterGenRequest(BaseModel):
 
 
 class SceneGenRequest(BaseModel):
+    """场景 AI 生成请求"""
     descriptions: list[str] = Field(..., min_length=1, max_length=10, description="场景描述列表")
 
     @field_validator("descriptions")
@@ -207,6 +220,7 @@ class SceneGenRequest(BaseModel):
 
 
 class ChatEditRequest(BaseModel):
+    """AI 对话编辑请求"""
     episode: int = Field(1, ge=1, description="集数")
     message: str = Field(..., min_length=1, description="编辑指令")
     shots: list = Field(default_factory=list, description="当前分镜表")
@@ -215,11 +229,13 @@ class ChatEditRequest(BaseModel):
 # ── Seko 影视策划案 ──
 
 class SekoProposalRequest(BaseModel):
+    """Seko 策划案生成请求"""
     prompt: str = Field(..., min_length=1, max_length=10000, description="策划案描述/故事梗概")
     api_key: str = Field("", description="Seko API Key（可选，默认从环境变量读取）")
 
 
 class SekoProposalStatusRequest(BaseModel):
+    """Seko 策划案状态查询"""
     task_id: str = Field(..., min_length=1, description="策划案任务 ID")
     api_key: str = Field("", description="Seko API Key（可选）")
     wait: bool = Field(False, description="是否轮询等待完成")
@@ -228,6 +244,7 @@ class SekoProposalStatusRequest(BaseModel):
 
 
 class SekoProposalModifyRequest(BaseModel):
+    """Seko 策划案修改请求"""
     task_id: str = Field(..., min_length=1, description="原策划案任务 ID")
     prompt: str = Field(..., min_length=1, max_length=10000, description="修改指令")
     api_key: str = Field("", description="Seko API Key（可选）")
@@ -247,6 +264,7 @@ class SekoImportRequest(BaseModel):
 # ── LoRA 训练 ──
 
 class TrainingRequest(BaseModel):
+    """LoRA 训练请求"""
     char_id: str = Field(..., min_length=1, max_length=50, description="角色 ID")
     trigger_word: str = Field("", max_length=100, description="触发词（留空自动生成）")
     steps: int = Field(600, ge=100, le=10000, description="训练步数")

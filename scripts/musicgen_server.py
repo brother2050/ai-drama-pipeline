@@ -36,6 +36,7 @@ _samplerate = 32000
 
 
 class GenRequest(BaseModel):
+    """MusicGen 生成请求"""
     prompt: str = Field(..., min_length=1, max_length=500, description="音乐描述")
     duration: int = Field(30, ge=5, le=120, description="生成时长（秒）")
 

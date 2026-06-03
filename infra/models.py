@@ -23,11 +23,13 @@ __all__ = [
 # ── 导入子模型 ──────────────────────────────────────────
 
 class ImportOutfit(BaseModel):
+    """导入服装数据"""
     description: str = Field(..., min_length=1, max_length=500)
     description_en: str = Field("", max_length=1000, description="英文服装描述（可选，跳过 prepare 翻译）")
 
 
 class ImportCharacter(BaseModel):
+    """导入角色数据"""
     id: str = Field(..., min_length=1, max_length=50)
     name: str = Field(..., min_length=1, max_length=100)
     gender: str = Field("", max_length=10)
@@ -47,6 +49,7 @@ class ImportCharacter(BaseModel):
 
 
 class ImportScene(BaseModel):
+    """导入场景数据"""
     id: str = Field(..., min_length=1, max_length=50)
     name: str = Field(..., min_length=1, max_length=100)
     description: str = Field(..., min_length=10, max_length=2000)
@@ -64,6 +67,7 @@ class ImportScene(BaseModel):
 
 
 class ImportShot(BaseModel):
+    """导入镜头数据"""
     episode: int = Field(1, ge=1)
     shot_id: str = Field(..., min_length=1, max_length=20)
     scene_id: str = Field(..., min_length=1, max_length=50)
