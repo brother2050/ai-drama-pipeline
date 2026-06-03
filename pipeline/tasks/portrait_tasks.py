@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from infra.constants import STATUS_DONE, STATUS_ERROR
 import logging
-import os
 
 from pipeline.celery_app import app
 from pipeline.tasks.helpers import _ensure_path, _init_ctx, _paths, _project_scope_from_config
