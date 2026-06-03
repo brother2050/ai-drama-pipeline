@@ -7,7 +7,6 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "find_first_node", "find_nodes_by_class", "find_load_image_nodes",
     "find_character_load_image_nodes", "find_lora_nodes",
-    "find_ip_adapter_nodes", "find_pulid_flux_nodes",
     "set_clip_text_prompts",
     "resolve_node_aliases",
 ]
@@ -68,63 +67,6 @@ def find_character_load_image_nodes(wf: dict) -> list[str]:
     if char_nodes:
         return char_nodes
     return all_nodes
-
-
-def find_ip_adapter_nodes(wf: dict) -> dict[str, list[str]]:
-    """查找所有 IP-Adapter 相关节点，按类型分组
-
-    Returns:
-        {
-            "ipadapter": ["ipadapter_xxx", ...],
-            "model_loader": ["ipadapter_model_xxx", ...],
-            "clip_vision": ["ipadapter_clip_vision_xxx", ...],
-            "ref_images": ["ipadapter_ref_xxx", ...],
-        }
-    """
-    result = {"ipadapter": [], "model_loader": [], "clip_vision": [], "ref_images": []}
-    for nid, node in wf.items():
-        if nid.startswith("_"):
-            continue
-        ct = node.get("class_type", "")
-        if ct == "IPAdapterAdvanced":
-            result["ipadapter"].append(nid)
-        elif ct == "IPAdapterModelLoader":
-            result["model_loader"].append(nid)
-        elif ct == "CLIPVisionLoader" and nid.startswith("ipadapter_"):
-            result["clip_vision"].append(nid)
-        elif ct == "LoadImage" and nid.startswith("ipadapter_ref"):
-            result["ref_images"].append(nid)
-    return result
-
-
-def find_pulid_flux_nodes(wf: dict) -> dict[str, list[str]]:
-    """查找所有 PuLID-Flux 相关节点，按类型分组
-
-    Returns:
-        {
-            "apply": ["pulid_apply_xxx", ...],
-            "model_loader": ["pulid_model_xxx", ...],
-            "insightface": ["pulid_insightface_xxx", ...],
-            "eva_clip": ["pulid_eva_clip_xxx", ...],
-            "ref_images": ["pulid_ref_xxx", ...],
-        }
-    """
-    result = {"apply": [], "model_loader": [], "insightface": [], "eva_clip": [], "ref_images": []}
-    for nid, node in wf.items():
-        if nid.startswith("_"):
-            continue
-        ct = node.get("class_type", "")
-        if ct == "ApplyPulidFlux":
-            result["apply"].append(nid)
-        elif ct == "PulidFluxModelLoader":
-            result["model_loader"].append(nid)
-        elif ct == "PulidFluxInsightFaceLoader" and nid.startswith("pulid_"):
-            result["insightface"].append(nid)
-        elif ct == "PulidFluxEvaClipLoader" and nid.startswith("pulid_"):
-            result["eva_clip"].append(nid)
-        elif ct == "LoadImage" and nid.startswith("pulid_ref"):
-            result["ref_images"].append(nid)
-    return result
 
 
 def find_lora_nodes(wf: dict) -> list[tuple[str, str]]:
