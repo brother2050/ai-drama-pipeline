@@ -640,8 +640,12 @@ class WorkflowBuilder:
 
     # ── 内部方法 ──────────────────────────────────────────
 
-    def _get_character_refs(self, char_id: str, outfit: str = "") -> list[str]:
-        """获取角色参考图路径列表（优先返回 outfit 对应的图）"""
+    def _get_character_refs(self, char_id: str, outfit: str = "", *, _no_auto_gen: bool = False) -> list[str]:
+        """获取角色参考图路径列表（优先返回 outfit 对应的图）
+
+        Args:
+            _no_auto_gen: 内部标志，禁止自动触发 ensure_portrait（防止递归）
+        """
         from engines.portrait import ensure_portrait
 
         char_dir = self._paths.character_asset_dir(char_id)
@@ -657,6 +661,8 @@ class WorkflowBuilder:
                 return sorted(refs)
 
             # outfit 目录为空，尝试触发 ensure_portrait（auto_outfit 会补充 outfit 图）
+            if _no_auto_gen:
+                return sorted(refs)
             portrait = ensure_portrait(char_id, self.config,
                                        self._get_container(),
                                        force=self.force)
@@ -676,6 +682,8 @@ class WorkflowBuilder:
             return sorted(refs)
 
         # 3. 尝试自动定妆照（主图也不存在时）
+        if _no_auto_gen:
+            return sorted(refs)
         portrait = ensure_portrait(char_id, self.config,
                                    self._get_container(),
                                    force=self.force)
