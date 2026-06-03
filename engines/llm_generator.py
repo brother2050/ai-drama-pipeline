@@ -38,7 +38,7 @@ __all__ = ["StoryboardGenParams", "generate_storyboard", "generate_characters", 
 STORYBOARD_SYSTEM = _tpl("storyboard_system")
 
 
-def generate_storyboard(llm, params: StoryboardGenParams) -> list[dict]:
+def generate_storyboard(llm: object, params: StoryboardGenParams) -> list[dict]:
     """从剧情大纲生成分镜表"""
     outline, characters, scenes = params.outline, params.characters, params.scenes
     episode, target_duration = params.episode, params.target_duration
@@ -93,7 +93,7 @@ CHARACTER_SYSTEM = _tpl("character_system")
 SCENE_SYSTEM = _tpl("scene_system")
 
 
-def generate_characters(llm, descriptions: list[str], expected_ids: list[str] | None = None) -> list[dict]:
+def generate_characters(llm: object, descriptions: list[str], expected_ids: list[str] | None = None) -> list[dict]:
     """从描述生成角色配置 — 全部成功或抛异常"""
     results = _generate_entities(llm, descriptions, expected_ids, CHARACTER_SYSTEM, "角色", max_tokens=1024)
     for char in results:

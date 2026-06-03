@@ -64,7 +64,7 @@ class WorkflowBuilder:
         self._container = cfg.container  # 完整 DI 容器（优先使用）
         self.force = cfg.force
 
-    def _get_container(self):
+    def _get_container(self) -> object:
         """获取容器：优先完整 DI 容器，回退到简单 dict"""
         if self._container:
             return self._container

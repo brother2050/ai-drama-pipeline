@@ -263,7 +263,7 @@ def _hc_handle_http(name: str, hc: dict, cfg: dict, result: dict) -> dict:
     return {"ok": True, "name": name, "message": f"{hc.get('_backend_name', name)} 连接成功 (HTTP {r.status_code})", **result}
 
 
-def _hc_handle_command(name: str, hc: dict, result: dict) -> dict:
+def _hc_handle_command(name: str, hc: dict, cfg: dict, result: dict) -> dict:
     """命令行版本检测"""
     import subprocess
     cmd = hc.get("command", name)
@@ -272,7 +272,7 @@ def _hc_handle_command(name: str, hc: dict, result: dict) -> dict:
     return {"ok": True, "name": name, "message": ver, **result}
 
 
-def _hc_handle_port(name: str, hc: dict, result: dict) -> dict:
+def _hc_handle_port(name: str, hc: dict, cfg: dict, result: dict) -> dict:
     """端口可达性检测"""
     import socket
     host = hc.get("host", "127.0.0.1")
@@ -285,7 +285,7 @@ def _hc_handle_port(name: str, hc: dict, result: dict) -> dict:
     return {"ok": True, "name": name, "message": f"{host}:{port} 可达", **result}
 
 
-def _hc_handle_celery(name: str, result: dict) -> dict:
+def _hc_handle_celery(name: str, hc: dict, cfg: dict, result: dict) -> dict:
     """Celery Worker 状态检测"""
     from pipeline.celery_app import app
     insp = app.control.inspect(timeout=3)
@@ -351,13 +351,14 @@ def _run_health_check(name: str, hc: dict, cfg: dict, result: dict, reg) -> dict
         source = "配置文件" if cfg_val else ("环境变量" if env_val else "未配置")
         return {"ok": True, "name": name, "message": f"{hc.get('_backend_name', name)} API Key ({source})", **result}
 
+    _HC_ARGS = (name, hc, cfg, result)
     _HANDLERS = {
-        "http": lambda: _hc_handle_http(name, hc, cfg, result),
-        "command": lambda: _hc_handle_command(name, hc, result),
-        "port": lambda: _hc_handle_port(name, hc, result),
-        "celery_active": lambda: _hc_handle_celery(name, result),
-        "ollama_tags": lambda: _hc_handle_ollama(name, hc, cfg, result),
-        "openai_models": lambda: _hc_handle_openai(name, hc, cfg, result),
+        "http": lambda: _hc_handle_http(*_HC_ARGS),
+        "command": lambda: _hc_handle_command(*_HC_ARGS),
+        "port": lambda: _hc_handle_port(*_HC_ARGS),
+        "celery_active": lambda: _hc_handle_celery(*_HC_ARGS),
+        "ollama_tags": lambda: _hc_handle_ollama(*_HC_ARGS),
+        "openai_models": lambda: _hc_handle_openai(*_HC_ARGS),
     }
 
     handler = _HANDLERS.get(hc_type)

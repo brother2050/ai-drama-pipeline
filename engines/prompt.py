@@ -63,7 +63,7 @@ def _split_into_batches(characters: list[dict], available_tokens: int) -> list[l
     return batches
 
 
-def _retry_failed_chars(failed_chars: list[dict], llm, all_mapping: dict) -> list[str]:
+def _retry_failed_chars(failed_chars: list[dict], llm: object, all_mapping: dict) -> list[str]:
     """降级逐角色重试，返回仍然失败的 char_id 列表"""
     still_failed = []
     for char in failed_chars:
@@ -77,7 +77,7 @@ def _retry_failed_chars(failed_chars: list[dict], llm, all_mapping: dict) -> lis
     return still_failed
 
 
-def batch_generate_appearance_prompts(characters: list[dict], llm) -> dict[str, dict]:
+def batch_generate_appearance_prompts(characters: list[dict], llm: object) -> dict[str, dict]:
     """批量生成角色模型友好 prompt — 全部成功或抛异常"""
     if not characters or not llm:
         return {}
@@ -117,7 +117,7 @@ def batch_generate_appearance_prompts(characters: list[dict], llm) -> dict[str, 
     return all_mapping
 
 
-def _estimate_context_length(llm) -> int:
+def _estimate_context_length(llm: object) -> int:
     """估算 LLM 可用上下文长度
 
     优先级：
@@ -131,7 +131,7 @@ def _estimate_context_length(llm) -> int:
     return 8192
 
 
-def _generate_prompt_batch_with_retry(characters: list[dict], llm, max_retries: int = 3) -> dict[str, dict]:
+def _generate_prompt_batch_with_retry(characters: list[dict], llm: object, max_retries: int = 3) -> dict[str, dict]:
     """处理单批角色 prompt 生成（带指数退避重试）
 
     Args:
@@ -165,7 +165,7 @@ def _generate_prompt_batch_with_retry(characters: list[dict], llm, max_retries: 
     return {}
 
 
-def _generate_prompt_batch(characters: list[dict], llm) -> dict[str, dict]:
+def _generate_prompt_batch(characters: list[dict], llm: object) -> dict[str, dict]:
     """处理单批角色 prompt 生成（单次调用）"""
     parts = []
     for i, char in enumerate(characters):
@@ -374,7 +374,7 @@ def _get_translate_system() -> str:
     return _get_template("translate_system") or "You are a professional translator. Output only the translation, no explanations."
 
 
-def translate_to_english(text: str, llm=None) -> str:
+def translate_to_english(text: str, llm: object = None) -> str:
     """中文→英文翻译（LLM）"""
     if not text:
         return ""
@@ -396,7 +396,7 @@ def _get_batch_translate_system() -> str:
     return _get_template("batch_translate_system") or "You are a professional translator. The user will send numbered Chinese texts.\nTranslate each to English. Output ONLY the translations, one per line, keeping the same numbering.\nDo not add explanations. If a line is already English, output it unchanged."
 
 
-def batch_translate_to_english(texts: list[str], llm=None) -> list[str]:
+def batch_translate_to_english(texts: list[str], llm: object = None) -> list[str]:
     """批量中→英翻译（自适应分批，token 感知）"""
     if not llm:
         return [translate_to_english(t, llm=None) for t in texts]
@@ -446,7 +446,7 @@ def _parse_numbered_lines(raw: str) -> dict:
     return parsed
 
 
-def _merge_translate_results(results, batch_items, batch_result) -> None:
+def _merge_translate_results(results: list[str], batch_items: list[tuple[int, str]], batch_result: dict) -> None:
     """合并批次翻译结果，未翻译的回退单条翻译"""
     offset = 0
     for batch_idx, batch_data in enumerate(batch_result["results"]):
