@@ -91,34 +91,11 @@ def test_postgres_database():
         return
 
     from infra.database.pool import PgPool
-    from infra.database import characters, episodes, scenes
     from infra.database import storyboard_db
 
     pool = PgPool(dsn)
 
     try:
-        # 角色
-        characters.upsert(pool, "test_char", {
-            "name": "测试角色", "appearance": "黑色头发",
-            "reference_images": ["a.png"]
-        })
-        chars = characters.get_all(pool)
-        assert any(c["name"] == "测试角色" for c in chars)
-
-        char = characters.get_by_id(pool, "test_char")
-        assert char is not None
-        assert char["id"] == "test_char"
-
-        # 集
-        episodes.upsert(pool, 999, {"title": "测试集", "status": "done", "shot_count": 3})
-        eps = episodes.get_all(pool)
-        assert any(e["episode"] == 999 for e in eps)
-
-        # 场景
-        scenes.upsert(pool, "test_scene", {"name": "测试客厅", "description": "现代客厅", "lighting": "暖光"})
-        sc = scenes.get_all(pool)
-        assert any(s["id"] == "test_scene" for s in sc)
-
         # 镜头
         storyboard_db.upsert_shot(pool, 999, "001", {
             "scene_id": "test_scene", "characters": "test_char",
@@ -137,9 +114,6 @@ def test_postgres_database():
             try:
                 cur = conn.cursor()
                 cur.execute("DELETE FROM shots WHERE episode = 999")
-                cur.execute("DELETE FROM episodes WHERE episode = 999")
-                cur.execute("DELETE FROM characters WHERE id = 'test_char'")
-                cur.execute("DELETE FROM scenes WHERE id = 'test_scene'")
                 conn.commit()
             finally:
                 pool.release(conn)

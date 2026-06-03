@@ -85,13 +85,11 @@ def delete_episode(episode: int) -> dict:
     removed_shots = 0
     try:
         from infra.database.storyboard_db import delete_episode as db_delete_ep
-        from infra.database.episodes import delete as db_delete_episode
         from infra.database.generation import clear_episode
         pool = _get_pool()
-        # 单事务：shots → generation_status → episode
+        # 单事务：shots → generation_status
         removed_shots = db_delete_ep(pool, episode)
         clear_episode(pool, episode)
-        db_delete_episode(pool, episode)
     except Exception as e:
         logger.warning(f"DB 删除失败: {e}")
     ep_dir = p.episode_dir(episode)

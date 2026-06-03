@@ -1,7 +1,6 @@
 """后期合成 — 拼接、转场、字幕、配乐、横转竖"""
 from __future__ import annotations
 
-from infra.constants import STATUS_DONE
 import argparse
 import logging
 import os
@@ -137,8 +136,8 @@ def _rename_final(concat_out: Path, episode: int, out_dir: Path) -> Path:
     return final_out
 
 
-def _cleanup_and_update_db(out_dir: Path, episode: int, final_out: Path, shot_count: int):
-    """清理中间文件 + 更新 DB 状态"""
+def _cleanup_and_update_db(out_dir: Path, episode: int, final_out: Path):
+    """清理中间文件"""
     if final_out.exists():
         for name in ["_concat.mp4", "_subtitled.mp4", "_with_bgm.mp4", "_vertical.mp4"]:
             intermediate = out_dir / f"episode_{episode:02d}{name}"
@@ -147,14 +146,7 @@ def _cleanup_and_update_db(out_dir: Path, episode: int, final_out: Path, shot_co
                     intermediate.unlink()
                 except OSError as e:
                     logger.debug(f"{type(e).__name__}: {e}")
-    try:
-        from infra.database.pool import get_pool
-        from infra.database.episodes import upsert as db_upsert_episode
-        db_upsert_episode(get_pool(), episode, {
-            "title": f"第{episode}集", "status": STATUS_DONE, "shot_count": shot_count,
-        })
-    except Exception as e:
-        logger.warning(f"数据库状态更新失败: {e}")
+    # episodes 表已移除，集状态由 shots 表实时聚合
 
 
 def run_post(config_path: str, episode: int, vertical: bool = False, cfg=None) -> None:
@@ -206,7 +198,7 @@ def run_post(config_path: str, episode: int, vertical: bool = False, cfg=None) -
     final_out = _rename_final(concat_out, episode, out_dir)
 
     logger.info("后期合成完成")
-    _cleanup_and_update_db(out_dir, episode, final_out, len(videos))
+    _cleanup_and_update_db(out_dir, episode, final_out)
 
 
 def main() -> None:

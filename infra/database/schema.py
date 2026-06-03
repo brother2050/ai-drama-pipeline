@@ -2,41 +2,6 @@
 from __future__ import annotations
 
 SCHEMA_SQL = """
-CREATE TABLE IF NOT EXISTS characters (
-    project TEXT NOT NULL DEFAULT 'default',
-    id TEXT NOT NULL,
-    name TEXT DEFAULT '',
-    gender TEXT DEFAULT '',
-    appearance TEXT DEFAULT '',
-    outfits TEXT DEFAULT '{}',
-    voice_config TEXT DEFAULT '{}',
-    reference_images TEXT DEFAULT '[]',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (project, id)
-);
-
-CREATE TABLE IF NOT EXISTS scenes (
-    project TEXT NOT NULL DEFAULT 'default',
-    id TEXT NOT NULL,
-    name TEXT DEFAULT '',
-    description TEXT DEFAULT '',
-    lighting TEXT DEFAULT '',
-    reference_images TEXT DEFAULT '[]',
-    depth_map TEXT DEFAULT '',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (project, id)
-);
-
-CREATE TABLE IF NOT EXISTS episodes (
-    project TEXT NOT NULL DEFAULT 'default',
-    episode INTEGER NOT NULL,
-    title TEXT DEFAULT '',
-    status TEXT DEFAULT 'pending',
-    shot_count INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (project, episode)
-);
-
 CREATE TABLE IF NOT EXISTS shots (
     project TEXT NOT NULL DEFAULT 'default',
     episode INTEGER NOT NULL,
@@ -85,7 +50,6 @@ CREATE TABLE IF NOT EXISTS comfyui_assets (
 -- 索引：高频查询路径
 CREATE INDEX IF NOT EXISTS idx_shots_project_episode ON shots (project, episode);
 CREATE INDEX IF NOT EXISTS idx_generation_status_pending ON generation_status (project, episode, stage, status);
-CREATE INDEX IF NOT EXISTS idx_episodes_project ON episodes (project);
 """
 
 
