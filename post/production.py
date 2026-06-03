@@ -136,7 +136,7 @@ def _rename_final(concat_out: Path, episode: int, out_dir: Path) -> Path:
     return final_out
 
 
-def _cleanup_and_update_db(out_dir: Path, episode: int, final_out: Path):
+def _cleanup_and_update_db(out_dir: Path, episode: int, final_out: Path) -> None:
     """清理中间文件"""
     if final_out.exists():
         for name in ["_concat.mp4", "_subtitled.mp4", "_with_bgm.mp4", "_vertical.mp4"]:
