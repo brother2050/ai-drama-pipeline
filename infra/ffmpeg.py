@@ -23,7 +23,7 @@ def probe(path: str) -> dict[str, Any]:
     cmd = [_FFPROBE, "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", path]
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
-        raise RuntimeError(f"ffprobe failed: {r.stderr[:200]}")
+        raise RuntimeError(f"媒体信息读取失败: {r.stderr[:200]}")
     return json.loads(r.stdout)
 
 
@@ -56,7 +56,7 @@ class FFmpeg:
         logger.debug(f"ffmpeg: {' '.join(self._args)}")
         r = subprocess.run(self._args, capture_output=True, text=True, timeout=self._timeout)
         if r.returncode != 0:
-            raise RuntimeError(f"ffmpeg failed (exit {r.returncode}): {r.stderr[-500:]}")
+            raise RuntimeError(f"FFmpeg 执行失败 (exit {r.returncode}): {r.stderr[-500:]}")
         return getattr(self, "_output", "")
 
     @staticmethod
@@ -83,7 +83,7 @@ class FFmpeg:
                        "-c", "copy", output]
                 r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
                 if r.returncode != 0:
-                    raise RuntimeError(f"concat failed: {r.stderr[-300:]}")
+                    raise RuntimeError(f"视频拼接失败: {r.stderr[-300:]}")
             finally:
                 if os.path.exists(list_file):
                     os.unlink(list_file)

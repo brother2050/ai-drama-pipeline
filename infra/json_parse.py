@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 __all__ = ["parse_llm_json", "llm_call_with_retry"]
 
 
-def llm_call_with_retry(llm, prompt: str, system: str, label: str,
+def llm_call_with_retry(llm: object, prompt: str, system: str, label: str,
                         max_tokens: int = 4096, retries: int = 3) -> list | dict | None:
     """LLM 调用 + 重试 + JSON 解析（共享工具，消除 llm_generator/shot_calibrator 重复）
 
@@ -178,7 +178,7 @@ def _extract_json_block(text: str) -> object | None:
     return None
 
 
-def parse_llm_json(text: str):
+def parse_llm_json(text: str) -> object | None:
     """从 LLM 响应中提取 JSON（容错：markdown 代码块、前后多余文字、截断修复）"""
     if not text:
         return None
