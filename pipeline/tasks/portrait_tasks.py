@@ -86,26 +86,6 @@ def outfit_single_task(self, config_path: str, char_id: str, outfit_key: str) ->
         return _outfit_single_inner(self, config_path, char_id, outfit_key)
 
 
-def _update_outfit_reference(char_yaml, char_id: str, outfit_key: str, img_url: str) -> None:
-    """更新服装 YAML 中的 reference_images"""
-    try:
-        data = load_yaml_full(char_yaml)
-        char = data.get("character", {})
-        outfits_data = char.get("outfits", {})
-        if isinstance(outfits_data, dict) and outfit_key in outfits_data:
-            outfit_val = outfits_data[outfit_key]
-            outfit_val.setdefault("reference_images", [])
-            prefix = f"/api/assets/characters/{char_id}/{outfit_key}/cover"
-            outfit_val["reference_images"] = [u for u in outfit_val["reference_images"] if not u.startswith(prefix)]
-            outfit_val["reference_images"].append(img_url)
-        char["outfits"] = outfits_data
-        data["character"] = char
-        from infra.config import save_yaml
-        save_yaml(char_yaml, data)
-    except Exception as e:
-        logger.debug(f"更新 outfit reference_images 跳过: {e}")
-
-
 def _validate_outfit(char: dict, char_id: str, outfit_key: str) -> tuple[str, str | None]:
     """校验服装有效性 → (outfit_desc_en, error_or_None)"""
     appearance_en = char.get("appearance_prompt_en", "")
@@ -128,48 +108,8 @@ def _validate_outfit(char: dict, char_id: str, outfit_key: str) -> tuple[str, st
     return desc_en, None
 
 
-def _build_and_generate_outfit(comfyui, wb, char_id: str, outfit_key: str,
-                               full_desc: str, outfit_seed: int, outfit_dir: Path,
-                               old_imgs: list, paths) -> tuple[str | None, str | None]:
-    """构建工作流 + 上传参考图 + 生成 → (img_url, error)"""
-    fake_shot = {"characters": char_id, "emotion": "neutral", "shot_type": "全身", "camera": "固定"}
-    _, wf = wb.build_first_frame(fake_shot, character_desc=full_desc, seed=outfit_seed)
-    if not wf:
-        return None, "首帧工作流为空（缺少模板）"
-
-    cover_ref = paths.character_asset_dir(char_id) / "cover.png"
-    if cover_ref.exists():
-        from engines.workflow import find_character_load_image_nodes
-        from infra.asset_tracker import comfyui_asset_name, AssetTracker
-        char_nodes = find_character_load_image_nodes(wf)
-        if char_nodes:
-            remote_name = comfyui_asset_name(str(paths.root), char_id, os.path.basename(str(cover_ref)))
-            wf[char_nodes[0]]["inputs"]["image"] = remote_name
-            try:
-                AssetTracker(str(paths.root)).upload_if_needed(comfyui, str(cover_ref), remote_name, comfyui.url)
-            except Exception as e:
-                logger.warning(f"参考图上传失败: {e}")
-
-    try:
-        files = comfyui.generate(wf, str(outfit_dir))
-    except Exception as e:
-        return None, f"ComfyUI 生成失败: {e}"
-    if not files:
-        return None, "ComfyUI 未返回任何图片"
-
-    for old_img in old_imgs:
-        try: old_img.unlink()
-        except OSError: pass
-
-    cover_path = outfit_dir / "cover.png"
-    os.replace(files[0], str(cover_path))
-    return f"/api/assets/characters/{char_id}/{outfit_key}/cover.png", None
-
-
 def _outfit_single_inner(self, config_path: str, char_id: str, outfit_key: str) -> dict:
-    """outfit_single 核心逻辑（在 project_scope 内执行）"""
-    from engines.workflow_builder import WorkflowBuilder, WorkflowBuilderConfig
-
+    """outfit_single 核心逻辑（委托给 engines/portrait.py）"""
     self.update_state(state="PROGRESS", meta={"step": "outfit", "progress": 10, "message": f"生成 {char_id}/{outfit_key} 服装图..."})
     cfg, cont = _init_ctx(config_path)
     paths = _paths(config_path)
@@ -178,40 +118,37 @@ def _outfit_single_inner(self, config_path: str, char_id: str, outfit_key: str) 
     if not char_yaml.exists():
         return {"status": STATUS_ERROR, "reason": f"角色 {char_id} 不存在"}
 
-    with open(char_yaml, encoding="utf-8") as f:
-        data = load_yaml_full(f)
-    char = data.get("character", {})
-
+    char = load_yaml_full(char_yaml).get("character", {})
     outfit_desc_en, err = _validate_outfit(char, char_id, outfit_key)
     if err:
         return {"status": STATUS_ERROR, "reason": err}
 
-    try:
-        comfyui = cont.get("image")
-    except Exception as e:
-        return {"status": STATUS_ERROR, "reason": f"ComfyUI 不可用: {e}"}
-
-    outfit_dir = paths.character_outfit_dir(char_id, outfit_key)
-    outfit_dir.mkdir(parents=True, exist_ok=True)
-    old_imgs = list(outfit_dir.glob("*.png")) + list(outfit_dir.glob("*.jpg"))
-
-    full_desc = f"{char.get('appearance_prompt_en', '')}, wearing {outfit_desc_en}"
-    wb = WorkflowBuilder(WorkflowBuilderConfig(config=cfg.data, models=cfg.get("models", {}),
-                                                project_dir=str(paths.root), comfyui=comfyui))
-    wb.load_workflows()
-
-    from engines.portrait import _outfit_seed
-    outfits = char.get("outfits", {})
-    outfit_seed = _outfit_seed(char_id, char.get("portrait_generation", 0), list(outfits.keys()).index(outfit_key))
-
     self.update_state(state="PROGRESS", meta={"step": "outfit", "progress": 50, "message": "ComfyUI 生成中..."})
-    img_url, gen_err = _build_and_generate_outfit(comfyui, wb, char_id, outfit_key, full_desc,
-                                                  outfit_seed, outfit_dir, old_imgs, paths)
-    if gen_err:
-        return {"status": STATUS_ERROR, "reason": gen_err}
+    try:
+        from engines.portrait import _generate_single_outfit, _outfit_seed
+        comfyui = cont.get("image")
+        from engines.workflow_builder import WorkflowBuilder, WorkflowBuilderConfig
+        wb = WorkflowBuilder(WorkflowBuilderConfig(config=cfg.data, models=cfg.get("models", {}),
+                                                    project_dir=str(paths.root), comfyui=comfyui))
+        wb.load_workflows()
 
-    _update_outfit_reference(char_yaml, char_id, outfit_key, img_url)
-    return {"status": STATUS_DONE, "url": img_url, "char_id": char_id, "outfit": outfit_key}
+        outfits = char.get("outfits", {})
+        generation = char.get("portrait_generation", 0)
+        outfit_idx = list(outfits.keys()).index(outfit_key)
+        seed = _outfit_seed(char_id, generation, outfit_idx)
+        cover_path = paths.character_asset_dir(char_id) / "cover.png"
+
+        url = _generate_single_outfit(
+            comfyui, wb, char_id, outfit_key, outfit_desc_en,
+            char.get("appearance_prompt_en", ""),
+            paths.character_asset_dir(char_id), cover_path,
+            str(paths.root), seed)
+
+        if url:
+            return {"status": STATUS_DONE, "url": url, "char_id": char_id, "outfit": outfit_key}
+        return {"status": STATUS_ERROR, "reason": "ComfyUI 未返回任何图片"}
+    except Exception as e:
+        return {"status": STATUS_ERROR, "reason": f"ComfyUI 生成失败: {e}"}
 
 
 @app.task(bind=True, name="pipeline_outfits_batch", soft_time_limit=600)

@@ -44,11 +44,7 @@ def get_root() -> Path:
 def deep_merge(base: dict, override: dict) -> dict:
     """深度合并 override 到 base 中（返回新 dict，不修改原对象）"""
     result = copy.deepcopy(base)
-    for key, value in override.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
-            result[key] = deep_merge(result[key], value)
-        else:
-            result[key] = value
+    Config._deep_merge_inplace(result, override)
     return result
 
 
@@ -468,19 +464,8 @@ class Config:
 
     @staticmethod
     def _find_config() -> str:
-        """查找配置文件（活动项目优先，回退到 projects/default/）"""
-        # 1. 检查 .active 指向的项目
-        active_file = projects_dir() / ".active"
-        if active_file.exists():
-            d = active_file.read_text().strip()
-            cfg = Path(d) / "config" / "project.yaml"
-            if cfg.exists():
-                return str(cfg)
-        # 2. 回退到默认项目
-        cfg = projects_dir() / "default" / "config" / "project.yaml"
-        if cfg.exists():
-            return str(cfg)
-        raise FileNotFoundError("未找到 config/project.yaml，请先初始化默认项目")
+        """查找配置文件（委托给 resolve_project_config）"""
+        return resolve_project_config()
 
     def _merge(self, path: str) -> dict:
         """合并默认配置 + 注册表默认值 + 系统全局配置 + 项目配置"""
