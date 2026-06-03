@@ -20,7 +20,6 @@ from pathlib import Path
 
 from engines.workflow import (
     find_character_load_image_nodes, find_first_node, find_nodes_by_class,
-    find_ip_adapter_nodes,
 )
 
 logger = logging.getLogger(__name__)

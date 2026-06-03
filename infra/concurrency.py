@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed, Future
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Callable
 
 logger = logging.getLogger(__name__)

@@ -322,26 +322,3 @@ class StoryboardSaveRequest(BaseModel):
 # ══════════════════════════════════════════════════════════
 
 # 翻译字段映射 — 唯一真相源
-# 中文字段名 → 英文字段名，用于：
-# 1. Import* 模型定义（schema 自动生成）
-# 2. prepare 阶段跳过已翻译字段
-# 3. 导入后报告翻译状态
-TRANSLATED_FIELDS: dict[str, dict[str, str]] = {
-    "character": {
-        "appearance": "appearance_prompt_en",
-        # 视角 prompt 由 appearance_prompt_en 派生，不单独映射
-    },
-    "character.outfits.*": {
-        "description": "description_en",
-    },
-    "scene": {
-        "description": "description_en",
-        "lighting": "lighting_en",
-    },
-    "shot": {
-        "action": "action_en",
-        "dialogue": "dialogue_en",
-    },
-}
-
-# 视角 prompt 字段（由 LLM 一次性生成，跟随 appearance_prompt_en）

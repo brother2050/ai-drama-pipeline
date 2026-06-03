@@ -564,7 +564,6 @@ def project_list() -> None:
 @click.option("--list-presets", is_flag=True, help="列出所有可用的 style 和 genre 预设")
 def project_new(name, style, genre, list_presets):
     if list_presets:
-        import yaml
         sys_path = SYSTEM_CONFIG_PATH
         if sys_path.exists():
             data = load_yaml_full(sys_path)
@@ -658,7 +657,6 @@ def env() -> None:
         active = get_active_project_dir(ROOT)
         cfg_file = ProjectPaths(active).project_yaml
         if cfg_file.exists():
-            import yaml
             data = load_yaml_full(cfg_file)
             proj_name = data.get("project", {}).get("name", active.name)
         else:

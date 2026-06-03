@@ -5,7 +5,6 @@ from infra.config import load_yaml_full
 import logging
 import os
 import re
-import yaml
 from pathlib import Path
 
 from fastapi import APIRouter, Body, Depends, HTTPException

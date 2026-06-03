@@ -506,7 +506,6 @@ def test_pipeline_tasks_imports():
         "pipeline.tasks.steps",
         "pipeline.tasks.pipeline",
         "pipeline.tasks.ai",
-        "pipeline.tasks.misc",
         "pipeline.tasks.portrait_tasks",
         "pipeline.tasks.media_tasks",
         "pipeline.tasks.training_tasks",

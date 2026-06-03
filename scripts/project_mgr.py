@@ -334,7 +334,7 @@ def _delete_by_project_name(pool, project: str) -> None:
     """按 project 名直接删除所有 DB 表记录（不依赖 YAML 文件）"""
     from infra.database._db import query
 
-    _VALID_TABLES = {"generation_status", "shots", "comfyui_assets"}
+    _VALID_TABLES = {"generation_status", "shots"}
     tables_and_key = [
         ("generation_status", "project"),
         ("shots", "project"),
