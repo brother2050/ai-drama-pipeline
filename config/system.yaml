@@ -1,0 +1,197 @@
+comfyui:
+  url: http://127.0.0.1:8188
+  api_key: ''
+  # 本机 ComfyUI 安装目录（用于 LoRA 文件检测，不填则自动搜索 ~/ComfyUI/models/）
+  models_dir: ''
+# 本地优先策略：true 时优先使用本地部署的后端（gpt-sovits/cosyvoice/musetalk 等）
+# 适合有本地模型的用户，无网络也能工作
+local_first: false
+models:
+  image_backend: cosmos
+  video_backend: cosmos-video
+  tts_backend: mimo-voicedesign
+  lip_sync_backend: musetalk
+  music_backend: template
+  gpt_sovits:
+    api_url: http://127.0.0.1:9880
+  musetalk:
+    api_url: http://127.0.0.1:8080
+  wav2lip:
+    api_url: http://127.0.0.1:8084
+llm:
+  enabled: false
+  backend: openai
+  base_url: https://api.siliconflow.cn
+  model: Qwen/Qwen2.5-7B-Instruct
+  api_key: ''
+  # context_length: 32768  # 模型上下文长度（token 数，不填则自动检测。常见值：8K/32K/128K）
+training:
+  enabled: false
+  backend: ai-toolkit
+  api_url: http://127.0.0.1:7860
+  api_key: ''
+  poll_interval: 10
+  defaults:
+    steps: 600
+    learning_rate: 0.0001
+    rank: 16
+    conv_dim: 16
+    resolution: 512x768
+    base_model: ostris/Flex.1-alpha
+    arch: ''
+    quantize_type: qfloat8
+    timestep_type: sigmoid
+    save_format: diffusers
+    use_ema: false
+server:
+  port: 8888
+  host: 0.0.0.0
+  cors_origin: '*'
+seko:
+  api_key: ''
+post_production:
+  transition: crossfade
+  transition_duration: 0.5
+  bgm_volume: 0.15
+  subtitle_platform: douyin
+  # 双语字幕：中文+英文双行显示（需先运行 prepare 生成 dialogue_en）
+  bilingual_subtitle: false
+# 角色面部一致性方案（与 image_backend 解耦，独立选择）
+# 可选值: auto / pulid_flux / ip_adapter / none
+#   auto:        根据 image_backend 自动选择（flux→pulid_flux, sd15/sdxl→ip_adapter, cosmos→none）
+#   pulid_flux:  PuLID-Flux（需要 Flux 后端 + ComfyUI-PuLID-Flux 自定义节点）
+#   ip_adapter:  IP-Adapter Plus（需要 SD1.5/SDXL 后端 + ComfyUI_IPAdapter_plus 自定义节点）
+#   none:        不使用一致性方案（仅靠 LoRA + seed）
+consistency_method: auto
+
+ip_adapter:
+  enabled: true
+  # ⚠️ IP-Adapter Plus 仅支持 SD1.5/SDXL 后端（UNet 架构）
+  # Cosmos/Flux（DiT 架构）不兼容，请使用 LoRA 训练代替
+  # 切换后端: models.image_backend: sd15
+  #
+  # IP-Adapter 模型（放入 ComfyUI/models/ipadapter/）
+  # SD1.5 推荐: ip-adapter-plus-face_sd15.safetensors + CLIP-ViT-H-14
+  # SDXL 推荐:  ip-adapter-plus-face_sdxl_vit-h.safetensors + CLIP-ViT-bigG-14
+  model: "ip-adapter-plus-face_sd15.safetensors"
+  # CLIP Vision 模型（放入 ComfyUI/models/clip_vision/）
+  # SD1.5 配 CLIP-ViT-H-14, SDXL 配 CLIP-ViT-bigG-14
+  clip_vision: "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
+  # 主角色参考图权重（0.0-1.0，越高越像参考图）
+  weight: 0.75
+  # 多角色时次要角色权重（自动计算或手动指定）
+  secondary_weight: 0.45
+  # 权重类型: linear / ease in / ease out / ease in-out / reverse / weak input / weak output / style transfer
+  weight_type: "linear"
+  # 融合方式: concat / add / subtract / average / norm / cosine
+  combine_embeds: "concat"
+  # IP-Adapter 生效的去噪范围
+  start_at: 0.0
+  end_at: 1.0
+  # 嵌入缩放: all / v only / k+v (v only 对面部一致性最好)
+  embeds_scaling: "V only"
+
+pulid_flux:
+  enabled: true
+  # PuLID Flux 模型（放入 ComfyUI/models/pulid/）
+  # 下载: https://huggingface.co/guozinan/PuLID/resolve/main/pulid_flux_v0.9.0.safetensors
+  model: "pulid_flux_v0.9.0.safetensors"
+  # 面部一致性权重（推荐 0.8-0.95，1.0 过拟合）
+  weight: 0.9
+  # PuLID 生效的去噪范围
+  start_at: 0.0
+  end_at: 1.0
+  # 融合方法: mean / concat / max / max_token / train_weight
+  fusion: "mean"
+  # 灰度优化（边缘轮廓优化）
+  use_gray: true
+
+timeouts:
+  comfyui: 900
+  tts: 60
+  lipsync: 120
+  llm: 300
+  music: 120
+# 分辨率和步数：默认使用各工作流 JSON 中的模型原生值，无需配置
+# 如需覆盖比例，取消注释并修改（代码自动根据后端原生分辨率计算）：
+# generation:
+#   aspect_ratio: "16:9"      # 横屏（默认）
+#   aspect_ratio: "9:16"      # 竖屏
+#   aspect_ratio: "1:1"       # 方形
+#   resolution: [576, 1024]   # 或精确值（优先级高于 aspect_ratio）
+#   image_steps: 35           # 覆盖步数
+
+# ── 预设（可自由添加，提示词生成器会动态读取） ──
+presets:
+  styles:
+    cinematic: "电影质感 — 专业打光、宽银幕构图、电影色调"
+    anime: "动漫风格 — 日系画风、鲜艳色彩、夸张表情"
+    realistic: "写实风格 — 真实光影、自然色彩、纪录片质感"
+    noir: "黑色电影 — 暗调光影、高对比度、冷峻氛围"
+    fantasy: "奇幻风格 — 魔法元素、华丽特效、异世界感"
+    vintage: "复古风格 — 胶片质感、暖色调、怀旧氛围"
+    minimalist: "极简风格 — 干净画面、留白构图、淡雅色调"
+    cyberpunk: "赛博朋克 — 霓虹灯光、科技感、暗色调"
+    watercolor: "水彩风格 — 柔和晕染、通透色彩、手绘质感"
+    ink_wash: "水墨风格 — 东方意境、留白泼墨、古典韵味"
+    comic: "漫画风格 — 粗线条、网点纸、分镜感"
+    oil_painting: "油画风格 — 厚涂笔触、浓郁色彩、古典构图"
+    steampunk: "蒸汽朋克 — 齿轮机械、铜色金属、维多利亚风"
+    pop_art: "波普艺术 — 高饱和、拼贴感、商业视觉"
+    glitch: "故障艺术 — 数字失真、RGB偏移、科技废墟感"
+    dream: "梦幻风格 — 柔焦朦胧、粉紫色调、超现实"
+    dark: "暗黑风格 — 低饱和、阴郁氛围、哥特元素"
+    pixel: "像素风格 — 复古游戏、8-bit、点阵画面"
+  genres:
+    urban: "都市情感 — 现代城市背景、职场/恋爱/家庭"
+    suspense: "悬疑推理 — 悬念迭起、推理破案、心理博弈"
+    romance: "甜蜜恋爱 — 浪漫邂逅、甜蜜互动、情感纠葛"
+    action: "动作热血 — 激烈打斗、追逐场面、英雄主义"
+    comedy: "轻松喜剧 — 幽默搞笑、反转误会、欢乐日常"
+    horror: "惊悚恐怖 — 阴森氛围、恐怖元素、心理压迫"
+    scifi: "科幻未来 — 太空/未来/科技、赛博元素"
+    historical: "古装历史 — 古代背景、宫廷/武侠/历史"
+    campus: "校园青春 — 校园生活、青春成长、同学情谊"
+    family: "家庭温情 — 亲情温暖、家庭矛盾、成长治愈"
+    fantasy_xuanhuan: "玄幻仙侠 — 修仙升级、法术对决、异界大陆"
+    wuxia: "武侠江湖 — 刀光剑影、侠义恩仇、武林纷争"
+    mythology: "神话传说 — 上古神兽、天宫地府、仙魔大战"
+    adventure: "冒险探索 — 未知世界、寻宝探险、极限挑战"
+    workplace: "职场商战 — 商业博弈、创业奋斗、办公室政治"
+    sports: "体育竞技 — 热血赛场、逆袭夺冠、团队拼搏"
+    music_dance: "音乐舞蹈 — 舞台梦想、唱跳练习、偶像成长"
+    slice_of_life: "日常治愈 — 慢节奏、小确幸、温馨日常"
+    thriller: "惊悚犯罪 — 高智商犯罪、心理博弈、正邪对决"
+    war_military: "战争军事 — 战场硝烟、军人荣耀、生死抉择"
+    period: "年代怀旧 — 80/90年代、老街旧巷、时代记忆"
+    children: "儿童亲子 — 童趣故事、寓教于乐、温馨陪伴"
+
+  # ── 景别预设（提示词中 ${shot_types} 会替换为此列表） ──
+  shot_types:
+    特写: "面部/物体细节，情感冲击最强"
+    近景: "胸以上，对话/内心戏"
+    中景: "腰以上，日常交互/动作展示"
+    过肩: "双人对话，增强对话感"
+    全身: "完整人物，展示服装/姿态/动作"
+    全景: "人物+环境，建立空间关系"
+    远景: "环境为主，交代场景/营造氛围"
+
+  # ── 运镜预设（提示词中 ${cameras} 会替换为此列表） ──
+  cameras:
+    固定: "稳定叙事/对话场景/静态画面"
+    缓慢推近: "聚焦情绪/揭示细节/营造压迫感"
+    跟随平移: "角色行走/场景转换/动态叙事"
+    手持晃动: "紧张感/纪实感/追逐场景"
+    环绕: "展示全貌/仪式感/角色独白"
+    俯视: "渺小感/全局视角/上帝视角"
+    仰视: "威严感/压迫感/英雄登场"
+
+  # ── 情绪预设（提示词中 ${emotions} 会替换为此列表） ──
+  emotions:
+    happy: "开心"
+    sad: "悲伤"
+    worried: "担忧"
+    surprised: "惊讶"
+    angry: "愤怒"
+    calm: "平静"
+    neutral: "中性/无明显情绪"

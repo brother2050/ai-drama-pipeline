@@ -1,0 +1,181 @@
+"""分镜表数据库操作 — 按项目隔离（project 自动从 .active 获取）"""
+
+
+from __future__ import annotations
+
+import csv
+import logging
+from pathlib import Path
+
+from infra.database._db import query, row_to_dict, safe_float, _get_project
+
+logger = logging.getLogger(__name__)
+
+__all__ = ["get_episode_shots", "get_all_episodes", "get_episodes_summary", "get_all_shots", "save_episode_shots", "upsert_shot", "delete_episode", "delete_shot", "batch_delete_shots", "export_to_csv"]
+
+STORYBOARD_FIELDNAMES = [
+    "episode", "shot_id", "scene_id", "characters", "action", "dialogue",
+    "camera", "shot_type", "duration", "outfit", "emotion",
+    "action_en", "dialogue_en", "language",
+]
+
+# ── SQL 模板（INSERT/UPDATE 共用）──
+_INSERT_COLS = (
+    "project", "episode", "shot_id", "scene_id", "characters",
+    "action", "dialogue", "action_en", "dialogue_en",
+    "camera", "shot_type", "duration", "emotion", "outfit", "language",
+)
+_UPSERT_SET = ", ".join(
+    f"{c}=EXCLUDED.{c}" for c in _INSERT_COLS if c not in ("project", "episode", "shot_id")
+)
+
+
+def _values(project: str, episode: int, shot: dict) -> tuple:
+    """从镜头字典提取参数元组"""
+    return (
+        project, episode, shot.get("shot_id", ""), shot.get("scene_id", ""),
+        shot.get("characters", ""), shot.get("action", ""), shot.get("dialogue", ""),
+        shot.get("action_en", ""), shot.get("dialogue_en", ""),
+        shot.get("camera", ""), shot.get("shot_type", ""),
+        safe_float(shot.get("duration", 4)), shot.get("emotion", ""),
+        shot.get("outfit", ""), shot.get("language", "zh"),
+    )
+
+
+# ── 读取 ──
+
+def get_episode_shots(pool, episode: int) -> list[dict]:
+    """获取指定集的所有镜头（按 shot_id 排序）"""
+    project = _get_project()
+    with query(pool, dict_mode=True, commit=False) as cur:
+        cur.execute("SELECT * FROM shots WHERE project = %s AND episode = %s ORDER BY shot_id", (project, episode))
+        return [row_to_dict(r) for r in cur.fetchall()]
+
+
+def get_all_episodes(pool) -> list[int]:
+    """获取所有有镜头的集数列表"""
+    project = _get_project()
+    with query(pool, dict_mode=True, commit=False) as cur:
+        cur.execute("SELECT DISTINCT episode FROM shots WHERE project = %s ORDER BY episode", (project,))
+        return [r["episode"] for r in cur.fetchall()]
+
+
+def get_episodes_summary(pool) -> list[dict]:
+    """批量获取所有集数摘要（镜头数、总时长）"""
+    project = _get_project()
+    with query(pool, dict_mode=True, commit=False) as cur:
+        cur.execute("""
+            SELECT episode, COUNT(*) AS shots, COALESCE(SUM(duration), 0) AS total_duration
+            FROM shots WHERE project = %s GROUP BY episode ORDER BY episode
+        """, (project,))
+        return [{"episode": r["episode"], "shots": r["shots"], "duration": r["total_duration"]} for r in cur.fetchall()]
+
+
+def get_all_shots(pool) -> list[dict]:
+    """获取所有集的所有镜头"""
+    project = _get_project()
+    with query(pool, dict_mode=True, commit=False) as cur:
+        cur.execute("SELECT * FROM shots WHERE project = %s ORDER BY episode, shot_id", (project,))
+        return [row_to_dict(r) for r in cur.fetchall()]
+
+
+# ── 写入 ──
+
+def save_episode_shots(pool, episode: int, shots: list[dict]) -> int:
+    """保存某集的镜头列表（覆盖），返回写入数。
+
+    使用 upsert + 清理旧数据，保证原子性：中途崩溃不会丢失已有数据。
+    写入前验证数据完整性（NaN/负数/空 shot_id）。
+    """
+    import math
+    project = _get_project()
+    # 写入前验证
+    for shot in shots:
+        dur = shot.get("duration", 4)
+        try:
+            d = float(dur)
+            if math.isnan(d) or math.isinf(d) or d < 0:
+                shot["duration"] = 4
+        except (ValueError, TypeError):
+            shot["duration"] = 4
+        if not shot.get("shot_id"):
+            shot["shot_id"] = "000"
+    cols = ", ".join(_INSERT_COLS)
+    ph = ", ".join(["%s"] * len(_INSERT_COLS))
+    sql = f"INSERT INTO shots ({cols}) VALUES ({ph}) ON CONFLICT (project, episode, shot_id) DO UPDATE SET {_UPSERT_SET}"
+    new_ids = [s.get("shot_id", "") for s in shots if s.get("shot_id")]
+    with pool.connection() as conn:
+        cur = conn.cursor()
+        try:
+            for shot in shots:
+                cur.execute(sql, _values(project, episode, shot))
+            if new_ids:
+                cur.execute(
+                    "DELETE FROM shots WHERE project = %s AND episode = %s AND NOT (shot_id = ANY(%s))",
+                    (project, episode, new_ids))
+            else:
+                cur.execute("DELETE FROM shots WHERE project = %s AND episode = %s", (project, episode))
+            conn.commit()
+            return len(shots)
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            cur.close()
+
+
+def upsert_shot(pool, episode: int, shot_id: str, data: dict):
+    """写入/更新单个镜头（写入前验证数据完整性）"""
+    import math
+    project = _get_project()
+    # 验证 duration
+    dur = data.get("duration", 4)
+    try:
+        d = float(dur)
+        if math.isnan(d) or math.isinf(d) or d < 0:
+            data["duration"] = 4
+    except (ValueError, TypeError):
+        data["duration"] = 4
+    cols = ", ".join(_INSERT_COLS)
+    ph = ", ".join(["%s"] * len(_INSERT_COLS))
+    sql = f"INSERT INTO shots ({cols}) VALUES ({ph}) ON CONFLICT (project, episode, shot_id) DO UPDATE SET {_UPSERT_SET}"
+    with query(pool) as cur:
+        cur.execute(sql, _values(project, episode, {**data, "shot_id": shot_id}))
+
+
+def delete_episode(pool, episode: int) -> int:
+    """删除某集所有镜头，返回删除数"""
+    project = _get_project()
+    with query(pool) as cur:
+        cur.execute("DELETE FROM shots WHERE project = %s AND episode = %s", (project, episode))
+        return cur.rowcount
+
+
+def delete_shot(pool, episode: int, shot_id: str):
+    """删除单个镜头"""
+    project = _get_project()
+    with query(pool) as cur:
+        cur.execute("DELETE FROM shots WHERE project = %s AND episode = %s AND shot_id = %s", (project, episode, shot_id))
+
+
+def batch_delete_shots(pool, episode: int, shot_ids: list[str]) -> int:
+    """批量删除镜头，返回删除数"""
+    if not shot_ids:
+        return 0
+    project = _get_project()
+    with query(pool) as cur:
+        cur.execute("DELETE FROM shots WHERE project = %s AND episode = %s AND shot_id = ANY(%s)", (project, episode, shot_ids))
+        return cur.rowcount
+
+
+# ── CSV 导出 ──
+
+def export_to_csv(pool, episode: int, path: Path) -> int:
+    """导出某集镜头到 CSV 文件，返回镜头数"""
+    shots = get_episode_shots(pool, episode)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=STORYBOARD_FIELDNAMES, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(shots)
+    return len(shots)

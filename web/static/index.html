@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎬 AI 短剧工作台 v2</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/style.css?v=7">
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+</head>
+<body>
+<div id="app">
+  <nav id="sidebar">
+    <div class="logo" data-i18n="app.title">🎬 AI 短剧 v2</div>
+    <ul class="nav-list">
+      <li class="nav-item active" data-page="dashboard" data-i18n="nav.dashboard">📊 仪表盘</li>
+      <li class="nav-item" data-page="characters" data-i18n="nav.characters">👤 角色管理</li>
+      <li class="nav-item" data-page="scenes" data-i18n="nav.scenes">🏔 场景管理</li>
+      <li class="nav-item" data-page="storyboard" data-i18n="nav.storyboard">📝 分镜表</li>
+      <li class="nav-item" data-page="pipeline" data-i18n="nav.pipeline">🎬 生产管线</li>
+      <li class="nav-item" data-page="projects" data-i18n="nav.projects">📂 项目管理</li>
+      <li class="nav-item" data-page="settings" data-i18n="nav.settings">⚙ 系统设置</li>
+      <li class="nav-item" data-page="seko" data-i18n="nav.seko">🎬 影视策划</li>
+      <li class="nav-item" data-page="assets" data-i18n="nav.assets">📦 主体库</li>
+    </ul>
+    <div id="sidebar-worker" class="sidebar-worker"></div>
+  </nav>
+  <main id="content">
+    <div id="page-dashboard" class="page active"></div>
+    <div id="page-characters" class="page"></div>
+    <div id="page-scenes" class="page"></div>
+    <div id="page-storyboard" class="page"></div>
+    <div id="page-pipeline" class="page"></div>
+    <div id="page-projects" class="page"></div>
+    <div id="page-settings" class="page"></div>
+    <div id="page-seko" class="page"></div>
+    <div id="page-assets" class="page"></div>
+  </main>
+</div>
+<script>
+  const _v = Date.now().toString(36);
+  const _modules = ['app.js', 'i18n.js', 'core.js', 'tasks.js', 'dashboard.js', 'pipeline.js', 'characters.js',
+    'scenes.js', 'storyboard.js', 'ai-gen.js', 'seko.js', 'projects.js',
+    'settings.js', 'extras.js'];
+  _modules.forEach(f => {
+    const s = document.createElement('script');
+    s.src = '/js/' + f + '?v=' + _v;
+    document.body.appendChild(s);
+  });
+</script>
+</body>
+</html>

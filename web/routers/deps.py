@@ -1,0 +1,236 @@
+"""API 路由共享依赖 — 配置访问、校验工具、任务提交"""
+from __future__ import annotations
+
+import logging
+import os
+import re
+import yaml
+from pathlib import Path
+
+from fastapi import HTTPException
+
+logger = logging.getLogger(__name__)
+
+from infra.config import get_root as _get_root, load_yaml_full
+
+ROOT = _get_root()
+
+
+# ── 配置访问 ──
+
+from infra.config import deep_merge as _deep_merge
+
+
+def _cfg() -> dict:
+    from infra.config import Config
+    cfg_path = _cfg_path()
+    try:
+        data = Config(cfg_path).data
+    except FileNotFoundError:
+        raise
+    except ValueError as e:
+        logger.warning(f"配置校验失败: {e}")
+        if os.path.isfile(cfg_path):
+            data = load_yaml_full(cfg_path)
+        else:
+            data = {}
+    except yaml.YAMLError as e:
+        logger.error(f"配置文件 YAML 格式错误: {cfg_path}: {e}", exc_info=True)
+        data = {}
+    except OSError as e:
+        logger.error(f"配置文件读取失败: {cfg_path}: {e}", exc_info=True)
+        data = {}
+    data.pop("_project_dir", None)
+    return data
+
+
+def _merged_cfg() -> dict:
+    from infra.config import Config, SYSTEM_CONFIG_PATH
+    cfg_path = _cfg_path()
+    try:
+        return Config(cfg_path).data
+    except Exception:
+        proj = _cfg()
+        if os.path.isfile(SYSTEM_CONFIG_PATH):
+            sys_cfg = load_yaml_full(SYSTEM_CONFIG_PATH)
+            return _deep_merge(sys_cfg, proj)
+        return proj
+
+
+_paths_cache: ProjectPaths | None = None
+_cfg_path_cache: str | None = None
+
+
+def _cfg_path() -> str:
+    global _cfg_path_cache
+    p = _proj()
+    candidate = str(p / "config" / "project.yaml")
+    if _cfg_path_cache != candidate:
+        _cfg_path_cache = candidate
+    return _cfg_path_cache
+
+
+def _paths() -> "ProjectPaths":
+    global _paths_cache
+    p = _proj()
+    if _paths_cache is None or _paths_cache.root != p:
+        from infra.config import ProjectPaths
+        _paths_cache = ProjectPaths(p)
+    return _paths_cache
+
+
+def _proj() -> Path:
+    """返回当前活动项目目录"""
+    from infra.config import get_active_project_dir
+    return get_active_project_dir(ROOT)
+
+
+# ── 校验工具 ──
+
+_ID_RE = re.compile(r"^[a-zA-Z0-9_\-\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]+$")
+_UUID_RE = re.compile(r"^[a-f0-9-]{36}$")
+_FILE_RE = re.compile(r"^[a-zA-Z0-9_\-\.\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]+$")
+
+
+def _check_id(v: str, label: str = "ID") -> None:
+    if not _ID_RE.match(v):
+        raise HTTPException(400, f"无效的 {label}")
+
+
+def _check_uuid(v: str) -> None:
+    if not _UUID_RE.match(v):
+        raise HTTPException(400, "无效的任务 ID")
+
+
+def _check_filename(v: str) -> None:
+    if not _FILE_RE.match(v):
+        raise HTTPException(400, "无效的文件名")
+
+
+def _check_entity_type(v: str) -> None:
+    if v not in ("characters", "scenes"):
+        raise HTTPException(400, "entity_type 必须是 characters 或 scenes")
+
+
+def _check_episode(ep: int) -> None:
+    if ep < 1:
+        raise HTTPException(400, "episode 必须 >= 1")
+
+
+def _safe_path(base: Path, *parts: str) -> Path:
+    """安全路径拼接 — resolve() + is_relative_to() 双重校验"""
+    from urllib.parse import unquote
+    parts = [unquote(p) for p in parts if p]
+    joined = "/".join(parts)
+    if not joined:
+        return base.resolve()
+    resolved = (base / joined).resolve()
+    if not resolved.is_relative_to(base.resolve()):
+        raise HTTPException(400, "非法路径")
+    return resolved
+
+
+def _check_tool(name: str, cfg: dict) -> dict:
+    """检测工具可用性（委托给 infra.toolcheck）"""
+    from infra.toolcheck import check_tool
+    return check_tool(name, cfg)
+
+
+def require_tool(name: str, cfg: dict | None = None) -> dict:
+    """检测工具可用性，不可用时抛 HTTPException（消除各路由重复的 check+raise 模式）"""
+    if cfg is None:
+        cfg = _merged_cfg()
+    result = _check_tool(name, cfg)
+    if not result.get("available"):
+        raise HTTPException(503, f"{name} 不可用: {result.get('reason', '未知')}")
+    return result
+
+
+def _reset_proj_cache():
+    """重置项目目录缓存（项目切换/删除后调用）"""
+    global _cfg_path_cache, _paths_cache
+    _cfg_path_cache = None
+    _paths_cache = None
+    from infra.database._db import _reset_project_cache
+    _reset_project_cache()
+    from infra.config import invalidate_config_cache
+    invalidate_config_cache()
+    # 同时清除 Celery 任务的 Config+Container 缓存
+    try:
+        from pipeline.tasks.helpers import _ctx_cache, _ctx_lock
+        with _ctx_lock:
+            import pipeline.tasks.helpers as h
+            h._ctx_cache = None
+    except Exception:
+        logger.debug("上下文缓存重置失败")
+        pass
+
+
+def _submit_task(task, *args, **kwargs) -> dict:
+    try:
+        result = task.delay(*args, **kwargs)
+        return {"status": "submitted", "task_id": result.id,
+                "poll_url": f"/api/tasks/{result.id}"}
+    except Exception as e:
+        logger.error(f"任务提交失败: {e}", exc_info=True)
+        raise HTTPException(500, f"任务提交失败: {e}")
+
+
+# ── 通用 YAML CRUD ──
+
+def yaml_list(yaml_dir: str, entity_key: str) -> list[dict]:
+    """通用 YAML 实体列表读取"""
+    from infra.config import load_yaml_entities
+    d = _paths().config_entity_dir(yaml_dir)
+    return load_yaml_entities(d, entity_key)
+
+
+def yaml_save(yaml_dir: str, entity_key: str, entity_id: str, data: dict) -> None:
+    """通用 YAML 实体保存（YAML 为唯一数据源）
+
+    - 保留整个文件结构（顶层字段不丢失）
+    - 始终写出正确结构 {entity_key: {…}}
+    """
+    d = _paths().config_entity_dir(yaml_dir)
+    d.mkdir(parents=True, exist_ok=True)
+    path = d / f"{entity_id}.yaml"
+    file_data: dict = {}
+    existing: dict = {}
+    if path.exists():
+        try:
+            file_data = load_yaml_full(path) or {}
+            if not isinstance(file_data, dict):
+                file_data = {}
+            existing = file_data.get(entity_key, {})
+            if not isinstance(existing, dict):
+                existing = {}
+            # 剔除嵌套的 entity_key（防止旧数据残留）
+            existing.pop(entity_key, None)
+        except Exception:
+            file_data = {}
+            existing = {}
+    merged = {**existing, **data, "id": entity_id}
+    # 始终写出正确结构：{entity_key: {…}}
+    out = {k: v for k, v in file_data.items() if k != entity_key}
+    out[entity_key] = merged
+    from infra.config import save_yaml
+    save_yaml(path, out)
+
+
+def parse_entity(req) -> tuple[str, dict]:
+    """Pydantic 模型 → (entity_id, data)"""
+    data = req.model_dump(exclude_none=True)
+    return data.pop("id"), data
+
+
+def yaml_delete(yaml_dir: str, entity_id: str, label: str) -> None:
+    """通用 YAML 实体删除（文件 → 资产目录）"""
+    import shutil
+    p = _paths()
+    path = p.config_entity_yaml(yaml_dir, entity_id)
+    if not path.exists():
+        raise HTTPException(404, f"{label} {entity_id} 不存在")
+    path.unlink()
+    asset_dir = p.assets_entity_dir(yaml_dir) / entity_id
+    if asset_dir.exists():
+        shutil.rmtree(asset_dir, ignore_errors=True)

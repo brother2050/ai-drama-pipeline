@@ -1,0 +1,13 @@
+character:
+  id: "guchen"
+  name: "顾辰"
+  gender: "male"
+  appearance: >-
+    22岁年轻男性，短发，剑眉星目，
+    身高180cm，体型匀称
+  outfits:
+    casual:
+      description: "黑色卫衣，深色休闲裤，运动鞋，双肩包"
+      reference_images: []
+  bible:
+    core_traits: "沉稳可靠，行动派，对林夏有好感但不善表达"

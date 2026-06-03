@@ -1,0 +1,442 @@
+# ============================================================
+# 模型注册表 — 所有后端元数据的唯一真相来源
+# 修改此文件即可切换/新增模型，无需改代码
+# ============================================================
+
+# ── 全局默认后端（Config.DEFAULTS 的真实来源） ──
+defaults:
+  tts_backend: "mimo-voicedesign"
+  lip_sync_backend: "musetalk"
+  music_backend: "template"
+  image_backend: "cosmos"
+  video_backend: "cosmos-video"
+  llm_backend: "openai"
+  # 服务类型 → 配置读取路径（统一 toolcheck 查询逻辑）
+  config_paths:
+    tts: "models.tts_backend"
+    lipsync: "models.lip_sync_backend"
+    llm: "llm.backend"
+    music: "models.music_backend"
+    image: "models.image_backend"
+    video: "models.video_backend"
+
+# ══════════════════════════════════════════════════════════
+#  TTS 后端
+# ══════════════════════════════════════════════════════════
+
+tts_backends:
+  mimo-voicedesign:
+    module: "api.backends.tts.mimo_voicedesign"
+    priority: 10
+    description: "MiMo VoiceDesign（云API，免费，自然语言描述生成声音）"
+    requires_api_key: true
+    api_key_env: "MIMO_API_KEY"
+    health_check:
+      type: "api_key_env"
+      env: "MIMO_API_KEY"
+
+  mimo-voiceclone:
+    module: "api.backends.tts.mimo_voiceclone"
+    priority: 20
+    description: "MiMo VoiceClone（云API，参考音频克隆声音）"
+    requires_api_key: true
+    api_key_env: "MIMO_API_KEY"
+    health_check:
+      type: "api_key_env"
+      env: "MIMO_API_KEY"
+
+  gpt-sovits:
+    module: "api.backends.tts.gpt_sovits"
+    priority: 30
+    description: "GPT-SoVITS（本地部署，开源）"
+    requires_api_key: false
+    health_check:
+      type: "http"
+      path: "/"
+      config_key: "models.gpt_sovits.api_url"
+
+  cosyvoice:
+    module: "api.backends.tts.cosyvoice"
+    priority: 40
+    description: "CosyVoice（本地部署，多语言）"
+    requires_api_key: false
+    health_check:
+      type: "http"
+      path: "/"
+      config_key: "models.cosyvoice.api_url"
+
+  fish-speech:
+    module: "api.backends.tts.fish_speech"
+    priority: 50
+    description: "Fish-Speech（本地部署，轻量）"
+    requires_api_key: false
+    health_check:
+      type: "http"
+      path: "/"
+      config_key: "models.fish_speech.api_url"
+
+# ══════════════════════════════════════════════════════════
+#  口型同步后端
+# ══════════════════════════════════════════════════════════
+
+lipsync_backends:
+  musetalk:
+    module: "api.backends.lipsync.musetalk"
+    priority: 10
+    description: "MuseTalk（本地部署，效果好）"
+    requires_api_key: false
+    health_check:
+      type: "http"
+      path: "/"
+      config_key: "models.musetalk.api_url"
+
+  wav2lip:
+    module: "api.backends.lipsync.wav2lip"
+    priority: 20
+    description: "Wav2Lip（本地部署，轻量）"
+    requires_api_key: false
+    health_check:
+      type: "http"
+      path: "/"
+      config_key: "models.wav2lip.api_url"
+
+# ══════════════════════════════════════════════════════════
+#  LLM 后端
+# ══════════════════════════════════════════════════════════
+
+llm_backends:
+  openai:
+    module: "api.backends.llm.ollama"
+    priority: 50
+    description: "OpenAI 兼容 API（SiliconFlow / Zhipu / ...）"
+    requires_api_key: true
+    health_check:
+      type: "openai_models"
+      config_key: "llm.base_url"
+      api_key_from: "llm.api_key"
+
+  ollama:
+    module: "api.backends.llm.ollama"
+    priority: 10
+    description: "Ollama（本地部署）"
+    requires_api_key: false
+    health_check:
+      type: "ollama_tags"
+      config_key: "llm.base_url"
+
+# ══════════════════════════════════════════════════════════
+#  配乐后端
+# ══════════════════════════════════════════════════════════
+
+music_backends:
+  template:
+    module: "api.backends.music.template"
+    priority: 10
+    description: "ffmpeg 模板配乐（开箱即用）"
+    requires_api_key: false
+    health_check:
+      type: "command"
+      command: "ffmpeg"
+
+# ══════════════════════════════════════════════════════════
+#  图像后端
+# ══════════════════════════════════════════════════════════
+
+image_backends:
+  sd15:
+    module: "api.backends.image.comfyui"
+    priority: 10
+    workflow: "01_first_frame_sd15.json"
+    prompt_style: "tag"
+    consistency_default: "ip_adapter"
+    default_params:
+      width: 512
+      height: 512
+      steps: 20
+      cfg_scale: 7.5
+
+  flux:
+    module: "api.backends.image.comfyui"
+    priority: 10
+    workflow: "01_first_frame_flux.json"
+    prompt_style: "natural"
+    consistency_default: "pulid_flux"
+    default_params:
+      width: 1024
+      height: 576
+      steps: 28
+      cfg_scale: 3.5
+
+  cosmos:
+    module: "api.backends.image.comfyui"
+    priority: 10
+    workflow: "cosmos_predict2_2B_t2i.json"
+    prompt_style: "natural"
+    consistency_default: "none"
+    default_params:
+      width: 1024
+      height: 576
+      steps: 35
+      cfg_scale: 4
+
+  hidream:
+    module: "api.backends.image.comfyui"
+    priority: 20
+    workflow: "05_img2img_hidream.json"
+    prompt_style: "natural"
+    consistency_default: "none"
+    img2img: true
+    default_params:
+      width: 768
+      height: 768
+      steps: 28
+      denoise: 1
+
+# ══════════════════════════════════════════════════════════
+#  视频后端
+# ══════════════════════════════════════════════════════════
+
+video_backends:
+  animatediff:
+    module: "api.backends.video.animatediff"
+    priority: 10
+    workflow: "02_img2video.json"
+    sampler_node: "KSampler"
+    frame_params:
+      node_class: "ADE_StandardStaticContextOptions"
+      input_name: "context_length"
+    default_params:
+      frames: 8
+      fps: 8
+      steps: 15
+      denoise: 0.5
+
+  cogvideox:
+    module: "api.backends.video.animatediff"
+    priority: 50
+    workflow: "03_img2video_cogvideo.json"
+    sampler_node: "CogVideoXSampler"
+    frame_params:
+      node_class: "EmptyLatentImage"
+      input_name: "batch_size"
+    default_params:
+      width: 720
+      height: 480
+      frames: 16
+      fps: 12
+      steps: 20
+      denoise: 0.55
+
+  cosmos-video:
+    module: "api.backends.video.animatediff"
+    priority: 30
+    workflow: "04_img2video_cosmos.json"
+    sampler_node: "KSampler"
+    frame_params:
+      node_class: "CosmosPredict2ImageToVideoLatent"
+      input_name: "length"
+    default_params:
+      width: 848
+      height: 480
+      frames: 93
+      fps: 16
+      steps: 35
+      denoise: 1
+
+# ══════════════════════════════════════════════════════════
+#  一致性方案
+# ══════════════════════════════════════════════════════════
+
+consistency_methods:
+  ip_adapter:
+    description: "IP-Adapter Plus（SD1.5/SDXL 面部一致性）"
+    compatible_backends: ["sd15", "sdxl"]
+    config_key: "ip_adapter"
+    inject_method: "_inject_ip_adapter_plus"
+    required_comfyui_node: "IPAdapterAdvanced"
+
+  pulid_flux:
+    description: "PuLID-Flux（Flux 面部一致性）"
+    compatible_backends: ["flux"]
+    config_key: "pulid_flux"
+    inject_method: "_inject_pulid_flux"
+    required_comfyui_node: "PulidFluxModelLoader"
+
+  none:
+    description: "无面部一致性（仅靠 LoRA + seed）"
+    compatible_backends: ["*"]
+
+# ══════════════════════════════════════════════════════════
+#  IP-Adapter 模型定义
+# ══════════════════════════════════════════════════════════
+
+ip_adapter_models:
+  ip-adapter-plus-face_sd15:
+    description: "Plus Face 模型 — 人物面部一致性最佳，适合短剧角色"
+    file: "ip-adapter-plus-face_sd15.safetensors"
+    clip_vision: "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
+    base: "sd15"
+  ip-adapter-plus_sd15:
+    description: "Plus 通用模型 — 风格+内容保持，面部稍弱"
+    file: "ip-adapter-plus_sd15.safetensors"
+    clip_vision: "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
+    base: "sd15"
+  ip-adapter_sd15:
+    description: "基础模型 — 影响最弱，仅做轻微参考"
+    file: "ip-adapter_sd15.safetensors"
+    clip_vision: "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
+    base: "sd15"
+  ip-adapter-full-face_sd15:
+    description: "Full Face 模型 — 更强面部保持，但可能过度拟合"
+    file: "ip-adapter-full-face_sd15.safetensors"
+    clip_vision: "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
+    base: "sd15"
+  ip-adapter-plus-face_sdxl:
+    description: "SDXL Plus Face — SDXL 面部一致性"
+    file: "ip-adapter-plus-face_sdxl_vit-h.safetensors"
+    clip_vision: "CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors"
+    base: "sdxl"
+  ip-adapter-plus_sdxl:
+    description: "SDXL Plus 通用"
+    file: "ip-adapter-plus_sdxl_vit-h.safetensors"
+    clip_vision: "CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors"
+    base: "sdxl"
+
+# ══════════════════════════════════════════════════════════
+#  PuLID-Flux 模型定义
+# ══════════════════════════════════════════════════════════
+
+pulid_flux_models:
+  fpulid_flux:
+    description: "PuLID Flux — Flux 面部一致性（推荐 weight=0.8-0.95）"
+    file: "pulid_flux_v0.9.0.safetensors"
+    folder: "pulid"
+    requires:
+      - name: "AntelopeV2"
+        folder: "insightface/models/antelopev2"
+        files: ["1k3d68.onnx", "2d106det.onnx", "genderage.onnx", "glintr100.onnx", "scrfd_10g_bnkps.onnx"]
+      - name: "EVA02-CLIP-L-14-336"
+        folder: "clip"
+        auto_download: true
+    base: "flux"
+    install: "cd ComfyUI/custom_nodes && git clone https://github.com/balazik/ComfyUI-PuLID-Flux.git"
+
+# ══════════════════════════════════════════════════════════
+#  辅助服务（非后端，但需要健康检查）
+# ══════════════════════════════════════════════════════════
+
+services:
+  comfyui:
+    description: "ComfyUI 图像/视频生成服务"
+    backend: "comfyui"
+    type: "gpu"
+    health_check:
+      type: "http"
+      path: "/system_stats"
+      config_key: "comfyui.url"
+      api_key_from: "comfyui.api_key"
+
+  redis:
+    description: "Redis 任务队列"
+    backend: "redis"
+    type: "infra"
+    health_check:
+      type: "port"
+      host: "127.0.0.1"
+      port: 6379
+
+  celery:
+    description: "Celery Worker"
+    backend: "celery"
+    type: "infra"
+    health_check:
+      type: "celery_active"
+
+  ffmpeg:
+    description: "FFmpeg 视频处理"
+    backend: "ffmpeg"
+    type: "local"
+    health_check:
+      type: "command"
+      command: "ffmpeg"
+
+  seko:
+    module: "api.backends.seko"
+    priority: 10
+    description: "Seko 影视策划案"
+    backend: "seko"
+    type: "cloud"
+    health_check:
+      type: "api_key_env"
+      env: "SEKO_API_KEY"
+      config_key: "seko.api_key"
+
+  training:
+    module: "api.backends.training.ai_toolkit"
+    priority: 10
+    description: "AI Toolkit LoRA 训练"
+    backend: "ai-toolkit"
+    type: "gpu"
+    health_check:
+      type: "http"
+      path: "/api/gpu"
+      config_key: "training.api_url"
+
+# ══════════════════════════════════════════════════════════
+#  生产步骤编排（shot_task 的步骤定义）
+# ══════════════════════════════════════════════════════════
+
+pipeline_steps:
+  - name: "tts"
+    task: "pipeline_step_tts"
+    tool: "tts"
+    timeout: 120
+  - name: "first_frame"
+    task: "pipeline_step_first_frame"
+    tool: "comfyui"
+    timeout: 300
+  - name: "video"
+    task: "pipeline_step_video"
+    tool: "comfyui"
+    timeout: 600
+  - name: "lipsync"
+    task: "pipeline_step_lipsync"
+    tool: "lipsync"
+    timeout: 300
+
+# ══════════════════════════════════════════════════════════
+#  LLM 模型限制（自适应批处理器使用）
+#  数据来源：官方文档验证，prefix 匹配按长度降序
+#  新增模型请查阅官方文档后添加，不可靠猜测
+# ══════════════════════════════════════════════════════════
+
+llm_models:
+  # ── 精确匹配（优先级最高） ──
+  "Qwen/Qwen2.5-7B-Instruct":    { context_window: 32768,   max_output: 8192  }
+  "Qwen/Qwen2.5-72B-Instruct":   { context_window: 131072,  max_output: 8192  }
+  "deepseek-v3":                  { context_window: 128000,  max_output: 8192  }
+  "deepseek-r1":                  { context_window: 128000,  max_output: 16384 }
+  "glm-4.7":                      { context_window: 200000,  max_output: 128000}
+  "gemini-2.5-flash":             { context_window: 1048576, max_output: 65536 }
+  "gemini-2.5-pro":               { context_window: 1048576, max_output: 65536 }
+  "gpt-4o":                       { context_window: 128000,  max_output: 16384 }
+  "gpt-4o-mini":                  { context_window: 128000,  max_output: 16384 }
+  "claude-sonnet-4-20250514":     { context_window: 200000,  max_output: 8192  }
+  "claude-3-5-sonnet":            { context_window: 200000,  max_output: 8192  }
+  # ── prefix 匹配（长度降序，避免短前缀误匹配） ──
+  "deepseek-":                    { context_window: 128000,  max_output: 8192  }
+  "gemini-":                      { context_window: 1048576, max_output: 65536 }
+  "glm-":                         { context_window: 128000,  max_output: 8192  }
+  "claude-":                      { context_window: 200000,  max_output: 8192  }
+  "gpt-4":                        { context_window: 128000,  max_output: 16384 }
+  "gpt-3":                        { context_window: 16384,   max_output: 4096  }
+  "qwen3":                        { context_window: 131072,  max_output: 8192  }
+  "qwen2.5":                      { context_window: 32768,   max_output: 8192  }
+  "qwen":                         { context_window: 32768,   max_output: 8192  }
+  "yi-":                          { context_window: 200000,  max_output: 4096  }
+  "llama-3":                      { context_window: 8192,    max_output: 4096  }
+  "mistral":                      { context_window: 32768,   max_output: 8192  }
+  "phi-3":                        { context_window: 128000,  max_output: 4096  }
+  "internlm":                     { context_window: 32768,   max_output: 8192  }
+  # ── 默认兜底 ──
+  "_default":                     { context_window: 8192,    max_output: 4096  }

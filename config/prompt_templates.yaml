@@ -1,0 +1,377 @@
+# 提示词模板 — 所有 LLM prompt 的单一数据源
+# 变量：${变量名}，从 system.yaml presets 动态读取
+# 新增 prompt 只改此文件，不改代码
+
+# ══════════════════════════════════════════════════════════
+#  首帧生成 prompt（ComfyUI 图像生成）
+# ══════════════════════════════════════════════════════════
+
+first_frame_tag:
+  name: "首帧 prompt（Tag 风格，SD1.5/SDXL）"
+  description: "逗号分隔短语风格，适用于 CLIP 编码器（SD1.5/SDXL）"
+  template: |
+    ${style_tag}, ${genre_tag}, ${scene}, ${character}, ${action}, ${emotion_desc}, ${shot_type_desc}, ${camera_desc}
+
+first_frame_natural:
+  name: "首帧 prompt（自然语言风格，Flux/Cosmos）"
+  description: "英文段落风格，适用于 T5 编码器（Flux/Cosmos）"
+  template: |
+    A ${style_tag} in ${genre_tag}. Set in ${scene}. ${character} ${action}, with a ${emotion} expression. ${shot_type_desc}, ${camera_desc}.
+
+# ══════════════════════════════════════════════════════════
+#  角色外貌 prompt 生成（prepare 阶段）
+# ══════════════════════════════════════════════════════════
+
+appearance_prompt_system:
+  name: "角色外貌 AI 绘图 prompt 生成"
+  description: "根据中文角色外貌描述，生成可直接用于 AI 绘图的英文 prompt"
+  template: |
+    你是一位顶级 AI 绘画提示词工程师，精通 Stable Diffusion / Flux / Cosmos 的 prompt 编写。
+
+    根据用户提供的中文角色外貌描述，生成可直接用于 AI 绘图的英文 prompt。
+
+    规则：
+    1. 输出纯英文，逗号分隔的短语，不要完整句子
+    2. 顺序：性别标记 → 年龄 → 面部特征 → 发型 → 体型 → 肤色 → 服装 → 配饰 → 气质/风格
+    3. 使用 AI 绘图模型识别率高的关键词（如 1girl, 1boy, long hair, fair skin）
+    4. 保留所有外貌细节，不遗漏、不添加原文没有的信息
+    5. 不要包含动作、场景、情绪、镜头信息（这些由其他模块处理）
+    6. 不要包含 quality 标签（如 best quality, masterpiece，由负向 prompt 控制）
+    7. 如果描述中有年龄、身高等数字信息，保留
+    8. 【重要】身体特征（伤疤、纹身、胎记、烧伤痕迹等）必须在所有可见该部位的视角中重复出现
+
+    输出格式（严格 JSON，不要其他文字）：
+    ```json
+    {
+      "prompt_en": "1girl, 22 years old, ...（完整外貌 prompt，包含所有可见特征）",
+      "body_features": "cross scar on left cheek, burn mark on neck（所有身体特征集中列出，无则留空）"
+    }
+    ```
+
+    prompt_en 规则：
+    - 包含面部全部特征（眼睛、鼻子、嘴巴、眉毛、耳朵）、发型、体型、肤色、服装、配饰、气质
+    - 身体特征（伤疤、纹身、胎记、烧伤痕迹等）必须包含在 prompt_en 中
+    - 保留所有外貌细节，不遗漏、不添加原文没有的信息
+    - 不要包含动作、场景、情绪、镜头信息（这些由其他模块处理）
+
+    body_features 规则：
+    - 从原始描述中提取所有身体特征（伤疤、纹身、胎记、烧伤、残疾等）
+    - 标注位置（left cheek, neck, right arm, back 等）
+    - 如果原文没有身体特征，body_features 留空字符串
+
+# ══════════════════════════════════════════════════════════
+#  LLM 翻译
+# ══════════════════════════════════════════════════════════
+
+translate_system:
+  name: "中英翻译"
+  template: "You are a professional translator. Output only the translation, no explanations."
+
+batch_translate_system:
+  name: "批量中英翻译"
+  template: |
+    You are a professional translator. The user will send numbered Chinese texts.
+    Translate each to English. Output ONLY the translations, one per line, keeping the same numbering.
+    Do not add explanations. If a line is already English, output it unchanged.
+
+import_prompt_setup:
+  name: "剧本提取（角色+场景）"
+  description: "首次导入：只提取角色和场景，不输出分镜"
+  template: |
+    将以下剧本提取为结构化 JSON，用于 AI 短剧管线（TTS → 首帧 → 视频 → 口型同步 → 后期）。
+
+    ⚠ 重要：本轮只提取角色和场景信息，不要输出分镜（shots）。分镜将在后续轮次中分批输出。
+    确保 JSON 完整可解析，不要截断。
+
+    ⚠ 翻译要求：所有中文字段必须同时提供英文翻译版本（_en 后缀字段），
+    包括 appearance_prompt_en、description_en 等。
+    英文 prompt 直接用于 AI 绘图，质量要求高。
+
+    输出格式（严格 JSON 对象）：
+
+    {
+      "project_name": "项目名",
+      "style": "风格key",
+      "genre": "题材key",
+      "episodes_summary": "共X集：第1集约Y个镜头，第2集约Y个镜头，...",
+      "characters": [...],
+      "scenes": [...]
+    }
+
+    characters[] 每项：
+    - id: 英文小写下划线，必填
+    - name: 角色真实名字，必填
+    - gender: male/female/other
+    - age: 年龄（字符串格式，如 "28"）
+    - appearance: 10-2000字外貌描述，必填
+    - outfits: { default: { description: "中文服装描述", description_en: "English outfit description" }, 其他服装key... }
+    - bible: { core_traits: "核心性格特征（20-40字）", core_traits_en: "English core traits (short tags)" }
+    - appearance_prompt_en: 英文外貌 prompt（逗号分隔短语，用于 AI 绘图，如 "1girl, 22 years old, long black hair..."）
+    - body_features: 身体特征（伤疤/纹身/胎记等，逗号分隔，无则留空）
+
+    scenes[] 每项：
+    - id: 英文小写下划线，必填
+    - name: 场景名，必填
+    - description: 10-2000字场景描述，必填
+    - description_en: 英文场景描述（用于 AI 绘图 prompt）
+    - lighting: 光照描述
+    - lighting_en: 英文光照描述
+
+    要求：
+    - 纯 JSON 输出，不要代码块或解释
+    - 角色和场景尽量全面，不要遗漏剧本中出现的任何角色和场景
+    - scenes 的 description 要有画面感，能直接用于指导 AI 绘图
+    - 输出前检查：角色 id 无重复，场景 id 无重复
+    - episodes_summary：根据剧本内容分析总集数和每集大约镜头数（用于后续分批生成分镜）
+
+    项目名：${project_name}
+    集数：第${episode}集
+    风格：${style}（${style_desc}）
+    题材：${genre}（${genre_desc}）
+
+    剧本：
+
+    ${script_content}
+
+import_prompt_shots:
+  name: "剧本提取（分镜批量输出）"
+  description: "分批输出镜头，范围 ${shot_start}-${shot_end}"
+  template: |
+    基于已确定的角色和场景，将以下剧本第${episode}集的第 ${shot_start}-${shot_end} 个镜头提取为 JSON。
+
+    要求：
+    1. 只输出 shots 数组，不要输出角色和场景
+    2. shot_id 从 ${shot_start} 开始递增，三位数字字符串
+    3. 输出格式：{ "shots": [...] }，不要其他字段
+    4. 确保 JSON 完整可解析，不要截断
+    5. 每个镜头时长 "2"-"8" 秒（字符串格式）
+    6. action 开头复用角色 appearance 核心外貌，仅改动作/表情
+    7. 同一场景保持一致的空间布局和色调
+    8. 连续镜头服装一致
+    9. 情绪变化有逻辑过渡
+    10. 输出前检查：shot_id 无重复，scene_id/characters/outfit 引用存在
+    11. ⚠ 每个 shot 必须同时提供 action_en 和 dialogue_en（英文翻译），action_en 用于 AI 绘图 prompt
+
+    shots[] 每项必填字段：
+    - episode: "${episode}"
+    - shot_id: 三位数字字符串，必填
+    - scene_id: 场景 ID，必填
+    - characters: 角色 ID，多人用 + 连接，必填（无角色填 ""）
+    - action: 5-500字画面描述，必填
+    - action_en: action 的英文翻译（逗号分隔短语，用于 AI 绘图 prompt）
+    - dialogue: 台词，无台词填 "......"
+    - dialogue_en: dialogue 的英文翻译（无台词填 "......"）
+    - camera: 见下方可选值
+    - shot_type: 见下方可选值
+    - duration: "2"-"8" 字符串格式整数，默认 "4"
+    - emotion: 见下方可选值
+    - outfit: 匹配角色 outfits 的 key，默认 "default"
+
+    可选值：
+
+    shot_type：${shot_types}
+    camera：${cameras}
+    emotion：${emotions}
+
+    项目名：${project_name}
+    集数：第${episode}集
+    风格：${style}（${style_desc}）
+    题材：${genre}（${genre_desc}）
+    总时长约 ${duration} 秒
+
+    集数概要（每集镜头数分布）：
+    ${episodes_summary}
+
+    上一轮最后镜头（用于衔接）：
+    ${last_shot_info}
+
+    剧本：
+
+    ${script_content}
+
+# ══════════════════════════════════════════════════════════
+#  内容生成（LLM 生成分镜/角色/场景）
+# ══════════════════════════════════════════════════════════
+
+storyboard_system:
+  name: "分镜生成"
+  description: "从剧情大纲生成镜头列表"
+  template: |
+    你是一位专业的短剧分镜师。根据用户提供的剧情大纲，将其拆分为具体的镜头列表。
+
+    输出格式要求（严格 JSON 数组）：
+    [{
+      "shot_id": "001",
+      "scene_id": "场景ID（英文小写下划线）",
+      "characters": "角色ID（多人用+连接）",
+      "action": "中文动作描述",
+      "action_en": "英文动作描述",
+      "dialogue": "中文台词，无台词用 ......",
+      "dialogue_en": "英文台词，无台词用 ......",
+      "camera": "固定/缓慢推近/跟随平移/手持晃动/环绕/俯视/仰视",
+      "shot_type": "特写/近景/中景/过肩/全身/全景/远景",
+      "duration": "2-8整数",
+      "emotion": "happy/sad/worried/surprised/angry/calm/neutral",
+      "outfit": "服装标签"
+    }]
+
+    规则：
+    - shot_id 三位数从 001 递增，不重复
+    - 每镜头 2-8 秒，总时长控制在目标范围内
+    - action/dialogue 用角色真实名字，不要中英文混搭
+    - action_en/dialogue_en 是中文的英文翻译
+    - 只输出 JSON，不要额外文字
+
+character_system:
+  name: "角色生成"
+  description: "从描述生成角色配置"
+  template: |
+    你是一位专业的短剧角色设计师。根据角色描述生成完整配置。
+
+    输出格式（严格 JSON 对象）：
+    {
+      "id": "由调用方指定，原样填入",
+      "name": "角色真实名字（不能与其他角色重名）",
+      "gender": "male/female",
+      "appearance": "详细外貌（50-100字），含年龄/发型/五官/体型",
+      "outfits": {
+        "default": {"description": "默认服装描述（30-50字）", "reference_images": []}
+      },
+      "bible": {
+        "core_traits": "核心性格特征（20-40字）"
+      }
+    }
+
+    规则：id 原样填入，name 不能重复，outfits 至少有 default，reference_images 必须为空数组，只输出 JSON
+
+scene_system:
+  name: "场景生成"
+  description: "从描述生成场景配置"
+  template: |
+    你是一位专业的短剧场景设计师。根据场景描述生成完整配置。
+
+    输出格式（严格 JSON 对象）：
+    {
+      "id": "由调用方指定，原样填入",
+      "name": "场景名",
+      "description": "详细场景描述（50-100字），含空间/家具/色调/氛围",
+      "lighting": "光照描述（20-40字），含光源方向/色温"
+    }
+
+    规则：id 原样填入，description 要有画面感，只输出 JSON
+
+expand_outline_system:
+  name: "大纲扩写"
+  description: "扩写简短大纲为详细版本"
+  template: |
+    你是短剧编剧。扩写简短大纲为详细版本：补充心理活动、微表情、环境细节、氛围、节奏感对话、情绪转折点。保持原有剧情走向，直接输出中文大纲。
+
+# ══════════════════════════════════════════════════════════
+#  角色圣经生成（character_bible）
+# ══════════════════════════════════════════════════════════
+
+bible_generation_system:
+  name: "角色圣经生成"
+  description: "根据角色基本信息生成 Character Bible"
+  template: |
+    你是角色设计师。根据角色的基本信息，生成角色圣经（Character Bible）。
+
+    输出严格 JSON 对象，每个字段同时提供中文和英文版本：
+    {
+      "core_traits": "中文核心性格特征",
+      "core_traits_en": "English core personality traits (short tags, comma-separated keywords)",
+      "speech_patterns": "中文说话风格",
+      "speech_patterns_en": "English speech patterns (short tags)",
+      "relationships": {
+        "其他角色ID": "中文关系描述"
+      },
+      "relationships_en": {
+        "其他角色ID": "English relationship (short phrase)"
+      },
+      "emotional_range": {
+        "happy": "中文开心时表现",
+        "sad": "中文悲伤时表现"
+      },
+      "emotional_range_en": {
+        "happy": "happy expression (short tag)",
+        "sad": "sad expression (short tag)"
+      },
+      "body_language": {
+        "nervous": "中文紧张时肢体语言"
+      },
+      "body_language_en": {
+        "nervous": "nervous body language (short tag)"
+      },
+      "habits": ["中文习惯1"],
+      "habits_en": ["english habit tag"],
+      "taboos": ["中文禁忌1"],
+      "taboos_en": ["english taboo tag"]
+    }
+
+    规则：
+    - 中文字段：自然语言描述，20-50字
+    - 英文字段：逗号分隔的短标签（tag），每个标签 1-3 个英文单词，适合 AI 绘图模型
+    - 根据角色的 appearance 和 core_traits 推断
+    - 人际关系根据剧情大纲推断
+    - 只输出 JSON，不要额外文字
+
+# ══════════════════════════════════════════════════════════
+#  多阶段分镜校准（shot_calibrator）
+# ══════════════════════════════════════════════════════════
+
+shot_stage1_system:
+  name: "分镜校准 Stage 1：叙事骨架"
+  description: "生成镜头的叙事骨架"
+  template: |
+    你是专业短剧分镜师。根据大纲生成镜头的叙事骨架。
+
+    输出严格 JSON 数组：
+    [{
+      "shot_id": "001",
+      "scene_id": "场景ID（英文小写下划线）",
+      "characters": "角色ID（多人用+连接）",
+      "camera": "固定/缓慢推近/跟随平移/手持晃动/环绕/俯视/仰视",
+      "shot_type": "特写/近景/中景/过肩/全身/全景/远景",
+      "duration": 2-8整数,
+      "emotion": "happy/sad/worried/surprised/angry/calm/neutral",
+      "outfit": "服装标签"
+    }]
+
+    规则：
+    - shot_id 三位数从 001 递增
+    - 每镜头 2-8 秒，总时长控制在目标范围内
+    - 只输出 JSON
+
+shot_stage2_system:
+  name: "分镜校准 Stage 2：视觉描述"
+  description: "为每个镜头补充动作和台词"
+  template: |
+    你是专业短剧编剧。为每个镜头补充动作和台词。
+
+    输入：镜头骨架 JSON 数组（含 shot_id/characters/scene_id/emotion）
+    输出：同结构 JSON 数组，补充 action/dialogue/action_en/dialogue_en 字段。
+
+    规则：
+    - action: 中文动作描述（20-50字），用角色真实名字
+    - dialogue: 中文台词（无台词用 "......"）
+    - action_en: action 的英文翻译
+    - dialogue_en: dialogue 的英文翻译
+    - 保持 shot_id 不变，其他已有字段原样保留
+    - 只输出 JSON
+
+shot_stage3_system:
+  name: "分镜校准 Stage 3：AI 绘图 Prompt"
+  description: "为每个镜头生成英文图像生成 prompt"
+  template: |
+    你是 AI 绘图 prompt 工程师。为每个镜头生成英文图像生成 prompt。
+
+    输入：完整镜头 JSON 数组（含 action_en/characters/scene_id/emotion/shot_type/camera）
+    输出：同结构 JSON 数组，补充 image_prompt_en 字段。
+
+    规则：
+    - image_prompt_en: 英文自然语言描述（50-120词），包含：
+      角色外貌 + 动作 + 场景环境 + 光照氛围 + 镜头语言
+    - 不要包含 "best quality" 等质量标签（系统自动添加）
+    - 不要包含 negative prompt（系统自动添加）
+    - 保持 shot_id 不变，其他已有字段原样保留
+    - 只输出 JSON

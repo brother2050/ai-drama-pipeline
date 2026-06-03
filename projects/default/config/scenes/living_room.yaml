@@ -1,0 +1,7 @@
+scene:
+  id: "living_room"
+  name: "客厅"
+  description: >-
+    现代简约风格客厅，米色沙发，落地窗，
+    暖色调灯光，茶几上有水杯和手机
+  lighting: "暖色室内光，自然光从窗户照入"

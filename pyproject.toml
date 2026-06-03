@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-drama-pipeline"
+version = "2.0.0"
+description = "AI 短剧全流程生产管线 v2 — 从剧本到成片，一键搞定"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "python-multipart>=0.0.6",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0.0",
+    "httpx>=0.25.0",
+    "pydantic>=2.0.0",
+    "click>=8.1.0",
+    "rich>=13.0.0",
+    "Pillow>=10.0.0",
+    "celery>=5.3.0",
+    "redis>=5.0.0",
+    "psycopg2-binary>=2.9.0",
+]
+
+[project.optional-dependencies]
+vertical = [
+    "face_recognition>=1.3.0",
+    "opencv-python-headless>=4.8.0",
+]
+dev = ["pytest>=7.0", "ruff>=0.1.0"]
+all = ["ai-drama-pipeline[vertical,dev]"]
+
+[project.scripts]
+drama = "cli:cli"
+
+[tool.setuptools]
+py-modules = ["cli"]
+
+[tool.setuptools.packages.find]
+include = ["api*", "engines*", "flow*", "infra*", "pipeline*", "post*", "scripts*", "web*"]
+
+[tool.setuptools.package-data]
+"web" = ["static/**/*"]
+"config" = ["*.yaml"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"

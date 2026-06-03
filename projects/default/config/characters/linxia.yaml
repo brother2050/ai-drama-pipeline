@@ -1,0 +1,16 @@
+character:
+  id: "linxia"
+  name: "林夏"
+  gender: "female"
+  appearance: >-
+    22岁年轻女性，长发及肩，瓜子脸，大眼睛，柳叶眉，
+    身高165cm，体型偏瘦，皮肤白皙
+  outfits:
+    casual:
+      description: "白色T恤，浅蓝色牛仔裤，白色帆布鞋，斜挎小包"
+      reference_images: []
+    home:
+      description: "浅粉色居家服，棉拖鞋"
+      reference_images: []
+  bible:
+    core_traits: "温柔但坚强，容易害羞，对顾辰有好感"
