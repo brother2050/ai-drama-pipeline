@@ -141,12 +141,12 @@ music_backends:
   musicgen:
     module: "api.backends.music.musicgen"
     priority: 20
-    description: "MusicGen (RunPod Serverless) — AI 配乐生成"
-    requires_api_key: true
-    api_key_env: "RUNPOD_API_TOKEN"
+    description: "MusicGen API — AI 配乐生成（通用 HTTP，兼容 RunPod / 自部署）"
+    requires_api_key: false
     health_check:
-      type: "api_key_env"
-      env: "RUNPOD_API_TOKEN"
+      type: "http"
+      path: "/"
+      config_key: "music.api_url"
 
 # ══════════════════════════════════════════════════════════
 #  图像后端

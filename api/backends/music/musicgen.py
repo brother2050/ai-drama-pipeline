@@ -1,8 +1,7 @@
-"""MusicGen 配乐 — RunPod Serverless API"""
+"""MusicGen 配乐 — 通用 HTTP API（兼容 RunPod / 自部署 / 任意 MusicGen 服务）"""
 from __future__ import annotations
 
 import logging
-import struct
 from pathlib import Path
 
 from api.registry import BackendMeta, registry
@@ -27,14 +26,20 @@ _MOOD_PROMPTS = {
 }
 
 
-class MusicGenRunPod:
-    """通过 RunPod Serverless 调用 MusicGen 生成配乐"""
+class MusicGenAPI:
+    """通过 HTTP API 调用 MusicGen 生成配乐
+
+    兼容以下响应格式:
+    1. RunPod Serverless: {"status": "COMPLETED", "output": {"audio_url": "..."}}
+    2. 通用 JSON: {"audio_url": "..."} 或 {"audio_base64": "..."}
+    3. 直接返回音频二进制（WAV/MP3）
+    """
 
     def __init__(self, config: dict):
         music_cfg = config.get("music", {})
         self._api_url = (music_cfg.get("api_url") or "").rstrip("/")
-        self._api_key = music_cfg.get("api_key") or config.get("runpod", {}).get("api_key", "")
-        self._timeout = config.get("timeouts", {}).get("music", 120)
+        self._api_key = music_cfg.get("api_key", "")
+        self._timeout = config.get("timeouts", {}).get("music", 300)
         self._client = get_client(timeout=self._timeout)
         self._headers = auth_headers(self._api_key)
 
@@ -63,66 +68,68 @@ class MusicGenRunPod:
 
         logger.info(f"MusicGen 生成: '{prompt}' ({duration}s) → {output}")
 
-        # RunPod Serverless API (同步模式)
         resp = self._client.post(
             self._api_url,
-            json={"input": {"prompt": prompt, "duration": duration}},
+            json={"prompt": prompt, "duration": duration},
             headers=self._headers,
         )
         resp.raise_for_status()
-        data = resp.json()
 
-        # 解析响应
-        status = data.get("status", "")
-        if status != "COMPLETED":
-            error = data.get("error", data.get("output", "未知错误"))
-            raise RuntimeError(f"MusicGen 任务失败 (status={status}): {error}")
-
-        output_data = data.get("output", {})
-        audio_url = output_data.get("audio_url", "")
-        audio_base64 = output_data.get("audio_base64", "")
-
-        if audio_url:
-            self._download(audio_url, output)
-        elif audio_base64:
-            self._decode_base64(audio_base64, output)
+        # 根据 Content-Type 分发处理
+        content_type = resp.headers.get("content-type", "")
+        if "audio" in content_type or "octet-stream" in content_type:
+            # 直接返回音频二进制
+            Path(output).write_bytes(resp.content)
         else:
-            raise RuntimeError(f"MusicGen 响应中无音频数据: {data}")
+            # JSON 响应 → 提取音频
+            self._extract_audio(resp.json(), output)
 
         logger.info(f"MusicGen 完成: {output}")
         return output
 
-    def _download(self, url: str, output: str) -> None:
-        """下载远程音频文件"""
-        r = self._client.get(url)
-        r.raise_for_status()
-        Path(output).write_bytes(r.content)
-
-    def _decode_base64(self, b64: str, output: str) -> None:
-        """解码 base64 音频数据"""
+    def _extract_audio(self, data: dict, output: str) -> None:
+        """从 JSON 响应中提取音频（兼容多种格式）"""
         import base64
-        Path(output).write_bytes(base64.b64decode(b64))
+
+        # RunPod 格式: {"status": "COMPLETED", "output": {...}}
+        if "output" in data and isinstance(data["output"], dict):
+            status = data.get("status", "")
+            if status and status != "COMPLETED":
+                raise RuntimeError(f"MusicGen 任务失败 (status={status}): {data.get('error', data['output'])}")
+            data = data["output"]
+
+        # 提取音频
+        audio_url = data.get("audio_url", "")
+        audio_base64 = data.get("audio_base64", "")
+        audio_data = data.get("audio", "")  # 有些 API 直接返回 base64 在 audio 字段
+
+        if audio_url:
+            r = self._client.get(audio_url)
+            r.raise_for_status()
+            Path(output).write_bytes(r.content)
+        elif audio_base64:
+            Path(output).write_bytes(base64.b64decode(audio_base64))
+        elif audio_data and isinstance(audio_data, str) and len(audio_data) > 100:
+            Path(output).write_bytes(base64.b64decode(audio_data))
+        else:
+            raise RuntimeError(f"MusicGen 响应中无音频数据: {data}")
 
     def health_check(self) -> tuple[bool, str]:
         if not self._api_url:
             return False, "music.api_url 未配置"
-        if not self._api_key:
-            return False, "music.api_key 未配置（RUNPOD_API_TOKEN）"
-        return True, f"MusicGen (RunPod) configured → {self._api_url[:50]}"
+        return True, f"MusicGen API → {self._api_url[:50]}"
 
 
-def _f(config: dict) -> MusicGenRunPod:
-    return MusicGenRunPod(config)
+def _f(config: dict) -> MusicGenAPI:
+    return MusicGenAPI(config)
 
 
 registry.register(BackendMeta(
     name="musicgen",
     service_type="music",
     factory=_f,
-    description="MusicGen (RunPod Serverless) — AI 配乐生成",
+    description="MusicGen API — AI 配乐生成（通用 HTTP，兼容 RunPod / 自部署）",
     priority=20,
-    requires_api_key=True,
-    api_key_env="RUNPOD_API_TOKEN",
-    tags=["api", "cloud"],
-    health_check={"type": "api_key_env", "env": "RUNPOD_API_TOKEN"},
+    requires_api_key=False,
+    tags=["api"],
 ))
