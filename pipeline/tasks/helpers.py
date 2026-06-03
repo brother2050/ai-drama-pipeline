@@ -152,19 +152,21 @@ def _validate_config_path(config_path: str) -> str | None:
 def _build_ctx(config_path: str):
     """构建 Config + Container 上下文（带路径安全校验 + 进程内缓存）
 
-    Config 有 mtime 热重载，但 Container 缓存后端实例不会自动更新。
-    检测到 Config 重载时重建 Container，确保后端使用最新配置。
+    Config 有 mtime 热重载，检测到重载时重建 Container。
+    锁粒度：仅保护缓存读写，Config/Container 构建在锁外执行。
     """
     global _ctx_cache
+
+    # 快速路径：缓存命中且未重载（锁内只做读+比较）
     with _ctx_lock:
         if _ctx_cache and _ctx_cache[0] == config_path:
             cfg, cont = _ctx_cache[1], _ctx_cache[2]
-            # 检测 Config 是否发生了热重载（mtime 变化）
-            if cfg._check_reload():
-                from api.registry import Container
-                cont = Container(cfg.data)
-                _ctx_cache = (config_path, cfg, cont)
-            return cfg, cont
+            if not cfg._check_reload():
+                return cfg, cont
+            # 发生重载，需要重建 — 释放锁后执行
+            logger.info("Config 热重载，重建 Container")
+
+    # 慢路径：首次创建 或 热重载后重建（锁外执行，不阻塞其他 worker）
     _ensure_path()
     err = _validate_config_path(config_path)
     if err:
@@ -173,6 +175,8 @@ def _build_ctx(config_path: str):
     from api.registry import Container
     cfg = Config(config_path)
     cont = Container(cfg.data)
+
+    # 更新缓存
     with _ctx_lock:
         _ctx_cache = (config_path, cfg, cont)
     return cfg, cont

@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from infra.constants import STATUS_DONE
 import logging
-from pathlib import Path
 
 from infra.config import Config, load_yaml_full
 
