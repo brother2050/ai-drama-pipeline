@@ -1,8 +1,8 @@
-"""后端看门狗 — 超时检测 + LRU 淘汰 + 内存压力监控
+"""后端看门狗 — 超时检测 + 空闲淘汰 + 健康检查缓存
 
 核心职责：
 1. 跟踪每个后端任务的运行时长，超时自动标记失败
-2. LRU 淘汰：当活跃后端数超限时，关闭最久未使用的
+2. 空闲淘汰：后端长时间无任务时清理记录
 3. 健康检查 TTL 缓存：避免频繁探测外部服务
 
 适用场景：
@@ -62,12 +62,14 @@ class WatchDog:
         busy_timeout: float = 300.0,
         idle_timeout: float = 600.0,
         max_active: int = 0,
+        check_interval: float = 5.0,
         on_timeout: Callable[[TaskHandle], None] | None = None,
         on_evict: Callable[[str], None] | None = None,
     ):
         self._busy_timeout = busy_timeout
         self._idle_timeout = idle_timeout
         self._max_active = max_active
+        self._check_interval = check_interval
         self._on_timeout = on_timeout
         self._on_evict = on_evict
 
@@ -115,7 +117,9 @@ class WatchDog:
         try:
             yield handle
             with self._lock:
-                handle.status = "done"
+                # 仅当未被看门狗标记为 timeout 时才更新为 done
+                if handle.status == "running":
+                    handle.status = "done"
                 handle.end_time = time.monotonic()
                 if backend:
                     self._last_used[backend] = time.monotonic()
@@ -148,7 +152,7 @@ class WatchDog:
 
     def _watch_loop(self) -> None:
         """后台监控循环：检测超时任务"""
-        while not self._watcher_stop.wait(timeout=5.0):
+        while not self._watcher_stop.wait(timeout=self._check_interval):
             now = time.monotonic()
             timed_out = []
             with self._lock:
@@ -158,6 +162,18 @@ class WatchDog:
                         handle.end_time = now
                         timed_out.append(handle)
                         self._active.pop(task_id, None)
+
+                # 空闲超时淘汰：后端长时间无新任务
+                if self._idle_timeout > 0:
+                    idle_backends = [
+                        b for b, ts in self._last_used.items()
+                        if (now - ts) > self._idle_timeout
+                        and not any(h.backend == b for h in self._active.values())
+                    ]
+                    for b in idle_backends:
+                        self._last_used.pop(b, None)
+                        logger.info(f"[WatchDog] 空闲超时淘汰后端: {b}")
+
             for handle in timed_out:
                 logger.error(f"[WatchDog] 检测到超时任务: {handle.task_id} "
                              f"({handle.elapsed}s, backend={handle.backend})")

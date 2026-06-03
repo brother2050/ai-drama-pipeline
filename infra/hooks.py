@@ -34,6 +34,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
@@ -61,7 +62,7 @@ _registry: dict[str, list[HookEntry]] = {
     "cleanup": [],
     "health_check": [],
 }
-_lock = __import__("threading").Lock()
+_lock = threading.Lock()
 
 
 def _register(hook_type: str, fn: Callable, priority: int, service_type: str) -> Callable:

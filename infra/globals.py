@@ -25,6 +25,7 @@ _lock = threading.Lock()
 def init_globals(
     busy_timeout: float = 300.0,
     idle_timeout: float = 600.0,
+    check_interval: float = 5.0,
     health_ttl: float = 30.0,
     comfyui_slots: int = 1,
     tts_slots: int = 2,
@@ -41,6 +42,7 @@ def init_globals(
         _watchdog = WatchDog(
             busy_timeout=busy_timeout,
             idle_timeout=idle_timeout,
+            check_interval=check_interval,
             on_timeout=lambda h: logger.error(
                 f"[WatchDog] 任务超时告警: {h.task_id} ({h.elapsed}s, backend={h.backend})"),
         )

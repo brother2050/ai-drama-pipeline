@@ -55,7 +55,6 @@ def safe_run(
     retryable: tuple[type[Exception], ...] = (Exception,),
     fallback: T | Callable[[], T] | None = None,
     task_id: str = "",
-    timeout: float | None = None,
 ) -> T:
     """安全执行单个任务
 
@@ -69,7 +68,6 @@ def safe_run(
         retryable: 可重试的异常类型
         fallback: 全部重试失败后的降级值或生成函数
         task_id: 任务标识（用于日志）
-        timeout: 单次执行超时（秒），None 表示不限
 
     Returns:
         fn 的返回值，或 fallback 值
