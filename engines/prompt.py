@@ -50,6 +50,7 @@ def _get_appearance_system() -> str:
 
 def _split_into_batches(characters: list[dict], available_tokens: int) -> list[list[dict]]:
     """按上下文长度自动分批"""
+
     batches: list[list[dict]] = [[]]
     batch_tokens = 0
     for char in characters:

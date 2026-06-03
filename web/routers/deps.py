@@ -22,6 +22,11 @@ from infra.config import deep_merge as _deep_merge
 
 
 def _cfg() -> dict:
+    """获取项目级配置（不含 system.yaml 合并）。
+
+    用途：读取 project.yaml 中的项目名、风格等项目专属字段。
+    与 _merged_cfg() 的区别：_merged_cfg() 会合并 system.yaml 的全局配置。
+    """
     from infra.config import Config
     cfg_path = _cfg_path()
     try:
@@ -45,6 +50,11 @@ def _cfg() -> dict:
 
 
 def _merged_cfg() -> dict:
+    """获取合并后的完整配置（system.yaml + project.yaml + 注册表默认值）。
+
+    用途：读取 ComfyUI URL、LLM 配置、TTS 后端等系统级+项目级合并后的最终值。
+    大多数场景应使用此函数，而非 _cfg()。
+    """
     from infra.config import Config, SYSTEM_CONFIG_PATH
     cfg_path = _cfg_path()
     try:
@@ -62,6 +72,7 @@ _cfg_path_cache: str | None = None
 
 
 def _cfg_path() -> str:
+    """获取当前活动项目的 project.yaml 绝对路径。"""
     global _cfg_path_cache
     p = _proj()
     candidate = str(p / "config" / "project.yaml")
