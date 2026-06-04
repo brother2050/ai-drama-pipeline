@@ -9,7 +9,7 @@ from pathlib import Path
 from fastapi import APIRouter, Body, HTTPException
 
 from web.routers.deps import (
-    _cfg, _merged_cfg, _cfg_path, _paths,
+    _cfg, _merged_cfg, _merged_cfg_public, _cfg_path, _paths,
     _check_uuid,
     _check_tool, _submit_task,
 )
@@ -428,8 +428,7 @@ def _test_llm(cfg: dict, result: dict) -> dict:
 
 @router.get("/config")
 def get_config() -> dict:
-    cfg = _cfg()
-    return cfg
+    return _merged_cfg_public()
 
 
 @router.post("/config")

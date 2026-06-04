@@ -53,6 +53,12 @@ def _merged_cfg() -> dict:
     return data
 
 
+def _merged_cfg_public() -> dict:
+    """获取合并配置的公开版本（移除 _project_dir 等内部字段）"""
+    cfg = _merged_cfg()
+    return {k: v for k, v in cfg.items() if not k.startswith("_")}
+
+
 _paths_cache: ProjectPaths | None = None
 _cfg_path_cache: str | None = None
 
