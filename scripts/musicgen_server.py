@@ -125,16 +125,25 @@ def load_model(model_size: str = "medium", quantize: bool = False):
 
 
 def _generate_segment(prompt: str, duration: int) -> np.ndarray:
-    """生成单段音频"""
-    inputs = _processor(text=[prompt], return_tensors="pt").to(_model.device)
-    max_tokens = duration * (_samplerate // 256)
-    max_tokens = min(max_tokens, 1500)
+    """生成单段音频，输出精确裁剪到目标时长
 
+    MusicGen 的 max_new_tokens 不直接映射为音频秒数（模型内部有
+    codebook 上采样因子），实际输出通常是请求时长的 ~2.5 倍。
+    因此生成后按目标帧数精确裁剪。
+    """
+    target_frames = duration * _samplerate
+    # 请求略多 token 确保生成足够长的音频（2x buffer）
+    max_tokens = int(duration * 2 * (_samplerate // 256))
+    max_tokens = min(max_tokens, 3000)
+
+    inputs = _processor(text=[prompt], return_tensors="pt").to(_model.device)
     with torch.no_grad():
         audio = _model.generate(**inputs, max_new_tokens=max_tokens)
 
     arr = audio[0, 0].cpu().numpy()
-    return arr.astype(np.float32) if arr.dtype == np.float16 else arr
+    arr = arr.astype(np.float32) if arr.dtype == np.float16 else arr
+    # 精确裁剪到目标时长
+    return arr[:target_frames]
 
 
 def _generate_concurrent(prompts: list[str], durations: list[int]) -> list[np.ndarray]:
