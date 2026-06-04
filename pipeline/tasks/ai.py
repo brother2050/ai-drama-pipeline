@@ -437,7 +437,8 @@ def _collect_translation_texts(paths) -> tuple[list[str], list[tuple[str, str, s
                 data = load_yaml_full(f)
                 char = data.get("character", {})
                 cid = char.get("id", f.stem)
-            except Exception:
+            except Exception as e:
+                logger.warning(f"跳过损坏的角色配置 {f.name}: {e}")
                 continue
             if char.get("appearance") and not char.get("appearance_prompt_en"):
                 all_texts.append(char["appearance"])
@@ -459,7 +460,8 @@ def _collect_translation_texts(paths) -> tuple[list[str], list[tuple[str, str, s
                 data = load_yaml_full(f)
                 scene = data.get("scene", {})
                 sid = scene.get("id", f.stem)
-            except Exception:
+            except Exception as e:
+                logger.warning(f"跳过损坏的场景配置 {f.name}: {e}")
                 continue
             if scene.get("description") and not scene.get("description_en"):
                 all_texts.append(scene["description"])

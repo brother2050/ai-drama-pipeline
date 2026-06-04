@@ -299,7 +299,8 @@ def _ensure_outfit_images(char_id: str, config: dict, container,
 
     try:
         data = load_yaml_full(char_file)
-    except Exception:
+    except Exception as e:
+        logger.warning(f"加载角色配置失败 {char_id}: {e}")
         return
 
     char = data.get("character", {})
