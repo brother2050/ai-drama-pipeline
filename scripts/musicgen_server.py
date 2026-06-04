@@ -230,29 +230,49 @@ def load_model(model_size: str = "medium", quantize: bool = False):
 
 
 def _generate_batch(prompts: list[str], durations: list[int]) -> list[np.ndarray]:
-    """逐段生成多段音频
+    """批量生成多段音频 — 手动拼 batch 避免 processor padding 问题
 
-    量化模型不支持 batch generate（padding 干扰量化注意力机制），
-    改为逐段串行生成，每段独立 forward。
+    逐段 tokenize → 手动左 padding 对齐 → 堆叠成 batch → 一次 generate。
+    量化模型 + processor(padding=True) 会卡死，手动拼 batch 兼容。
     """
+    target_frames_list = [d * _samplerate for d in durations]
+    max_dur = max(durations)
+
+    if _is_quantized:
+        max_tokens = int(max_dur * 1.5 * (_samplerate // 256))
+        max_tokens = min(max_tokens, 3000)
+    else:
+        max_tokens = int(max_dur * 2 * (_samplerate // 256))
+        max_tokens = min(max_tokens, 3000)
+
+    # 逐段 tokenize，手动左 padding 对齐
+    tokenized = [_processor(text=[p], return_tensors="pt") for p in prompts]
+    max_len = max(t["input_ids"].shape[1] for t in tokenized)
+
+    pad_token_id = _processor.tokenizer.pad_token_id or 0
+    input_ids_list, attention_mask_list = [], []
+    for t in tokenized:
+        ids = t["input_ids"][0]       # [seq_len]
+        mask = t["attention_mask"][0]
+        pad_len = max_len - ids.shape[0]
+        if pad_len > 0:
+            ids = torch.cat([torch.full((pad_len,), pad_token_id, dtype=ids.dtype, device=ids.device), ids])
+            mask = torch.cat([torch.zeros(pad_len, dtype=mask.dtype, device=mask.device), mask])
+        input_ids_list.append(ids)
+        attention_mask_list.append(mask)
+
+    batch_ids = torch.stack(input_ids_list).to(_model.device)
+    batch_mask = torch.stack(attention_mask_list).to(_model.device)
+
+    with torch.no_grad():
+        audio = _model.generate(input_ids=batch_ids, attention_mask=batch_mask,
+                                max_new_tokens=max_tokens)
+
     results = []
-    for i, (prompt, duration) in enumerate(zip(prompts, durations)):
-        target_frames = duration * _samplerate
-        if _is_quantized:
-            max_tokens = int(duration * 1.5 * (_samplerate // 256))
-            max_tokens = min(max_tokens, 3000)
-        else:
-            max_tokens = int(duration * 2 * (_samplerate // 256))
-            max_tokens = min(max_tokens, 3000)
-
-        inputs = _processor(text=[prompt], return_tensors="pt").to(_model.device)
-        with torch.no_grad():
-            audio = _model.generate(**inputs, max_new_tokens=max_tokens)
-
-        arr = audio[0, 0].cpu().numpy()
+    for i, target_frames in enumerate(target_frames_list):
+        arr = audio[i, 0].cpu().numpy()
         arr = arr.astype(np.float32) if arr.dtype == np.float16 else arr
         results.append(arr[:target_frames])
-        logger.info(f"  段 {i+1}/{len(prompts)}: {duration}s 生成完成")
     return results
 
 
@@ -311,7 +331,7 @@ def generate(req: GenRequest):
         else:
             segments_sec = _split_segments(duration)
             n_segments = len(segments_sec)
-            logger.info(f"  共 {n_segments} 段, 批量生成")
+            logger.info(f"  共 {n_segments} 段 × {segments_sec[0]}s, 批量生成 (batch={n_segments})")
             all_segments = _generate_batch([req.prompt] * n_segments, segments_sec)
             audio_np = _concat_segments(all_segments)
 
