@@ -421,7 +421,7 @@ def batch_translate_to_english(texts: list[str], llm: object = None) -> list[str
         estimate_item_tokens=lambda item: estimate_tokens(item[1]),
     )
 
-    _merge_translate_results(results, batch_items, batch_result)
+    _merge_translate_results(results, batch_items, batch_result, llm)
     return results
 
 
@@ -450,7 +450,7 @@ def _parse_numbered_lines(raw: str) -> dict:
     return parsed
 
 
-def _merge_translate_results(results: list[str], batch_items: list[tuple[int, str]], batch_result: dict) -> None:
+def _merge_translate_results(results: list[str], batch_items: list[tuple[int, str]], batch_result: dict, llm: object = None) -> None:
     """合并批次翻译结果，未翻译的回退单条翻译
 
     batch_result 结构: {"results": [parsed_dict | None, ...], "total_batches": N}
@@ -480,4 +480,4 @@ def _merge_translate_results(results: list[str], batch_items: list[tuple[int, st
 
     for orig_idx, orig_text in batch_items:
         if not results[orig_idx]:
-            results[orig_idx] = translate_to_english(orig_text, llm=None)
+            results[orig_idx] = translate_to_english(orig_text, llm=llm)
