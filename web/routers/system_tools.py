@@ -475,9 +475,8 @@ def _find_shot_for_api(episode: int, shot_id: str) -> dict | None:
         for row in get_episode_shots(get_pool(), episode):
             if row.get("shot_id") == shot_id:
                 return row
-    except Exception:
-        logger.debug("获取生成状态失败")
-        pass
+    except Exception as e:
+        logger.warning(f"获取生成状态失败: {e}")
     return None
 
 

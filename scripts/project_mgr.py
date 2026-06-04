@@ -163,9 +163,8 @@ def list_projects(console):
             from infra.database.storyboard_db import get_episodes_summary
             rows = get_episodes_summary(get_pool())
             sb_count = sum(r["shots"] for r in rows)
-        except Exception:
-            logger.debug("获取集统计失败")
-            pass
+        except Exception as e:
+            logger.debug(f"获取集统计失败: {e}")
         is_active = d.resolve() == active.resolve()
         t.add_row(
             "→" if is_active else "",
@@ -273,9 +272,8 @@ def show_current(root: Path, console):
         from infra.database.storyboard_db import get_episodes_summary
         rows = get_episodes_summary(get_pool())
         sb_count = sum(r["shots"] for r in rows)
-    except Exception:
-        logger.debug("获取集统计失败")
-        pass
+    except Exception as e:
+        logger.debug(f"获取集统计失败: {e}")
     console.print(f"[cyan]角色:[/cyan] {char_count} 个")
     console.print(f"[cyan]场景:[/cyan] {scene_count} 个")
     console.print(f"[cyan]分镜:[/cyan] {sb_count} 个镜头")

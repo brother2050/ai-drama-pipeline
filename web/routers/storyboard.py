@@ -69,9 +69,8 @@ def get_episodes_summary() -> dict:
                         has_video = os.path.isfile(os.path.join(entry.path, "video.mp4"))
                         if has_frame or has_video:
                             done_sids.add(sid)
-            except OSError:
-                logger.debug("扫描输出目录失败")
-                pass
+            except OSError as e:
+                logger.warning(f"扫描输出目录失败: {e}")
         done_count = len(done_sids)
         status = STATUS_DONE if done_count >= shot_count and shot_count > 0 else "progress" if done_count > 0 else "none"
         result.append({
@@ -159,9 +158,8 @@ def save_storyboard(episode: int, req: StoryboardSaveRequest) -> dict:
         errors = check_consistency(shots, chars, scenes)
         if errors:
             warnings = errors[:10]  # 最多返回 10 条
-    except Exception:
-        logger.debug("一致性检查跳过")
-        pass
+    except Exception as e:
+        logger.warning(f"一致性检查跳过: {e}")
 
     result = {"status": "ok", "count": len(shots)}
     if warnings:

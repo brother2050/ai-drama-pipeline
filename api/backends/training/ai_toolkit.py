@@ -458,8 +458,8 @@ class AIToolkitTrainer:
                     log = self._api_get_job_log(job_id)
                     if log:
                         logger.error(f"  训练日志:\n{log[-2000:]}")
-                except Exception:
-                    pass
+                except Exception as log_err:
+                    logger.debug(f"获取训练日志失败: {log_err}")
                 raise RuntimeError(f"训练失败: {info}")
             if status in ("stopped", "cancelled"):
                 raise RuntimeError(f"训练被取消: {info}")
