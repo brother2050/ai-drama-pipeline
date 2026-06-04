@@ -223,6 +223,7 @@ def parse_llm_json(text: str) -> object | None:
             try:
                 return json.loads(repaired)
             except json.JSONDecodeError:
+                logger.debug(f"JSON 解析跳过: {{text[:50]}}...")
                 pass
 
     # 6. 全文修复（兜底）

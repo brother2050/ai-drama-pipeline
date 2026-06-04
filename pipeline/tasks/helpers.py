@@ -147,8 +147,8 @@ def invalidate_ctx_cache():
             if hasattr(cont, 'shutdown_all'):
                 try:
                     cont.shutdown_all()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Container 关闭异常: {e}")
             _ctx_cache = None
             logger.info("Pipeline ctx 缓存已失效（文件变化触发）")
 

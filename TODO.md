@@ -31,4 +31,4 @@
 ## P3 — 逻辑隐患
 
 - [x] `web/routers/deps.py` — `_merged_cfg()` 返回的 dict 包含 `_project_dir`，GET /config API 暴露服务器内部路径 → `c592087`
-- [ ] `engines/portrait.py` — `_generating` 重入保护 TTL=1800s，ComfyUI 卡死时 30 分钟内无法重试
+- [x] `engines/portrait.py` — `_generating` 重入保护 TTL=1800s，ComfyUI 卡死时 30 分钟内无法重试 → `2c9ed5f`

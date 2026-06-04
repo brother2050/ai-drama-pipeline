@@ -300,8 +300,8 @@ class Container:
             if hasattr(old_inst, "shutdown"):
                 try:
                     old_inst.shutdown()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"后端关闭异常: {type(e).__name__}: {e}")
             new_inst = registry.create(stype, bname, new_cfg)
             with self._lock:
                 self._instances[key] = new_inst
