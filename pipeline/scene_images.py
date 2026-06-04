@@ -8,7 +8,7 @@
 from __future__ import annotations
 from infra.config import load_yaml_full
 
-from infra.constants import STATUS_DONE, STATUS_ERROR, contains_non_ascii
+from infra.constants import STATUS_DONE, STATUS_ERROR, is_ascii_only
 import logging
 import os
 from pathlib import Path
@@ -88,7 +88,7 @@ def _resolve_scene_desc(scene: dict, sname: str) -> str:
     desc_en = scene.get("description_en", "")
     if not desc_en:
         description = scene.get("description", "")
-        if description and contains_non_ascii(description):
+        if description and not is_ascii_only(description):
             from infra.constants import ERR_NOT_PREPARED_CN
             logger.warning(f"  ⚠ 场景 {sname}: 尚未生成英文描述，{ERR_NOT_PREPARED_CN}")
             return ""

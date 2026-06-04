@@ -27,6 +27,7 @@ import concurrent.futures
 import functools
 import logging
 import random
+import threading
 import time
 import traceback
 from typing import Any, Callable, TypeVar
@@ -57,6 +58,7 @@ def safe_run(
     fallback: T | Callable[[], T] | None = None,
     task_id: str = "",
     timeout: float | None = None,
+    cancel_event: threading.Event | None = None,
 ) -> T:
     """安全执行单个任务
 
@@ -71,12 +73,22 @@ def safe_run(
         fallback: 全部重试失败后的降级值或生成函数
         task_id: 任务标识（用于日志）
         timeout: 单次执行超时（秒），None 表示不限
+        cancel_event: 可选的取消标志。超时后自动 set；
+            fn 可通过 kwargs["_cancel_event"] 获取并定期检查 is_set()
+            以实现协作式取消。注意：Python 无法强制终止线程，
+            仅能通过此机制通知 fn 主动退出。
 
     Returns:
         fn 的返回值，或 fallback 值
     """
     kwargs = kwargs or {}
     last_exc: Exception | None = None
+
+    # 超时模式下自动创建取消标志，传入 fn 供协作式取消
+    if timeout and cancel_event is None:
+        cancel_event = threading.Event()
+    if cancel_event:
+        kwargs["_cancel_event"] = cancel_event
 
     for attempt in range(max(1, retries)):
         try:
@@ -87,7 +99,9 @@ def safe_run(
                         return future.result(timeout=timeout)
                     except concurrent.futures.TimeoutError:
                         # 后台线程无法取消（Python 不支持强制终止线程），
-                        # 线程将在完成后自动回收。长时间任务应配合外部取消机制。
+                        # 通过 cancel_event 通知 fn 协作退出，线程将在完成后自动回收。
+                        if cancel_event:
+                            cancel_event.set()
                         logger.warning(
                             f"[SafeExecutor] {task_id or fn.__name__}: "
                             f"执行超时 ({timeout}s)，后台线程继续运行直至完成"

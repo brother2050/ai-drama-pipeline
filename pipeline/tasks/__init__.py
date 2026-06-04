@@ -61,5 +61,5 @@ __all__ = [
     "seko_import_task",
     # 内部工具
     "_load_shots", "_find_shot", "_shot_dir", "_check_available",
-    "_db_record_step", "_prepare", "_download_seko_image",
+    "_db_record_step", "_prepare",
 ]

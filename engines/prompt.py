@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass, field
 
 from engines.shot_utils import strip_dialogue
-from infra.constants import contains_non_ascii, is_ascii_only
+from infra.constants import is_ascii_only
 
 logger = logging.getLogger(__name__)
 
@@ -222,7 +222,7 @@ def build_prompt(params: PromptBuildParams) -> str:
     # 清理输入
     scene_clean = ""
     if params.scene_desc:
-        if contains_non_ascii(params.scene_desc):
+        if not is_ascii_only(params.scene_desc):
             from infra.constants import ERR_NOT_PREPARED_CN
             logger.warning(f"场景描述仍为中文，{ERR_NOT_PREPARED_CN}")
         scene_clean = params.scene_desc
@@ -234,7 +234,7 @@ def build_prompt(params: PromptBuildParams) -> str:
         action = shot.get("action", "")
         if action:
             action = strip_dialogue(action)
-            if contains_non_ascii(action):
+            if not is_ascii_only(action):
                 from infra.constants import ERR_NOT_PREPARED_CN
                 logger.warning(f"动作描述仍为中文（action_en 缺失），{ERR_NOT_PREPARED_CN}")
     else:
