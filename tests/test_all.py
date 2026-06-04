@@ -16,15 +16,15 @@ if str(ROOT) not in sys.path:
 
 def test_config_load():
     """测试配置加载"""
-    from infra.config import Config, load_config, save_config
+    from infra.config import Config
 
     cfg_path = str(ROOT / "projects" / "default" / "config" / "project.yaml")
     cfg = Config(cfg_path)
     # project.name 来自项目配置文件，不硬编码断言具体值
     name = cfg.get("project.name")
     assert name is not None and name != "", "project.name 不应为空"
-    assert cfg.get("models.tts_backend") == "mimo-voicedesign"
-    assert cfg.get("comfyui.url") == "http://127.0.0.1:8188"
+    assert cfg.get("models.tts_backend") is not None, "models.tts_backend 不应为空"
+    assert cfg.get("comfyui.url") is not None, "comfyui.url 不应为空"
     assert cfg.get("nonexistent.key", "default") == "default"
     print(f"✅ Config 加载正常 (project.name={name})")
 

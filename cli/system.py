@@ -211,13 +211,21 @@ def _check_postgres() -> tuple[bool, str, str]:
         return False, "未配置", "未配置"
     try:
         import psycopg2
-        conn = psycopg2.connect(dsn, connect_timeout=3)
-        conn.close()
-        return True, dsn.split("@")[-1], ""
     except ImportError:
         return False, "未配置", "psycopg2 未安装"
+    try:
+        conn = psycopg2.connect(dsn, connect_timeout=3)
+        conn.close()
+        # 脱敏显示：只保留 @ 后面的部分
+        addr = dsn.split("@")[-1] if "@" in dsn else "已配置"
+        return True, addr, ""
+    except psycopg2.OperationalError as e:
+        msg = str(e).strip()
+        addr = dsn.split("@")[-1] if "@" in dsn else "已配置"
+        return False, addr, msg[:80]
     except Exception as e:
-        return False, dsn.split("@")[-1] if "@" in dsn else "已配置", f"{type(e).__name__}: {str(e)[:60]}"
+        addr = dsn.split("@")[-1] if "@" in dsn else "已配置"
+        return False, addr, f"{type(e).__name__}: {str(e)[:60]}"
 
 
 def _check_celery(redis_ok: bool) -> bool:

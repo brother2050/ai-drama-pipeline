@@ -31,9 +31,15 @@ def create_app() -> FastAPI:
     app.include_router(api.router, prefix="/api")
 
     from fastapi.staticfiles import StaticFiles
+    from fastapi.responses import FileResponse
     static_dir = Path(__file__).parent / "static"
     if static_dir.exists():
-        app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
+        # SPA 入口：根路径返回 index.html
+        @app.get("/")
+        async def serve_index():
+            return FileResponse(str(static_dir / "index.html"))
+        # 静态资源：/css, /js, /favicon.svg 等
+        app.mount("/", StaticFiles(directory=str(static_dir)), name="static")
     return app
 
 

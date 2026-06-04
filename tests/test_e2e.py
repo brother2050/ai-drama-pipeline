@@ -165,9 +165,10 @@ def test_js_has_delete_endpoints(client):
 
 
 def test_js_no_xss_raw_html(client):
-    """JS 中没有明显的 innerHTML XSS（检查关键路径）"""
+    """JS 中没有明显的 innerHTML XSS（检查所有 JS 文件）"""
     all_js = ""
-    for js_file in ["core.js", "characters.js", "scenes.js", "ai-gen.js", "pipeline.js"]:
+    for js_file in ["core.js", "characters.js", "scenes.js", "ai-gen.js", "pipeline.js",
+                    "dashboard.js", "projects.js", "settings.js", "seko.js", "extras.js"]:
         r = client.get(f"/js/{js_file}")
         if r.status_code == 200:
             all_js += r.text
