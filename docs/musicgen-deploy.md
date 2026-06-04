@@ -50,9 +50,9 @@ music:
 |------|--------|-------------|-------------|--------------|------|
 | small | 300M | ~4GB | — | ~5s | 一般 |
 | medium | 1.5B | ~8GB | — | ~15s | 推荐入门 |
-| large | 3.3B | ~16GB | **~4GB** | ~30s | 最好 |
+| large | 3.3B | ~10GB | **~4GB** | ~30s | 最好 |
 
-**推荐 large + `--quantize`**（4-bit NF4 量化，显存从 16GB 降到 ~4GB，T4/15GB 卡均可跑）。
+**推荐 large + `--quantize`**（4-bit NF4 量化，显存从 ~10GB 降到 ~4GB，T4/15GB 卡均可跑）。
 
 ```bash
 # 15GB 显存卡 → large + 4-bit 量化（推荐）
@@ -115,7 +115,7 @@ python scripts/musicgen_server.py --model medium --port 8000
 }
 ```
 
-> **注意**: transformers 4.x 需要 PyTorch 2.10+，若遇到 `AuxRequest` 导入错误，降级 transformers：`pip install transformers==4.57.6`
+> **注意**: 若遇到 `AuxRequest` 导入错误，锁定 transformers：`pip install transformers==4.57.6`（5.x 早期版本有此 bug，4.45+ 已修复）
 
 ## mood → prompt 映射
 
@@ -140,13 +140,13 @@ python scripts/musicgen_server.py --model medium --port 8000
 
 | 包 | 推荐版本 | 说明 |
 |---|---|---|
-| `transformers` | `==4.57.6` | 5.x 不兼容 PyTorch 2.10（`AuxRequest` 导入错误） |
-| `numpy` | `==1.26.4` | 2.x 与部分音频处理库二进制不兼容 |
+| `transformers` | `>=4.40,<5.0` | 4.40+ 支持 MusicGen，5.x 早期有 `AuxRequest` 导入 bug |
+| `numpy` | `>=1.24,<2.0` | 1.x 兼容 soundfile/librosa，2.x 二进制接口不兼容 |
 | `torch` | `>=2.10.0` | 需支持 CUDA 12.x |
 
 快速安装：
 ```bash
-pip install transformers==4.57.6 numpy==1.26.4
+pip install "transformers>=4.40,<5.0" "numpy>=1.24,<2.0"
 ```
 
 ### libcusparseLt.so.0 找不到
@@ -162,11 +162,21 @@ find / -name "libcusparseLt*" 2>/dev/null
 # 通常在: ~/.pyenv/versions/3.11.1/lib/python3.11/site-packages/nvidia/cusparselt/lib/
 ```
 
-**修复**（持久化到 shell 配置）：
+**修复**（按部署方式选择）：
+
 ```bash
-# 找到实际路径后加入 LD_LIBRARY_PATH
+# 方案 A：shell 环境（开发机/裸机部署）
 echo 'export LD_LIBRARY_PATH="/path/to/nvidia/cusparselt/lib:$LD_LIBRARY_PATH"' >> ~/.zshrc
 source ~/.zshrc
+
+# 方案 B：Docker（Dockerfile 或 docker run --env）
+ENV LD_LIBRARY_PATH="/path/to/nvidia/cusparselt/lib:${LD_LIBRARY_PATH}"
+
+# 方案 C：systemd service（ExecStart 前加环境）
+Environment="LD_LIBRARY_PATH=/path/to/nvidia/cusparselt/lib"
+
+# 方案 D：通用（patchelf 永久写入 Python 二进制，不依赖环境变量）
+patchelf --add-rpath /path/to/nvidia/cusparselt/lib $(python -c "import torch; print(torch.__file__)")
 ```
 
 ### nvidia-smi CUDA Version vs nvcc CUDA Version

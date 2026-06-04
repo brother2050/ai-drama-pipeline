@@ -39,8 +39,8 @@ def _ensure_deps(quantize: bool = False):
     # (import_name, pip_name)
     _CORE = [
         ("torch", "torch"),
-        ("transformers", "transformers==4.57.6"),
-        ("numpy", "numpy==1.26.4"),
+        ("transformers", "transformers>=4.40,<5.0"),
+        ("numpy", "numpy>=1.24,<2.0"),
         ("soundfile", "soundfile"),
         ("fastapi", "fastapi"),
         ("uvicorn", "uvicorn[standard]"),
