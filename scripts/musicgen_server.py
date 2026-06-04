@@ -230,31 +230,29 @@ def load_model(model_size: str = "medium", quantize: bool = False):
 
 
 def _generate_batch(prompts: list[str], durations: list[int]) -> list[np.ndarray]:
-    """批量生成多段音频 — 一次 forward 同时处理所有段
+    """逐段生成多段音频
 
-    MusicGen 的 generate() 在 batch_size > 1 时，所有序列对齐到相同的
-    max_new_tokens（取 max），生成后按各自目标帧数裁剪。
-    GPU 矩阵计算在 batch 维度天然并行，一次 batch ≈ 单段耗时。
+    量化模型不支持 batch generate（padding 干扰量化注意力机制），
+    改为逐段串行生成，每段独立 forward。
     """
-    target_frames_list = [d * _samplerate for d in durations]
-    max_dur = max(durations)
-
-    if _is_quantized:
-        max_tokens = int(max_dur * 1.5 * (_samplerate // 256))
-        max_tokens = min(max_tokens, 3000)
-    else:
-        max_tokens = int(max_dur * 2 * (_samplerate // 256))
-        max_tokens = min(max_tokens, 3000)
-
-    inputs = _processor(text=prompts, return_tensors="pt", padding=True).to(_model.device)
-    with torch.no_grad():
-        audio = _model.generate(**inputs, max_new_tokens=max_tokens)
-
     results = []
-    for i, target_frames in enumerate(target_frames_list):
-        arr = audio[i, 0].cpu().numpy()
+    for i, (prompt, duration) in enumerate(zip(prompts, durations)):
+        target_frames = duration * _samplerate
+        if _is_quantized:
+            max_tokens = int(duration * 1.5 * (_samplerate // 256))
+            max_tokens = min(max_tokens, 3000)
+        else:
+            max_tokens = int(duration * 2 * (_samplerate // 256))
+            max_tokens = min(max_tokens, 3000)
+
+        inputs = _processor(text=[prompt], return_tensors="pt").to(_model.device)
+        with torch.no_grad():
+            audio = _model.generate(**inputs, max_new_tokens=max_tokens)
+
+        arr = audio[0, 0].cpu().numpy()
         arr = arr.astype(np.float32) if arr.dtype == np.float16 else arr
         results.append(arr[:target_frames])
+        logger.info(f"  段 {i+1}/{len(prompts)}: {duration}s 生成完成")
     return results
 
 
