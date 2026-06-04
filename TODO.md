@@ -10,7 +10,7 @@
 
 ## P1 — 重复代码（违反 DRY）
 
-- [ ] `web/routers/characters.py` vs `scenes.py` — save/delete/batch_delete 3 个函数结构完全相同，仅实体名不同
+- [x] `web/routers/characters.py` vs `scenes.py` — save/delete/batch_delete 3 个函数结构完全相同，仅实体名不同 → `c17c6be`
 - [ ] `web/routers/system_tools.py` — run_step_tts/first_frame/video/lipsync 4 个函数结构完全相同
 - [ ] `api/backends/tts/*` — health_check 5 个函数逻辑完全相同，仅服务名字符串不同
 - [ ] `cli/generate.py` — `-c/--config` 选项在 6 个命令中重复声明

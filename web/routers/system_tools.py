@@ -482,28 +482,25 @@ def _find_shot_for_api(episode: int, shot_id: str) -> dict | None:
     return None
 
 
-@router.post("/steps/tts")
-def run_step_tts(req: StepRequest):
-    from pipeline.tasks import step_tts
-    return _submit_task(step_tts, _cfg_path(), req.episode, req.shot_id, req.force)
+# ── 单步执行（4 个步骤共用同一模式）──
 
+_STEP_TASKS = {
+    "tts": "step_tts",
+    "first-frame": "step_first_frame",
+    "video": "step_video",
+    "lipsync": "step_lipsync",
+}
 
-@router.post("/steps/first-frame")
-def run_step_first_frame(req: StepRequest):
-    from pipeline.tasks import step_first_frame
-    return _submit_task(step_first_frame, _cfg_path(), req.episode, req.shot_id, req.force)
+def _make_step_handler(task_name: str):
+    def handler(req: StepRequest):
+        import pipeline.tasks as tasks
+        task_fn = getattr(tasks, task_name)
+        return _submit_task(task_fn, _cfg_path(), req.episode, req.shot_id, req.force)
+    handler.__name__ = f"run_step_{task_name}"
+    return handler
 
-
-@router.post("/steps/video")
-def run_step_video(req: StepRequest):
-    from pipeline.tasks import step_video
-    return _submit_task(step_video, _cfg_path(), req.episode, req.shot_id, req.force)
-
-
-@router.post("/steps/lipsync")
-def run_step_lipsync(req: StepRequest):
-    from pipeline.tasks import step_lipsync
-    return _submit_task(step_lipsync, _cfg_path(), req.episode, req.shot_id, req.force)
+for _step_path, _task_name in _STEP_TASKS.items():
+    router.add_api_route(f"/steps/{_step_path}", _make_step_handler(_task_name), methods=["POST"])
 
 
 @router.post("/steps/shot")
