@@ -4,7 +4,7 @@
 
 ---
 
-## 已修复（14 次提交）
+## 已修复（15 次提交）
 
 | # | 问题 | 提交 |
 |---|------|------|
@@ -22,6 +22,7 @@
 | P3 | GET /config 暴露 _project_dir | `c592087` |
 | P3 | portrait.py TTL 30min→5min | `2c9ed5f` |
 | P3 | step 路由 Swagger summary 丢失 | `b47421c` |
+| P2 | generate.py 拆分子函数 + 6处静默异常添加日志 | `e2a2992` |
 
 ---
 
@@ -29,20 +30,20 @@
 
 ### 代码质量
 
-- [ ] `cli/generate.py:15` — `register_generate_commands` 过长（238 行），可拆分为子函数
+- [x] `cli/generate.py:15` — `register_generate_commands` 过长（238 行），可拆分为子函数
 - [ ] `cli/pipeline.py:14` — `register_pipeline_commands` 过长（138 行），可拆分为子函数
 - [ ] `cli/system.py:18` — `register_system_commands` 过长（184 行），可拆分为子函数
 - [ ] `infra/safe_executor.py:49` — `safe_run` 过长（103 行），可拆分超时/重试/降级逻辑
 
 ### 静默异常（操作性代码应添加日志）
 
-- [ ] `api/backends/training/ai_toolkit.py:461` — 训练状态解析 except:pass
+- [x] `api/backends/training/ai_toolkit.py:461` — 训练状态解析 except:pass
 - [ ] `scripts/ai_toolkit_api.py:172` — 训练进度解析 except:pass
-- [ ] `scripts/project_mgr.py:166,276` — 项目操作 except:pass
-- [ ] `web/routers/storyboard.py:162` — 分镜导入 except:pass
-- [ ] `web/routers/storyboard.py:72` — CSV 导出 except:pass
-- [ ] `web/routers/system_tools.py:478` — 配置更新 except:pass
-- [ ] `web/routers/deps.py:167` — 任务提交 except:pass
+- [x] `scripts/project_mgr.py:166,276` — 项目操作 except:pass
+- [x] `web/routers/storyboard.py:162` — 分镜导入 except:pass
+- [x] `web/routers/storyboard.py:72` — CSV 导出 except:pass
+- [x] `web/routers/system_tools.py:478` — 配置更新 except:pass
+- [x] `web/routers/deps.py:167` — 任务提交 except:pass
 
 ### 可接受的静默异常（无需修改）
 
