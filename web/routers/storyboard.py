@@ -38,7 +38,10 @@ def _get_pool():
 @router.get("/episodes")
 def get_episodes() -> dict:
     from engines.storyboard import get_episode_list
-    eps = get_episode_list()
+    try:
+        eps = get_episode_list()
+    except Exception:
+        return {"episodes": [], "current": 1}
     return {"episodes": eps, "current": min(eps) if eps else 1}
 
 
@@ -124,7 +127,11 @@ def clear_episode_outputs(episode: int) -> dict:
 def get_storyboard(episode: int) -> dict:
     _check_episode(episode)
     from engines.storyboard import load_storyboard
-    shots = load_storyboard(episode=episode)
+    try:
+        shots = load_storyboard(episode=episode)
+    except Exception as e:
+        logger.warning(f"加载分镜失败（DB 不可用？）: {e}")
+        return {"episode": episode, "shots": []}
     return {"episode": episode, "shots": shots}
 
 
@@ -135,7 +142,11 @@ def save_storyboard(episode: int, req: StoryboardSaveRequest) -> dict:
     for shot in shots:
         shot["episode"] = episode
     from engines.storyboard import save_storyboard
-    save_storyboard(shots, episode)
+    try:
+        save_storyboard(shots, episode)
+    except Exception as e:
+        logger.error(f"保存分镜失败: {e}")
+        raise HTTPException(500, f"保存分镜失败（DB 不可用？）: {e}")
 
     # 一致性校验（非阻断，返回警告）
     warnings = []
