@@ -198,6 +198,7 @@ def seko_import_proposal(req: SekoImportRequest) -> dict:
         if req.project_name:
             import shutil
             shutil.rmtree(str(proj_dir / req.project_name), ignore_errors=True)
+            _reset_proj_cache()
             logger.warning(f"导入任务提交失败，已回滚项目 '{req.project_name}'")
         raise HTTPException(503, f"任务提交失败: {e}")
 

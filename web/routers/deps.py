@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import re
+import time
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -13,6 +14,11 @@ from infra.config import get_root as _get_root, load_yaml_full, deep_merge as _d
 
 ROOT = _get_root()
 
+# 配置缓存（TTL 5 秒，避免每个 API 请求都重新加载 YAML）
+_cfg_cache: dict = {"data": None, "path": None, "ts": 0}
+_merged_cache: dict = {"data": None, "path": None, "ts": 0}
+_CFG_TTL = 5.0
+
 
 def _cfg() -> dict:
     """获取项目级配置（不含 system.yaml 合并）。
@@ -20,9 +26,14 @@ def _cfg() -> dict:
     用途：读取 project.yaml 中的项目名、风格等项目专属字段。
     与 _merged_cfg() 的区别：_merged_cfg() 会合并 system.yaml 的全局配置。
     """
+    path = _cfg_path()
+    now = time.monotonic()
+    if _cfg_cache["data"] is not None and _cfg_cache["path"] == path and now - _cfg_cache["ts"] < _CFG_TTL:
+        return _cfg_cache["data"]
     from infra.config import Config
-    data = Config(_cfg_path()).data
+    data = Config(path).data
     data.pop("_project_dir", None)
+    _cfg_cache.update(data=data, path=path, ts=now)
     return data
 
 
@@ -32,8 +43,14 @@ def _merged_cfg() -> dict:
     用途：读取 ComfyUI URL、LLM 配置、TTS 后端等系统级+项目级合并后的最终值。
     大多数场景应使用此函数，而非 _cfg()。
     """
+    path = _cfg_path()
+    now = time.monotonic()
+    if _merged_cache["data"] is not None and _merged_cache["path"] == path and now - _merged_cache["ts"] < _CFG_TTL:
+        return _merged_cache["data"]
     from infra.config import Config
-    return Config(_cfg_path()).data
+    data = Config(path).data
+    _merged_cache.update(data=data, path=path, ts=now)
+    return data
 
 
 _paths_cache: ProjectPaths | None = None
@@ -131,6 +148,8 @@ def _reset_proj_cache():
     global _cfg_path_cache, _paths_cache
     _cfg_path_cache = None
     _paths_cache = None
+    _cfg_cache["data"] = None
+    _merged_cache["data"] = None
     from infra.database._db import _reset_project_cache
     _reset_project_cache()
     from infra.config import invalidate_config_cache

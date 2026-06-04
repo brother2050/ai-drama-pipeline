@@ -54,10 +54,10 @@ def _collect_tools(cfg: dict) -> dict:
         names = ["redis", "celery", "tts", "comfyui", "lipsync", "llm", "music", "ffmpeg", "seko", "training", "ip_adapter", "pulid_flux"]
     tools = {}
     futures = {_tool_executor.submit(_check_tool, name, cfg): name for name in names}
-    for fut in as_completed(futures):
+    for fut in as_completed(futures, timeout=15):
         name = futures[fut]
         try:
-            tools[name] = fut.result()
+            tools[name] = fut.result(timeout=10)
         except Exception as e:
             tools[name] = {"available": False, "backend": "unknown", "type": "unknown", "reason": str(e)}
     return tools
@@ -280,8 +280,9 @@ def _hc_handle_port(name: str, hc: dict, cfg: dict, result: dict) -> dict:
     with socket.create_connection((host, port), timeout=3) as s:
         if name == "redis":
             s.send(b"PING\r\n")
-            resp = s.recv(64)
-            return {"ok": True, "name": name, "message": f"Redis PONG: {resp.decode().strip()}", **result}
+            resp = s.recv(64).decode().strip()
+            ok = resp in ("+PONG", "PONG")
+            return {"ok": ok, "name": name, "message": f"Redis: {resp}", **result}
     return {"ok": True, "name": name, "message": f"{host}:{port} 可达", **result}
 
 

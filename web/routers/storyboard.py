@@ -174,9 +174,16 @@ def batch_delete_storyboard_shots(episode: int, req: StoryboardBatchDeleteReques
     _check_episode(episode)
     if not req.shot_ids:
         raise HTTPException(400, "shot_ids 不能为空")
-    from infra.database.storyboard_db import batch_delete_shots
+    from infra.database.storyboard_db import batch_delete_shots, get_episode_shots
     try:
+        # 验证 shot_id 属于当前 episode，防止误删其他集的镜头
+        existing = {s["shot_id"] for s in get_episode_shots(_get_pool(), episode)}
+        invalid = [sid for sid in req.shot_ids if sid not in existing]
+        if invalid:
+            raise HTTPException(400, f"以下 shot_id 不属于第{episode}集: {invalid[:5]}")
         deleted = batch_delete_shots(_get_pool(), episode, req.shot_ids)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(500, f"删除失败: {e}")
     return {"status": "ok", "deleted": deleted}

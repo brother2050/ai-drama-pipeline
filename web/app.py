@@ -45,18 +45,18 @@ async def _lifespan(app: FastAPI):
     try:
         from web.routers.system_tools import _tool_executor
         _tool_executor.shutdown(wait=False)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"线程池关闭: {e}")
     try:
         from infra.database.pool import get_pool
         get_pool().close()
-    except Exception:
-        logger.debug("数据库连接池关闭")
+    except Exception as e:
+        logger.debug(f"数据库连接池关闭: {e}")
     try:
         from infra.globals import shutdown_globals
         shutdown_globals()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"全局资源关闭: {e}")
     logger.info("🎬 工作台已关闭")
 
 
