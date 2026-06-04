@@ -52,7 +52,7 @@ def generate_storyboard(llm: object, params: StoryboardGenParams) -> list[dict]:
             info.append(f"视觉风格: {style}")
         if genre:
             info.append(f"题材类型: {genre}")
-        parts.append(f"\n=== 创作方向 ===\n" + "，".join(info))
+        parts.append("\n=== 创作方向 ===\n" + "，".join(info))
 
     if characters:
         mapping = []
@@ -65,8 +65,8 @@ def generate_storyboard(llm: object, params: StoryboardGenParams) -> list[dict]:
             oi = f"，可选服装：{'/'.join(keys)}" if keys else ""
             traits = (c.get("bible") or {}).get("core_traits", "未指定")
             details.append(f"- {cid}（{cname}，{traits}{oi}）: {c.get('appearance', '')[:60]}")
-        parts.append(f"\n=== 角色名映射 ===\n" + "\n".join(mapping))
-        parts.append(f"\n=== 角色详情 ===\n" + "\n".join(details))
+        parts.append("\n=== 角色名映射 ===\n" + "\n".join(mapping))
+        parts.append("\n=== 角色详情 ===\n" + "\n".join(details))
 
     if scenes:
         info = "\n".join(f"- {s.get('id', '?')}（{s.get('name', '?')}）: {s.get('description', '')[:60]}" for s in scenes)

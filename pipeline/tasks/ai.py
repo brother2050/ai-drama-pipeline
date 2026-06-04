@@ -21,7 +21,6 @@ def ai_storyboard_task(self, config_path: str, episode: int, outline: str,
 
 def _ai_storyboard_inner(self, config_path, episode, outline, duration, append):
     """ai_storyboard 核心逻辑（在 project_scope 内执行）"""
-    from engines.llm_generator import generate_storyboard
     from engines.storyboard import save_storyboard, append_storyboard
 
     self.update_state(state="PROGRESS", meta={"step": "ai_storyboard", "progress": 10, "message": "正在初始化 LLM..."})
@@ -168,7 +167,7 @@ def _generate_scenes_for_storyboard(llm, shots, scene_ids, outline, style, genre
     for sid in sorted_ids:
         scene_shots = [s for s in shots if (s.get("scene_id") or "").strip() == sid]
         actions = [s.get("action", "") for s in scene_shots[:5]]
-        parts = [f"根据以下信息生成一个场景配置。", f"剧情大纲: {outline}"]
+        parts = ["根据以下信息生成一个场景配置。", f"剧情大纲: {outline}"]
         if style or genre:
             ctx = []
             if style:
@@ -474,7 +473,7 @@ def _collect_translation_texts(paths) -> tuple[list[str], list[tuple[str, str, s
 
 def _writeback_translations(text_meta, results, paths, episode, shots) -> dict:
     """回写翻译结果到 YAML + DB，返回统计"""
-    from infra.config import save_yaml, load_yaml_full
+    from infra.config import save_yaml
     translated = {"characters": 0, "scenes": 0, "shots": 0}
 
     # 角色（含 outfit 子字段）

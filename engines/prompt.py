@@ -2,7 +2,6 @@
 from __future__ import annotations
 import logging
 import re
-import time as _time
 from dataclasses import dataclass, field
 
 from engines.shot_utils import strip_dialogue

@@ -310,7 +310,6 @@ def _import_seko_scenes(scenes: list[dict], paths) -> int:
 def _download_seko_images(elements: list[dict], char_id_map: dict, scene_id_map: dict,
                           paths, task) -> tuple[int, int]:
     """下载 Seko 图片 → (成功数, 失败数)"""
-    from infra.config import load_yaml_full
 
     total = len(elements)
     downloaded, failed = 0, 0
