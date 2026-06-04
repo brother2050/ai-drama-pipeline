@@ -103,7 +103,7 @@ class WatchDog:
         用法:
             with wd.track("shot001:tts", backend="mimo") as handle:
                 result = tts_generate(...)
-            logger.info(f"任务完成: elapsed={handle.elapsed}s, status={handle.status}")
+            print(handle.elapsed, handle.status)
         """
         handle = TaskHandle(task_id=task_id, backend=backend)
         with self._lock:

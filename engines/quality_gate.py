@@ -8,7 +8,7 @@
     issues = gate.check("after_prepare", project_dir)
     if issues:
         for issue in issues:
-            logger.warning(f"{'❌' if issue['severity'] == 'error' else '⚠'} {issue['name']}: {issue['message']}")
+            print(f"{'❌' if issue['severity'] == 'error' else '⚠'} {issue['name']}: {issue['message']}")
 """
 from __future__ import annotations
 
