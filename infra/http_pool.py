@@ -56,15 +56,15 @@ def get_client(base_url: str | None = "", *, timeout: float = _DEFAULT_TIMEOUT) 
     # 检查客户端是否已关闭（配置热重载后会关闭）
     client = _clients.get(key)
     if client is not None:
-        if client._is_closed:
+        if client.is_closed:
             logger.debug(f"HTTP 客户端已关闭，重新创建: base_url={key[0]!r}")
         else:
             return client
-    
+
     with _lock:
         # 双重检查：锁内再次确认
         client = _clients.get(key)
-        if client is not None and not client._is_closed:
+        if client is not None and not client.is_closed:
             return client
         
         # 创建新客户端
