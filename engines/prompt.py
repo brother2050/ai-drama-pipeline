@@ -79,40 +79,61 @@ def _retry_failed_chars(failed_chars: list[dict], llm: object, all_mapping: dict
 
 
 def batch_generate_appearance_prompts(characters: list[dict], llm: object) -> dict[str, dict]:
-    """批量生成角色模型友好 prompt — 全部成功或抛异常"""
+    """批量生成角色模型友好 prompt — AdaptiveBatchProcessor 自适应分批"""
     if not characters or not llm:
         return {}
 
-    max_ctx = _estimate_context_length(llm)
-    available = max_ctx - 800 - 2000  # system_overhead + output_reserve
+    from infra.batch_processor import AdaptiveBatchProcessor, estimate_tokens
+    from infra.json_parse import parse_llm_json
 
-    batches = _split_into_batches(characters, available)
-    if len(batches) > 1:
-        logger.info(f"  角色 prompt 分批处理: {len(characters)} 个角色 → {len(batches)} 批")
+    processor = AdaptiveBatchProcessor(llm)
+    system = _get_appearance_system()
+
+    def build_prompts(batch):
+        parts = []
+        for i, char in enumerate(batch):
+            cid = char.get("id", f"char_{i}")
+            appearance = char.get("appearance", "")
+            parts.append(f"[角色 {i+1}] id={cid}\n外貌描述：{appearance}")
+        return {"system": system, "user": "请为以下每个角色生成 AI 绘图 prompt，按角色编号输出 JSON 数组。\n\n" + "\n\n".join(parts)}
+
+    def parse_result(raw, batch):
+        result = parse_llm_json(raw)
+        if not result:
+            return None
+        if isinstance(result, dict):
+            result = [result]
+        return result if isinstance(result, list) else None
+
+    batch_result = processor.process(
+        items=characters,
+        build_prompts=build_prompts,
+        parse_result=parse_result,
+        estimate_item_tokens=lambda c: estimate_tokens(c.get("appearance", "")) + 200,
+        estimate_item_output_tokens=lambda _: 800,
+    )
 
     all_mapping: dict[str, dict] = {}
-    failed_chars: list[dict] = []
+    for batch_idx, batch_data in enumerate(batch_result["results"]):
+        if not batch_data:
+            continue
+        batch_chars = characters[batch_idx:batch_idx + len(batch_data)]
+        for i, item in enumerate(batch_data):
+            if not isinstance(item, dict):
+                continue
+            cid = item.get("id", "")
+            if not cid and i < len(batch_chars):
+                cid = batch_chars[i].get("id", f"char_{i}")
+            if cid:
+                all_mapping[cid] = {
+                    "prompt_en": item.get("prompt_en", ""),
+                    "body_features": item.get("body_features", ""),
+                }
 
-    for batch_idx, batch in enumerate(batches):
-        mapping = _generate_prompt_batch_with_retry(batch, llm, max_retries=3)
-        all_mapping.update(mapping)
-
-        succeeded_ids = set(mapping.keys())
-        for c in batch:
-            if c.get("id", "") not in succeeded_ids:
-                failed_chars.append(c)
-
-        if len(batches) > 1:
-            ok = len(batch) - len({c.get("id", "") for c in batch} - succeeded_ids)
-            logger.info(f"  批次 {batch_idx + 1}/{len(batches)}: {ok}/{len(batch)} 成功")
-
-    if failed_chars:
-        logger.warning(f"  批量生成失败 {len(failed_chars)} 个角色，降级为逐角色重试...")
-        still_failed = _retry_failed_chars(failed_chars, llm, all_mapping)
-        if still_failed:
-            raise RuntimeError(
-                f"角色 prompt 生成失败（{len(still_failed)}/{len(characters)} 个）: "
-                f"{', '.join(still_failed)}。请检查 LLM 服务后重试。")
+    failed = batch_result.get("failed_batches", 0)
+    if failed:
+        raise RuntimeError(
+            f"角色 prompt 生成失败（{failed} 批）。请检查 LLM 服务后重试。")
 
     logger.info(f"  ✅ 批量 prompt 生成完成: {len(all_mapping)}/{len(characters)} 个角色")
     return all_mapping

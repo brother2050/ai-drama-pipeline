@@ -109,44 +109,55 @@ def generate_scenes(llm: object, descriptions: list[str], expected_ids: list[str
 
 def _generate_entities(llm: object, descriptions: list[str], expected_ids: list[str] | None,
                        system: str, label: str, max_tokens: int = 1024) -> list[dict]:
-    """通用实体生成 — 重试 + 去重 + 失败收集"""
-    results = []
+    """通用实体生成 — AdaptiveBatchProcessor 自适应分批 + 容错隔离"""
+    from infra.batch_processor import AdaptiveBatchProcessor, estimate_tokens
+    from infra.json_parse import parse_llm_json
+
+    processor = AdaptiveBatchProcessor(llm)
+
+    def build_prompts(batch):
+        parts = [f"[{label}{i+1}] {desc}" for i, desc in enumerate(batch)]
+        return {"system": system, "user": "\n\n".join(parts)}
+
+    def parse_result(raw, batch):
+        result = parse_llm_json(raw)
+        if isinstance(result, dict):
+            return [result]
+        return result if isinstance(result, list) else None
+
+    batch_result = processor.process(
+        items=descriptions,
+        build_prompts=build_prompts,
+        parse_result=parse_result,
+        estimate_item_tokens=lambda d: estimate_tokens(d) + 200,
+        estimate_item_output_tokens=lambda _: max_tokens,
+    )
+
+    entities = []
+    for batch_data in batch_result["results"]:
+        if batch_data:
+            entities.extend(batch_data)
+
+    failed_count = sum(1 for d, e in zip(descriptions, entities) if e is None or not isinstance(e, dict))
+    if failed_count:
+        raise RuntimeError(f"{label}生成失败（{failed_count}/{len(descriptions)}）: 请检查 LLM 服务。")
+
+    # ID 注入 + 名称去重
     used_names: set[str] = set()
-    failed: list[int] = []
+    for i, entity in enumerate(entities):
+        if expected_ids and i < len(expected_ids):
+            entity["id"] = expected_ids[i]
+        name = entity.get("name", "").strip()
+        if name in used_names:
+            n, orig = 2, name
+            while f"{name}{n}" in used_names:
+                n += 1
+            entity["name"] = f"{name}{n}"
+            logger.warning(f"  ⚠ {label}名重复: {orig} → {entity['name']}")
+        used_names.add(entity["name"])
+        logger.info(f"  ✅ 生成{label}: {entity.get('name', '?')} ({entity.get('id', '?')})")
 
-    for i, desc in enumerate(descriptions):
-        if not desc.strip():
-            results.append(None)
-            continue
-        logger.info(f"LLM 生成{label}: {desc[:40]}...")
-
-        from infra.json_parse import llm_call_with_retry
-        entity = llm_call_with_retry(llm, desc, system, f"{label}{i+1}", max_tokens=max_tokens)
-        if entity and isinstance(entity, dict):
-            if expected_ids and i < len(expected_ids):
-                entity["id"] = expected_ids[i]
-            # 名称去重
-            name = entity.get("name", "").strip()
-            if name in used_names:
-                n, orig = 2, name
-                while f"{name}{n}" in used_names:
-                    n += 1
-                name = f"{name}{n}"
-                entity["name"] = name
-                logger.warning(f"  ⚠ {label}名重复: {orig} → {name}")
-            used_names.add(name)
-            results.append(entity)
-            logger.info(f"  ✅ 生成{label}: {entity.get('name', '?')} ({entity.get('id', '?')})")
-        else:
-            results.append(None)
-            failed.append(i)
-            logger.error(f"  ❌ {label}{i+1} 生成失败")
-
-    if failed:
-        hints = [descriptions[i][:20] for i in failed]
-        raise RuntimeError(f"{label}生成失败（{len(failed)}/{len(descriptions)}）: {', '.join(hints)}... 请检查 LLM 服务。")
-
-    return results
+    return entities
 
 
 # ══════════════════════════════════════════════════════════
