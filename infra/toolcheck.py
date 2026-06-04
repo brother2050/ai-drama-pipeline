@@ -207,17 +207,16 @@ def _hc_port(name: str, hc: dict, backend: str) -> dict:
 
 
 def _hc_celery(name: str, backend: str) -> dict:
-    """celery_active 类型检查"""
+    """celery_active 类型检查 — 通过 hooks 委托给 pipeline 层"""
     if not _port_ok(_redis_port()):
         return _result(False, backend, "infra", "Redis 未运行（Celery 依赖 Redis）")
-    try:
-        from pipeline.celery_app import app
-        insp = app.control.inspect(timeout=2)
-        ok = bool(insp.active())
-        reason = "" if ok else "Celery Worker 未启动"
-        return _result(ok, backend, "infra", reason)
-    except Exception:
-        return _result(False, backend, "infra", "Celery 连接失败")
+    # 通过 hooks 系统委托给 pipeline 层检查，避免 infra 反向依赖 pipeline
+    from infra.hooks import run_hooks
+    hook_results = run_hooks("health_check", name, {}, service_type="celery")
+    for hr in hook_results:
+        if isinstance(hr, dict) and "available" in hr:
+            return _result(hr["available"], backend, "infra", hr.get("reason", ""))
+    return _result(False, backend, "infra", "Celery 健康检查未注册（Worker 未启动？）")
 
 
 def _execute_health_check(name: str, hc: dict, cfg: dict,

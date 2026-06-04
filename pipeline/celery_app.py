@@ -40,3 +40,19 @@ app.conf.update(
 @task_failure.connect
 def _on_task_failure(sender, task_id, exception, traceback, einfo, **kwargs):
     logger.error(f"任务失败: {task_id} ({sender.name}): {exception} ({type(exception).__name__})", exc_info=True)
+
+
+# 注册 Celery 健康检查钩子：infra/toolcheck 通过 hooks 系统检查 Worker 状态
+try:
+    from infra.hooks import on_health_check
+
+    @on_health_check(service_type="celery")
+    def _check_celery_worker(name: str = "", cfg: dict = None) -> dict:
+        try:
+            insp = app.control.inspect(timeout=2)
+            ok = bool(insp.active())
+            return {"available": ok, "reason": "" if ok else "Celery Worker 未启动"}
+        except Exception as e:
+            return {"available": False, "reason": f"Celery 连接失败: {e}"}
+except ImportError:
+    pass

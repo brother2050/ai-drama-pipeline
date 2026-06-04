@@ -151,6 +151,14 @@ def invalidate_ctx_cache():
             logger.info("Pipeline ctx 缓存已失效（文件变化触发）")
 
 
+# 注册缓存失效钩子：文件变化时由 infra/file_watcher 通过 hooks 系统触发
+try:
+    from infra.hooks import on_cache_invalidate
+    on_cache_invalidate(priority=100)(invalidate_ctx_cache)
+except ImportError:
+    pass
+
+
 def _get_projects_dir() -> Path:
     global _PROJECTS_DIR
     if _PROJECTS_DIR is None:

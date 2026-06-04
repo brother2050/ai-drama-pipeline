@@ -46,7 +46,7 @@ from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["on_init", "on_cleanup", "on_health_check", "run_hooks", "clear_hooks"]
+__all__ = ["on_init", "on_cleanup", "on_health_check", "on_cache_invalidate", "run_hooks", "clear_hooks"]
 
 
 @dataclass
@@ -67,6 +67,7 @@ _registry: dict[str, list[HookEntry]] = {
     "init": [],
     "cleanup": [],
     "health_check": [],
+    "cache_invalidate": [],
 }
 _lock = threading.Lock()
 
@@ -106,6 +107,14 @@ def on_health_check(priority: int = 100, service_type: str = ""):
     """注册健康检查钩子"""
     def decorator(fn):
         _register("health_check", fn, priority, service_type)
+        return fn
+    return decorator
+
+
+def on_cache_invalidate(priority: int = 100):
+    """注册缓存失效钩子 — 文件变化时由 file_watcher 触发"""
+    def decorator(fn):
+        _register("cache_invalidate", fn, priority, "")
         return fn
     return decorator
 
