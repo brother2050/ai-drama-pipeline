@@ -140,13 +140,13 @@ python scripts/musicgen_server.py --model medium --port 8000
 
 | 包 | 推荐版本 | 说明 |
 |---|---|---|
-| `transformers` | `>=4.40,<5.0` | 4.40+ 支持 MusicGen，5.x 早期有 `AuxRequest` 导入 bug |
+| `transformers` | `>=4.45,<5.0` | 4.45+ 修复了 `AuxRequest` 导入 bug |
 | `numpy` | `>=1.24,<2.0` | 1.x 兼容 soundfile/librosa，2.x 二进制接口不兼容 |
 | `torch` | `>=2.10.0` | 需支持 CUDA 12.x |
 
 快速安装：
 ```bash
-pip install "transformers>=4.40,<5.0" "numpy>=1.24,<2.0"
+pip install "transformers>=4.45,<5.0" "numpy>=1.24,<2.0"
 ```
 
 ### libcusparseLt.so.0 找不到
