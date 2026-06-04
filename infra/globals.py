@@ -15,16 +15,18 @@ from __future__ import annotations
 
 import logging
 import threading
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 __all__ = ["init_globals", "get_watchdog", "get_health_cache",
-           "get_concurrency_groups", "shutdown_globals"]
+           "get_concurrency_groups", "shutdown_globals", "start_file_monitor", "stop_file_monitor"]
 
 _watchdog = None
 _health_cache = None
 _concurrency_groups = None
 _lock = threading.Lock()
+_file_monitor_config_dir = None  # 缓存 config_dir 供 start_file_monitor 使用
 
 
 def init_globals(
@@ -75,6 +77,23 @@ def init_globals(
                  f"concurrency_groups(comfyui={comfyui_slots}, tts={tts_slots})")
 
 
+def start_file_monitor(config_dir: str | Path):
+    """启动文件系统监控（角色/场景 YAML 变化自动失效缓存）
+
+    在 Web 启动和 Worker 启动时调用。
+    """
+    global _file_monitor_config_dir
+    _file_monitor_config_dir = str(config_dir)
+    from infra.file_watcher import start_file_watcher
+    start_file_watcher(config_dir)
+
+
+def stop_file_monitor():
+    """停止文件系统监控"""
+    from infra.file_watcher import stop_file_watcher
+    stop_file_watcher()
+
+
 def get_watchdog():
     """获取全局看门狗实例"""
     if _watchdog is None:
@@ -98,6 +117,12 @@ def get_concurrency_groups():
 
 def shutdown_globals():
     """关闭全局资源（进程退出时调用）"""
+    # 停止文件系统监控
+    try:
+        stop_file_monitor()
+    except Exception as e:
+        logger.debug(f"文件监控关闭失败: {e}")
+
     # 执行清理钩子（锁外，避免死锁）
     from infra.hooks import run_hooks
     try:

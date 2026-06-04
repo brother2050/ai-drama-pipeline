@@ -30,8 +30,18 @@ def register_system_commands(cli):
         from cli import _ensure_redis
         if not _ensure_redis():
             sys.exit(1)
-        from infra.globals import init_globals, shutdown_globals
+        from infra.globals import init_globals, shutdown_globals, start_file_monitor
         init_globals()
+        # 启动文件系统监控
+        try:
+            from infra.config import get_active_project_dir
+            from cli import ROOT
+            proj_dir = get_active_project_dir(ROOT)
+            config_dir = proj_dir / "config"
+            if config_dir.exists():
+                start_file_monitor(config_dir)
+        except Exception as e:
+            logger.debug(f"文件监控启动跳过: {e}")
         console.print(f"\n[bold green]🎬 Web 工作台启动中 — http://localhost:{port}[/bold green]\n")
         console.print("[dim]需要同时启动 worker: python cli.py worker[/dim]\n")
         import atexit

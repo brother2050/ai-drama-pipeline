@@ -64,6 +64,22 @@ def _ensure_deps():
         sys.exit(1)
     from infra.globals import init_globals
     init_globals()
+    # 启动文件系统监控（角色/场景 YAML 变化自动失效缓存）
+    _start_file_monitor()
+
+
+def _start_file_monitor():
+    """启动文件系统监控（延迟初始化，需要活动项目目录）"""
+    try:
+        from infra.config import get_active_project_dir
+        from infra.globals import start_file_monitor
+        proj_dir = get_active_project_dir(ROOT)
+        config_dir = proj_dir / "config"
+        if config_dir.exists():
+            start_file_monitor(config_dir)
+    except Exception as e:
+        from rich.console import Console
+        Console().print(f"[dim]文件监控启动跳过: {e}[/dim]")
 
 
 def _ensure_redis() -> bool:

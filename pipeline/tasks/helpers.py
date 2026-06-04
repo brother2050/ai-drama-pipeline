@@ -133,6 +133,24 @@ _ctx_cache: tuple[str, object, object] | None = None  # (config_path, Config, Co
 _ctx_lock = threading.Lock()
 
 
+def invalidate_ctx_cache():
+    """失效 pipeline 上下文缓存（文件系统监控回调）
+
+    当角色/场景 YAML 文件变化时调用，强制下次 _build_ctx 重建 Config + Container。
+    """
+    global _ctx_cache
+    with _ctx_lock:
+        if _ctx_cache is not None:
+            cfg, cont = _ctx_cache[1], _ctx_cache[2]
+            if hasattr(cont, 'shutdown_all'):
+                try:
+                    cont.shutdown_all()
+                except Exception:
+                    pass
+            _ctx_cache = None
+            logger.info("Pipeline ctx 缓存已失效（文件变化触发）")
+
+
 def _get_projects_dir() -> Path:
     global _PROJECTS_DIR
     if _PROJECTS_DIR is None:
