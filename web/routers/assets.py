@@ -52,6 +52,8 @@ async def upload_entity_image(entity_type: str, entity_id: str, file: UploadFile
         detected = ".webp"
     if not detected:
         raise HTTPException(400, "文件内容不是有效的图片格式")
+    if detected not in allowed:
+        raise HTTPException(400, f"文件内容不是允许的图片格式: {detected}")
 
     # 使用检测到的扩展名（而非用户上传的原始扩展名），防止伪装文件
     p = _paths()
