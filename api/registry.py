@@ -284,25 +284,22 @@ class Container:
                 old = self._snapshots.get(key, {})
                 new = self._backend_config(stype, bname)
                 if old != new:
-                    to_rebuild.append((key, stype, bname, new))
+                    to_rebuild.append((key, stype, bname, new, inst))
                     # 先从缓存中移除，防止其他线程使用旧实例
                     del self._instances[key]
                     del self._snapshots[key]
 
         # 锁外执行耗时的 shutdown + create
         changed = []
-        for key, stype, bname, new_cfg in to_rebuild:
-            # 获取旧实例用于 shutdown（已从缓存移除，不会有新引用）
-            old_inst = None
+        for key, stype, bname, new_cfg, old_inst in to_rebuild:
             # 重新检查：可能另一个 reload 已经处理了
             with self._lock:
                 if key in self._instances:
                     continue  # 已被其他线程重建
-                old_inst_snapshot = self._snapshots.get(key)
 
-            if hasattr(old_inst_snapshot, "shutdown"):
+            if hasattr(old_inst, "shutdown"):
                 try:
-                    old_inst_snapshot.shutdown()
+                    old_inst.shutdown()
                 except Exception:
                     pass
             new_inst = registry.create(stype, bname, new_cfg)
