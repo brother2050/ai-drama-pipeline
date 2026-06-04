@@ -3,13 +3,18 @@
 MusicGen 配乐生成服务 — FastAPI 封装
 
 部署方式:
-  1. pip install fastapi uvicorn transformers soundfile torch bitsandbytes accelerate
-  2. python scripts/musicgen_server.py --model large --quantize --port 8000
+  1. pip install fastapi uvicorn transformers soundfile torch
+  2. python scripts/musicgen_server.py --model medium --port 8000
   3. 项目配置 music.api_url = "http://你的IP:8000/generate"
+
+特性:
+  - 自动分段生成: 超过 15s 自动切段拼接，避免后半段质量退化
+  - 支持 medium / large 模型，large 可选 --quantize 4-bit 量化
+  - T4 (15GB) 推荐 medium; A10/4090/A100 推荐 large
 
 API:
   POST /generate  {"prompt": "sad piano", "duration": 30}  → WAV 音频
-  GET  /health    → {"status": "ok", "model": "large", "quantized": true}
+  GET  /health    → {"status": "ok", "model": "medium"}
 """
 from __future__ import annotations
 
@@ -28,6 +33,9 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger("musicgen-server")
 
+# 每段最大生成时长（秒），超过此值会分段。经验上 ≤15s 质量最稳定
+_SEGMENT_SEC = 15
+
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -35,12 +43,14 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="MusicGen 配乐服务", version="1.1", lifespan=lifespan)
+app = FastAPI(title="MusicGen 配乐服务", version="1.2", lifespan=lifespan)
 
 # 全局模型（启动时加载）
 _model = None
 _processor = None
 _samplerate = 32000
+_model_name = "medium"
+_is_quantized = False
 
 
 class GenRequest(BaseModel):
@@ -50,15 +60,12 @@ class GenRequest(BaseModel):
 
 
 def load_model(model_size: str = "medium", quantize: bool = False):
-    """加载 MusicGen 模型
-
-    Args:
-        model_size: small / medium / large
-        quantize: 是否使用 4-bit 量化（large 模型推荐开启）
-    """
-    global _model, _processor, _samplerate
+    """加载 MusicGen 模型"""
+    global _model, _processor, _samplerate, _model_name, _is_quantized
     from transformers import AutoProcessor, MusicgenForConditionalGeneration
 
+    _model_name = model_size
+    _is_quantized = quantize
     model_name = f"facebook/musicgen-{model_size}"
     logger.info(f"加载模型: {model_name} (quantize={quantize}) ...")
     t0 = time.time()
@@ -87,24 +94,73 @@ def load_model(model_size: str = "medium", quantize: bool = False):
     logger.info(f"模型加载完成 ({time.time() - t0:.1f}s), 设备: {_model.device}")
 
 
+def _generate_segment(prompt: str, duration: int) -> np.ndarray:
+    """生成单段音频（≤_SEGMENT_SEC 秒）"""
+    inputs = _processor(text=[prompt], return_tensors="pt").to(_model.device)
+    max_tokens = duration * (_samplerate // 256)
+    max_tokens = min(max_tokens, 1500)
+
+    with torch.no_grad():
+        audio = _model.generate(**inputs, max_new_tokens=max_tokens)
+
+    return audio[0, 0].cpu().numpy()
+
+
+def _crossfade(a: np.ndarray, b: np.ndarray, fade_samples: int) -> np.ndarray:
+    """两段音频交叉淡入淡出拼接"""
+    fade_samples = min(fade_samples, len(a), len(b))
+    if fade_samples <= 0:
+        return np.concatenate([a, b])
+
+    # a 尾部淡出, b 头部淡入
+    fade_out = np.linspace(1.0, 0.0, fade_samples)
+    fade_in = np.linspace(0.0, 1.0, fade_samples)
+
+    a_tail = a[-fade_samples:] * fade_out
+    b_head = b[:fade_samples] * fade_in
+
+    # 交叉区域叠加
+    cross = a_tail + b_head
+    return np.concatenate([a[:-fade_samples], cross, b[fade_samples:]])
+
+
 @app.post("/generate")
 def generate(req: GenRequest):
-    """生成配乐 → 返回 WAV 音频"""
+    """生成配乐 → 返回 WAV 音频
+
+    自动分段逻辑:
+    - duration ≤ 15s: 直接生成
+    - duration > 15s: 切成 N 段 × 15s + 余段，逐段生成后交叉淡出拼接
+    """
     if _model is None:
         raise HTTPException(503, "模型未加载")
 
-    logger.info(f"生成: '{req.prompt}' ({req.duration}s)")
+    duration = req.duration
+    logger.info(f"生成: '{req.prompt}' ({duration}s)")
     t0 = time.time()
 
     try:
-        inputs = _processor(text=[req.prompt], return_tensors="pt").to(_model.device)
-        max_tokens = req.duration * (_samplerate // 256)  # 粗略: 每 token ≈ 256 samples
-        max_tokens = min(max_tokens, 1500)  # 上限保护
+        if duration <= _SEGMENT_SEC:
+            # 短音频直接生成
+            audio_np = _generate_segment(req.prompt, duration)
+        else:
+            # 分段生成 + 交叉淡出拼接
+            segments = []
+            remaining = duration
+            seg_idx = 0
+            while remaining > 0:
+                seg_len = min(remaining, _SEGMENT_SEC)
+                logger.info(f"  段 {seg_idx + 1}: {seg_len}s")
+                seg = _generate_segment(req.prompt, seg_len)
+                segments.append(seg)
+                remaining -= seg_len
+                seg_idx += 1
 
-        with torch.no_grad():
-            audio = _model.generate(**inputs, max_new_tokens=max_tokens)
-
-        audio_np = audio[0, 0].cpu().numpy()
+            # 交叉淡出拼接（1 秒淡入淡出区）
+            fade_samples = _samplerate  # 1 秒
+            audio_np = segments[0]
+            for seg in segments[1:]:
+                audio_np = _crossfade(audio_np, seg, fade_samples)
 
         # 写入 WAV buffer
         buf = io.BytesIO()
@@ -112,7 +168,8 @@ def generate(req: GenRequest):
         buf.seek(0)
 
         elapsed = time.time() - t0
-        logger.info(f"生成完成: {len(audio_np)/_samplerate:.1f}s 音频, 耗时 {elapsed:.1f}s")
+        actual_sec = len(audio_np) / _samplerate
+        logger.info(f"生成完成: {actual_sec:.1f}s 音频, 耗时 {elapsed:.1f}s")
 
         return Response(content=buf.getvalue(), media_type="audio/wav")
 
@@ -128,10 +185,11 @@ def health():
         return {"status": "loading", "model": None}
     return {
         "status": "ok",
-        "model": f"musicgen-{args.model}",
-        "quantized": args.quantize,
+        "model": f"musicgen-{_model_name}",
+        "quantized": _is_quantized,
         "device": str(_model.device),
         "samplerate": _samplerate,
+        "segment_sec": _SEGMENT_SEC,
     }
 
 
