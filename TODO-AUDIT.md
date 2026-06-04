@@ -15,23 +15,26 @@
 - **影响**: 所有异步管线任务
 - **修复**: 在 `_prepare` 中强制从 DB 读取最新 shot，忽略传入参数；或在 `shot_task` 开始时从 DB 重新读取。
 
-### 2. _build_ctx 多线程竞态
+### 2. ~~_build_ctx 多线程竞态~~ ✅ 已修复
 - **类型**: 逻辑
 - **文件**: `pipeline/tasks/helpers.py` — `_build_ctx`
+- **修复**: 完善 double-checked locking：第二次加锁后比较 `_mtimes` 而非再次触发重载，避免重复创建实例。
 - **问题**: Config 热重载时，两个线程可能同时进入慢路径，各自创建不同的 Config/Container。释放锁后创建对象再加锁写入的模式存在间隙。
 - **影响**: 多线程 Celery worker（`--pool=threads`）配置热重载时的竞态
 - **修复**: 将 Config + Container 创建放在锁内，或使用完整的 double-checked locking。
 
-### 3. ensure_portrait 重入 + 间接递归
+### 3. ~~ensure_portrait 重入 + 间接递归~~ ✅ 已修复
 - **类型**: 逻辑
-- **文件**: `engines/portrait.py` — `ensure_portrait`
+- **文件**: `engines/portrait.py` / `engines/workflow_builder.py`
+- **修复**: 在 `WorkflowBuilderConfig` 添加 `no_auto_gen` 标志。`ensure_portrait` 创建 WorkflowBuilder 时设置 `no_auto_gen=True`，`_get_character_refs` 在此标志下跳过自动定妆照生成，彻底切断递归链。
 - **问题**: `_get_character_refs` → `ensure_portrait` → `build_first_frame` → `_get_character_refs` 形成间接递归。`_generating` 锁防止了直接重入，但并发场景下第二个线程会跳过返回空，导致定妆照不完整。
 - **影响**: 定妆照自动生成，首次运行时可能不完整
 - **修复**: 在 `build_first_frame` 中传入 `disable_portrait_auto_gen=True` 标志位，或在 `shot_task` 开始时预先确保定妆照就绪。
 
-### 4. Config._check_reload 锁内耗时操作
+### 4. ~~Config._check_reload 锁内耗时操作~~ ✅ 已修复
 - **类型**: 逻辑
-- **文件**: `infra/config.py` — `Config._check_reload` / `_do_reload`
+- **文件**: `infra/config.py` — `Config._check_reload`
+- **修复**: 将 `_do_reload()` 调用移到 `_reload_lock` 外执行。锁内仅做 `_reloading` 标记的双重检查，耗时的 merge+validate 不再阻塞其他线程。
 - **问题**: `_do_reload` 在 `_reload_lock` 内调用 `ModelRegistry()` 和 `load_config()`，可能耗时较长，阻塞其他线程的 `Config.get()` 调用。
 - **影响**: 高并发场景下的性能抖动
 - **修复**: 将耗时操作移到锁外执行，只在更新 `self._data` 时加锁（copy-on-write）。
