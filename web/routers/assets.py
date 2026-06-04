@@ -53,10 +53,11 @@ async def upload_entity_image(entity_type: str, entity_id: str, file: UploadFile
     if not detected:
         raise HTTPException(400, "文件内容不是有效的图片格式")
 
+    # 使用检测到的扩展名（而非用户上传的原始扩展名），防止伪装文件
     p = _paths()
     asset_dir = p.assets_entity_dir(entity_type) / entity_id
     asset_dir.mkdir(parents=True, exist_ok=True)
-    filename = f"cover{ext}"
+    filename = f"cover{detected}"
     dest = asset_dir / filename
     with open(dest, "wb") as f:
         f.write(content)

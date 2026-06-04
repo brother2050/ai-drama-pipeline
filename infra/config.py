@@ -483,7 +483,7 @@ class Config:
                 # 注入 llm.backend（llm 段独立于 models）
                 if "llm_backend" in reg_defaults:
                     merged.setdefault("llm", {})["backend"] = reg_defaults["llm_backend"]
-        except Exception as e:
+        except (ImportError, FileNotFoundError, ValueError, yaml.YAMLError) as e:
             logger.warning(f"模型注册表加载失败: {e}")
         # 1. 合并系统全局配置
         sys_path = getattr(Config, 'SYSTEM_CONFIG', None)

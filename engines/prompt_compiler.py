@@ -161,9 +161,10 @@ class PromptCompiler:
         return result.strip()
 
     def _clean_empty_values(self, text: str) -> str:
-        """清理空值替换后产生的多余标点"""
-        # 多次清理（嵌套情况）
-        for _ in range(3):
+        """清理空值替换后产生的多余标点（循环直到无变化）"""
+        prev = None
+        while prev != text:
+            prev = text
             # ", ," → ","
             text = re.sub(r',\s*,', ',', text)
             # "  " → " "

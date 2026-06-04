@@ -241,13 +241,18 @@ def _prepare(params: PrepareParams):
 
 
 def _is_default_storyboard(config_path: str, shots: list[dict]) -> bool:
-    """检测是否为默认示例分镜表（从 config/default_storyboard.py 动态读取 ID）"""
+    """检测是否为默认示例分镜表（从 config/default_storyboard.py 动态读取 ID）
+
+    检查所有镜头中引用的角色/场景与默认数据的交集比例，
+    避免仅检查前 5 个镜头导致的误判或漏判。
+    """
     from config.default_storyboard import DEFAULT_CHARACTERS, DEFAULT_SCENES
     default_chars = {c["id"] for c in DEFAULT_CHARACTERS}
     default_scenes = {s["id"] for s in DEFAULT_SCENES}
-    shot_chars = set()
-    shot_scenes = set()
-    for s in shots[:5]:  # 只检查前 5 个镜头
+    if not default_chars:
+        return False
+    shot_chars, shot_scenes = set(), set()
+    for s in shots:
         for c in (s.get("characters") or "").split("+"):
             c = c.strip()
             if c:
@@ -255,7 +260,9 @@ def _is_default_storyboard(config_path: str, shots: list[dict]) -> bool:
         scene = (s.get("scene_id") or "").strip()
         if scene:
             shot_scenes.add(scene)
-    return shot_chars == default_chars and shot_scenes == default_scenes
+    # 所有引用的角色和场景都在默认数据中，且覆盖了全部默认角色
+    return (default_chars <= shot_chars and
+            default_scenes <= shot_scenes)
 
 
 def _skip(shot_id, step, reason): return {"shot_id": shot_id, "step": step, "status": STATUS_SKIPPED, "reason": reason}

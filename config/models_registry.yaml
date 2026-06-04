@@ -262,7 +262,7 @@ consistency_methods:
     description: "IP-Adapter Plus（SD1.5/SDXL 面部一致性）"
     compatible_backends: ["sd15", "sdxl"]
     config_key: "ip_adapter"
-    inject_method: "_inject_ip_adapter_plus"
+    inject_method: "_inject_character_refs"
     required_comfyui_node: "IPAdapterAdvanced"
 
   pulid_flux:

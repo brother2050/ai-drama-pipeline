@@ -86,8 +86,12 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
     return _done(shot_id, "tts", audio_path)
 
 
-def _check_lora_availability(wf: dict, paths, cfg, comfyui):
-    """检查工作流中的 LoRA 文件是否存在于 ComfyUI 服务器"""
+def _check_lora_availability(wf: dict, paths, cfg, comfyui) -> list[str]:
+    """检查工作流中的 LoRA 文件是否存在于 ComfyUI 服务器
+
+    Returns:
+        未确认存在的 LoRA 文件名列表
+    """
     from engines.workflow import find_lora_nodes
     from infra.asset_tracker import AssetTracker
     from urllib.parse import urlparse
@@ -95,6 +99,7 @@ def _check_lora_availability(wf: dict, paths, cfg, comfyui):
     tracker = AssetTracker(str(paths.root))
     image_server_url = comfyui.url
     lora_nodes = find_lora_nodes(wf)
+    missing = []
 
     for node_id, lora_name in lora_nodes:
         if tracker.is_lora_tracked(image_server_url, lora_name):
@@ -114,7 +119,9 @@ def _check_lora_availability(wf: dict, paths, cfg, comfyui):
                     found = True
                     break
         if not found:
+            missing.append(lora_name)
             logger.warning(f"LoRA '{lora_name}' 未确认存在于服务器 {image_server_url}")
+    return missing
 
 
 def _upload_reference_images(wf: dict, shot: dict, wb, comfyui, paths) -> dict:

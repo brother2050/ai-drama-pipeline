@@ -78,7 +78,7 @@
 ### 9. _reset_proj_cache 直接修改其他模块全局变量
 - **类型**: 功能
 - **文件**: `web/routers/deps.py` — `_reset_proj_cache`
-- **状态**: 已知设计债务，当前不影响功能。建议未来改为信号/事件机制。
+- **状态**: 已知设计债务，当前不影响功能。代码已添加注释说明直接修改的原因。
 - **问题**: 直接 import 并修改 `pipeline.tasks.helpers._ctx_cache`，可能触发意外的模块导入副作用。
 - **影响**: 项目切换时的脆弱性
 - **修复**: 使用信号/事件机制或版本号检查。
@@ -131,66 +131,56 @@
 
 ## 🟢 低严重性
 
-### 15. _inject_consistency_method 命名不一致
+### 15. ~~_inject_consistency_method 命名不一致~~ ✅ 已修复
 - **类型**: 代码
-- **文件**: `engines/workflow_builder.py`
-- **问题**: `_INJECT_DISPATCH` 中 `"_inject_ip_adapter_plus"` 映射到 `_inject_character_refs`，命名误导。
-- **修复**: 改 key 为 `"inject_character_refs"` 或使用函数引用。
+- **文件**: `engines/workflow_builder.py` + `config/models_registry.yaml`
+- **修复**: 注册表 `inject_method` 改为 `"_inject_character_refs"`，与实际函数名一致；dispatch 映射同步更新。
 
-### 16. Config._merge 静默吞掉所有异常
+### 16. ~~Config._merge 静默吞掉所有异常~~ ✅ 已修复
 - **类型**: 代码
 - **文件**: `infra/config.py`
-- **问题**: `except Exception` 可能掩盖配置格式错误等真正问题。
-- **修复**: 缩小异常捕获范围，或记录更详细日志。
+- **修复**: `except Exception` 缩窄为 `except (ImportError, FileNotFoundError, ValueError, yaml.YAMLError)`。
 
-### 17. _truncate_tag_prompt 中文 token 估算不准
+### 17. ~~_truncate_tag_prompt 中文 token 估算不准~~ ✅ 已修复
 - **类型**: 代码
 - **文件**: `engines/prompt.py`
-- **问题**: `len(prompt) / 4` 对中文严重不准确。
-- **修复**: 添加注释说明仅适用于英文 tag。
+- **修复**: docstring 补充说明 token 估算仅适用于英文 tag。
 
-### 18. _is_default_storyboard 只检查前 5 个镜头
+### 18. ~~_is_default_storyboard 只检查前 5 个镜头~~ ✅ 已修复
 - **类型**: 逻辑
 - **文件**: `pipeline/tasks/helpers.py`
-- **问题**: 可能误判或漏判默认分镜。
-- **修复**: 改为检查交集比例。
+- **修复**: 遍历全部镜头，检查默认角色/场景是否被完整覆盖（`default_chars <= shot_chars`）。
 
 ### 19. _tool_executor 全局线程池未清理
 - **类型**: 代码
 - **文件**: `web/routers/system_tools.py`
-- **问题**: 模块级 ThreadPoolExecutor 不会在应用关闭时自动清理。
-- **修复**: 在 `_lifespan` shutdown 阶段调用 `_tool_executor.shutdown(wait=False)`。
+- **状态**: 已由 `_lifespan` shutdown 阶段调用 `_tool_executor.shutdown(wait=False)` 处理，无需额外修改。
 
-### 20. Container._resolve 静默回退
+### 20. ~~Container._resolve 静默回退~~ ✅ 已修复
 - **类型**: 逻辑
 - **文件**: `api/registry.py`
-- **问题**: 配置的后端名不是已注册 API 后端时，静默回退到 auto_select，可能选择非预期后端。
-- **修复**: 在回退时记录 warning 日志。
+- **修复**: 自动选择时添加 `logger.info` 日志，记录回退原因和选择结果。
 
-### 21. _check_lora_availability 检查结果不阻断
+### 21. ~~_check_lora_availability 检查结果不阻断~~ ✅ 已修复
 - **类型**: 代码
 - **文件**: `pipeline/tasks/steps.py`
-- **问题**: 检查结果只记录 warning，不阻止工作流。
-- **修复**: 将结果返回给调用方。
+- **修复**: 函数改为返回 `list[str]`（未确认的 LoRA 列表），调用方可按需处理。
 
 ### 22. ~~_ensure_redis 参数被忽略~~ ✅ 已有修复
 - **状态**: 函数已改为无参数版本，直接内部 import。
 - **修复**: 删除参数或删除内部 import。
 
-### 23. init_schema 使用 split(";") 分割 SQL
+### 23. ~~init_schema 使用 split(";") 分割 SQL~~ ✅ 已修复
 - **类型**: 代码
 - **文件**: `infra/database/schema.py`
-- **问题**: 如果 SQL 中包含分号，分割会产生无效语句。
-- **修复**: 逐条执行已知 CREATE 语句。
+- **修复**: 拆分为独立的 `_STATEMENTS` 列表，逐条执行，不再依赖分号分割。
 
-### 24. _clean_empty_values 循环次数硬编码
+### 24. ~~_clean_empty_values 循环次数硬编码~~ ✅ 已修复
 - **类型**: 代码
 - **文件**: `engines/prompt_compiler.py`
-- **问题**: 3 次循环可能不够覆盖所有嵌套情况。
-- **修复**: 改为 `while changed` 循环。
+- **修复**: `for _ in range(3)` 改为 `while prev != text` 循环，确保所有嵌套情况都被清理。
 
-### 25. upload_entity_image ext 未用检测结果
+### 25. ~~upload_entity_image ext 未用检测结果~~ ✅ 已修复
 - **类型**: 代码
 - **文件**: `web/routers/assets.py`
-- **问题**: 保存文件名使用原始 ext 而不是 magic bytes 检测到的 ext。
-- **修复**: 使用检测到的 ext。
+- **修复**: `filename = f"cover{ext}"` 改为 `filename = f"cover{detected}"`，使用 magic bytes 检测到的扩展名。

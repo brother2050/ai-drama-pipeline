@@ -224,8 +224,10 @@ class Container:
         svc_cfg = self._config.get(service_type, {})
         if isinstance(svc_cfg, dict) and svc_cfg.get("backend"):
             return svc_cfg["backend"]
-        # 3. 自动选择
-        return registry.auto_select(service_type, self._config)
+        # 3. 自动选择（未显式配置时回退）
+        auto = registry.auto_select(service_type, self._config)
+        logger.info(f"{service_type} 未显式配置，自动选择: {auto}")
+        return auto
 
     def _backend_config(self, service_type: str, name: str) -> dict:
         models = self._config.get("models", {})

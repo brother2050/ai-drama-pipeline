@@ -341,6 +341,9 @@ def _truncate_tag_prompt(prompt: str, max_tokens: int = 75) -> str:
     SD1.5 CLIP tokenizer 限制 75 tokens（不含 start/end token）。
     粗略估算：1 token ≈ 4 字符（英文），按逗号分隔的 tag 边界截断，
     保留前面的 tag（style/genre/scene/character 优先），丢弃末尾溢出部分。
+
+    注意：token 估算仅适用于英文 tag（CLIP 对中文约 2 字符/token，
+    但首帧 prompt 通常是英文，中文场景罕见）。
     """
     # 粗略估算 token 数（英文约 4 字符/token，含逗号和空格）
     est_tokens = len(prompt) / 4
