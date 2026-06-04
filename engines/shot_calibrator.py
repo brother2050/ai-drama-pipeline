@@ -25,25 +25,31 @@ def _tpl(key: str) -> str:
     return get_compiler().get(key)
 
 
-# ══════════════════════════════════════════════════════════
-#  Stage 1: 叙事骨架
-# ══════════════════════════════════════════════════════════
-
-_STAGE1_SYSTEM = _tpl("shot_stage1_system")
-
-
-# ══════════════════════════════════════════════════════════
-#  Stage 2: 视觉描述
-# ══════════════════════════════════════════════════════════
-
-_STAGE2_SYSTEM = _tpl("shot_stage2_system")
+# 惰性加载模板（避免模块导入时执行 YAML 读取，ARCH-03 修复）
+_stage1_system: str | None = None
+_stage2_system: str | None = None
+_stage3_system: str | None = None
 
 
-# ══════════════════════════════════════════════════════════
-#  Stage 3: AI 绘图 Prompt
-# ══════════════════════════════════════════════════════════
+def _get_stage1_system() -> str:
+    global _stage1_system
+    if _stage1_system is None:
+        _stage1_system = _tpl("shot_stage1_system")
+    return _stage1_system
 
-_STAGE3_SYSTEM = _tpl("shot_stage3_system")
+
+def _get_stage2_system() -> str:
+    global _stage2_system
+    if _stage2_system is None:
+        _stage2_system = _tpl("shot_stage2_system")
+    return _stage2_system
+
+
+def _get_stage3_system() -> str:
+    global _stage3_system
+    if _stage3_system is None:
+        _stage3_system = _tpl("shot_stage3_system")
+    return _stage3_system
 
 
 # ══════════════════════════════════════════════════════════
@@ -66,7 +72,7 @@ def calibrate_storyboard(llm: object, params: object) -> list[dict]:
     if on_stage_progress:
         on_stage_progress(1, 3, "叙事骨架")
     logger.info("Stage 1/3: 叙事骨架...")
-    skeleton = llm_call_with_retry(llm, context, _STAGE1_SYSTEM, "叙事骨架", max_tokens=4096)
+    skeleton = llm_call_with_retry(llm, context, _get_stage1_system(), "叙事骨架", max_tokens=4096)
     if not skeleton or not isinstance(skeleton, list):
         logger.error("Stage 1 失败，回退到单次生成")
         return _fallback_generate(llm, params)
@@ -78,7 +84,7 @@ def calibrate_storyboard(llm: object, params: object) -> list[dict]:
     if on_stage_progress:
         on_stage_progress(2, 3, "视觉描述")
     logger.info("Stage 2/3: 视觉描述...")
-    enriched = _enrich_stage(llm, shots, _STAGE2_SYSTEM, "视觉描述", required_fields=["action", "dialogue"])
+    enriched = _enrich_stage(llm, shots, _get_stage2_system(), "视觉描述", required_fields=["action", "dialogue"])
     if enriched:
         shots = enriched
         logger.info(f"  ✅ 视觉描述完成")
@@ -89,7 +95,7 @@ def calibrate_storyboard(llm: object, params: object) -> list[dict]:
     if on_stage_progress:
         on_stage_progress(3, 3, "AI 绘图 Prompt")
     logger.info("Stage 3/3: AI 绘图 Prompt...")
-    enriched = _enrich_stage(llm, shots, _STAGE3_SYSTEM, "AI 绘图", required_fields=["image_prompt_en"])
+    enriched = _enrich_stage(llm, shots, _get_stage3_system(), "AI 绘图", required_fields=["image_prompt_en"])
     if enriched:
         shots = enriched
         logger.info(f"  ✅ AI 绘图 Prompt 完成")

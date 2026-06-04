@@ -136,6 +136,10 @@ def start_file_watcher(
             handler.on_deleted(event)
 
     observer = Observer()
+    # 监控配置目录本身（project.yaml, system.yaml 等顶层配置文件，ARCH-05 修复）
+    observer.schedule(_Adapter(), str(config_dir), recursive=False)
+    logger.info(f"文件监控已启用: {config_dir}")
+
     # 监控 characters/ 和 scenes/ 子目录
     for subdir in ("characters", "scenes"):
         watch_dir = config_dir / subdir

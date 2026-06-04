@@ -13,6 +13,41 @@ def _tpl(key: str) -> str:
     return get_compiler().get(key)
 
 
+# 惰性加载模板（避免模块导入时执行 YAML 读取，ARCH-03 修复）
+_storyboard_system: str | None = None
+_character_system: str | None = None
+_scene_system: str | None = None
+_expand_system: str | None = None
+
+
+def _get_storyboard_system() -> str:
+    global _storyboard_system
+    if _storyboard_system is None:
+        _storyboard_system = _tpl("storyboard_system")
+    return _storyboard_system
+
+
+def _get_character_system() -> str:
+    global _character_system
+    if _character_system is None:
+        _character_system = _tpl("character_system")
+    return _character_system
+
+
+def _get_scene_system() -> str:
+    global _scene_system
+    if _scene_system is None:
+        _scene_system = _tpl("scene_system")
+    return _scene_system
+
+
+def _get_expand_system() -> str:
+    global _expand_system
+    if _expand_system is None:
+        _expand_system = _tpl("expand_outline_system")
+    return _expand_system
+
+
 @dataclass
 class StoryboardGenParams:
     """分镜生成参数 — 统一参数对象，消除多参数函数"""
@@ -34,8 +69,6 @@ __all__ = ["StoryboardGenParams", "generate_storyboard", "generate_characters", 
 # ══════════════════════════════════════════════════════════
 #  分镜表生成
 # ══════════════════════════════════════════════════════════
-
-STORYBOARD_SYSTEM = _tpl("storyboard_system")
 
 
 def generate_storyboard(llm: object, params: StoryboardGenParams) -> list[dict]:
@@ -75,7 +108,7 @@ def generate_storyboard(llm: object, params: StoryboardGenParams) -> list[dict]:
     parts.append(f"\n目标总时长约 {target_duration} 秒，每镜头 2-8 秒。")
 
     from infra.json_parse import llm_call_with_retry
-    raw_shots = llm_call_with_retry(llm, "\n".join(parts), STORYBOARD_SYSTEM, "分镜", max_tokens=4096)
+    raw_shots = llm_call_with_retry(llm, "\n".join(parts), _get_storyboard_system(), "分镜", max_tokens=4096)
     if not raw_shots or not isinstance(raw_shots, list):
         return []
 
@@ -88,15 +121,11 @@ def generate_storyboard(llm: object, params: StoryboardGenParams) -> list[dict]:
 #  角色 / 场景生成（共享逻辑）
 # ══════════════════════════════════════════════════════════
 
-CHARACTER_SYSTEM = _tpl("character_system")
-
-SCENE_SYSTEM = _tpl("scene_system")
-
 
 def generate_characters(llm: object, descriptions: list[str], expected_ids: list[str] | None = None) -> list[dict]:
     """从描述生成角色配置 — 全部成功或抛异常"""
     from infra.models import normalize_character
-    results = _generate_entities(llm, descriptions, expected_ids, CHARACTER_SYSTEM, "角色", max_tokens=1024)
+    results = _generate_entities(llm, descriptions, expected_ids, _get_character_system(), "角色", max_tokens=1024)
     for char in results:
         normalize_character(char)
     return results
@@ -104,7 +133,7 @@ def generate_characters(llm: object, descriptions: list[str], expected_ids: list
 
 def generate_scenes(llm: object, descriptions: list[str], expected_ids: list[str] | None = None) -> list[dict]:
     """从描述生成场景配置 — 全部成功或抛异常"""
-    return _generate_entities(llm, descriptions, expected_ids, SCENE_SYSTEM, "场景", max_tokens=1024)
+    return _generate_entities(llm, descriptions, expected_ids, _get_scene_system(), "场景", max_tokens=1024)
 
 
 def _generate_entities(llm: object, descriptions: list[str], expected_ids: list[str] | None,
@@ -169,15 +198,13 @@ def _generate_entities(llm: object, descriptions: list[str], expected_ids: list[
 #  大纲扩写
 # ══════════════════════════════════════════════════════════
 
-EXPAND_SYSTEM = _tpl("expand_outline_system")
-
 
 def expand_outline(llm: object, outline: str) -> str:
     """扩写简短大纲为详细版本"""
     if not outline.strip():
         return outline
     try:
-        return llm.chat(outline, system=EXPAND_SYSTEM, max_tokens=2048)
+        return llm.chat(outline, system=_get_expand_system(), max_tokens=2048)
     except Exception as e:
         logger.error(f"大纲扩写失败: {e}", exc_info=True)
         return outline

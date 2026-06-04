@@ -257,7 +257,7 @@ class Container:
     _TYPE_KEY: dict[str, str] = {}  # 类变量，首次加载后永不更新
 ```
 **影响**: 用户在 `models_registry.yaml` 中新增服务类型后，`_TYPE_KEY` 不会更新。
-**修复**: 已在 `reload()` 中 `Container._TYPE_KEY.clear()`，但 `get()` 路径未清除。
+**修复**: ✅ 已确认 `reload()` 中 `Container._TYPE_KEY.clear()` 后，`_get_type_key()` 会从 ModelRegistry 重新构建。无需额外修改。
 **严重程度**: P2
 
 ### ARCH-02: 两个深度合并函数行为不同
@@ -273,7 +273,7 @@ class Container:
 STORYBOARD_SYSTEM = _tpl("storyboard_system")  # 模块加载时执行
 ```
 **影响**: YAML 文件不存在或格式错误时，模块导入就失败（当前有 try/except 兜底为空字符串）。
-**修复**: 改为惰性加载（函数内调用）。
+**修复**: ✅ 已改为惰性加载 — 模块级常量替换为 `_get_xxx_system()` 函数，首次调用时加载并缓存。
 **严重程度**: P2
 
 ### ARCH-04: `post/music.py` 模板回退方案生成 sine 波当配乐
@@ -283,11 +283,12 @@ cmd = [ffmpeg, "-y", "-f", "lavfi", "-i",
        "-af", "volume=0.1,tremolo=f=3:d=0.4", output]
 ```
 **影响**: 用户体验极差（纯正弦波），但只有 `logger.debug` 级别日志。
-**修复**: 至少 `logger.warning`，建议提示用户安装 MusicGen。
+**修复**: ✅ 已在 2bc636a 中升级为 `logger.warning`，并提示用户安装 MusicGen。
 **严重程度**: P2
 
 ### ARCH-05: `infra/file_watcher.py` 只监控 characters/scenes 目录
 **影响**: `project.yaml`、`system.yaml`、`models_registry.yaml` 等配置文件变化不触发缓存失效。
+**修复**: ✅ 已扩展监控范围，添加对 config_dir 本身的监控（包含 project.yaml、system.yaml 等顶层配置文件）。
 **严重程度**: P2
 
 ---
