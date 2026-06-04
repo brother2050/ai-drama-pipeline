@@ -2,9 +2,7 @@
 from __future__ import annotations
 
 import logging
-import os
 import re
-import yaml
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -16,11 +14,6 @@ from infra.config import get_root as _get_root, load_yaml_full
 ROOT = _get_root()
 
 
-# ── 配置访问 ──
-
-from infra.config import deep_merge as _deep_merge
-
-
 def _cfg() -> dict:
     """获取项目级配置（不含 system.yaml 合并）。
 
@@ -28,23 +21,7 @@ def _cfg() -> dict:
     与 _merged_cfg() 的区别：_merged_cfg() 会合并 system.yaml 的全局配置。
     """
     from infra.config import Config
-    cfg_path = _cfg_path()
-    try:
-        data = Config(cfg_path).data
-    except FileNotFoundError:
-        raise
-    except ValueError as e:
-        logger.warning(f"配置校验失败: {e}")
-        if os.path.isfile(cfg_path):
-            data = load_yaml_full(cfg_path)
-        else:
-            data = {}
-    except yaml.YAMLError as e:
-        logger.error(f"配置文件 YAML 格式错误: {cfg_path}: {e}", exc_info=True)
-        data = {}
-    except OSError as e:
-        logger.error(f"配置文件读取失败: {cfg_path}: {e}", exc_info=True)
-        data = {}
+    data = Config(_cfg_path()).data
     data.pop("_project_dir", None)
     return data
 
@@ -55,16 +32,8 @@ def _merged_cfg() -> dict:
     用途：读取 ComfyUI URL、LLM 配置、TTS 后端等系统级+项目级合并后的最终值。
     大多数场景应使用此函数，而非 _cfg()。
     """
-    from infra.config import Config, SYSTEM_CONFIG_PATH
-    cfg_path = _cfg_path()
-    try:
-        return Config(cfg_path).data
-    except Exception:
-        proj = _cfg()
-        if os.path.isfile(SYSTEM_CONFIG_PATH):
-            sys_cfg = load_yaml_full(SYSTEM_CONFIG_PATH)
-            return _deep_merge(sys_cfg, proj)
-        return proj
+    from infra.config import Config
+    return Config(_cfg_path()).data
 
 
 _paths_cache: ProjectPaths | None = None

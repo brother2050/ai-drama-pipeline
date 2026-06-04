@@ -1,7 +1,6 @@
 """后期合成 — 拼接、转场、字幕、配乐、横转竖"""
 from __future__ import annotations
 
-import argparse
 import logging
 import os
 import shutil
@@ -199,17 +198,3 @@ def run_post(config_path: str, episode: int, vertical: bool = False, cfg=None) -
 
     logger.info("后期合成完成")
     _cleanup_and_update_db(out_dir, episode, final_out)
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config", required=True)
-    parser.add_argument("-e", "--episode", type=int, required=True)
-    parser.add_argument("--vertical", action="store_true")
-    args = parser.parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
-    run_post(args.config, args.episode, args.vertical)
-
-
-if __name__ == "__main__":
-    main()

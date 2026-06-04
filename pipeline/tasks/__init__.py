@@ -8,7 +8,7 @@ from pipeline.tasks.pipeline import shot_task, preview_task, produce_task
 from pipeline.tasks.steps import step_tts, step_first_frame, step_video, step_lipsync
 
 # 核心逻辑（preview.py 复用）
-from pipeline.tasks.steps import tts_core, first_frame_core, video_core, lipsync_core, FirstFrameParams
+from pipeline.tasks.steps import tts_core, first_frame_core, video_core, lipsync_core
 
 # AI 生成
 from pipeline.tasks.ai import (

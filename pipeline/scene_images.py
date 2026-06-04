@@ -11,6 +11,7 @@ from infra.config import load_yaml_full
 from infra.constants import STATUS_DONE, STATUS_ERROR, contains_non_ascii
 import logging
 import os
+from pathlib import Path
 from typing import Callable
 
 logger = logging.getLogger(__name__)

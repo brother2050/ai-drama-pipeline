@@ -5,7 +5,6 @@
 """
 from __future__ import annotations
 
-import argparse
 import logging
 from pathlib import Path
 
@@ -127,18 +126,3 @@ def _process_shot(shot: dict, container, cfg, shot_out: Path, preset: dict, *, f
     finally:
         # 恢复原始 generation 配置
         cfg.data["generation"] = orig_gen
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config", required=True)
-    parser.add_argument("-e", "--episode", type=int, default=1)
-    parser.add_argument("-p", "--preset", default="draft",
-                        choices=["draft", "standard", "high"])
-    args = parser.parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
-    run_preview(args.config, args.episode, args.preset)
-
-
-if __name__ == "__main__":
-    main()
