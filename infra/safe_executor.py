@@ -86,8 +86,10 @@ def safe_run(
 
     # 超时模式下自动创建取消标志，传入 fn 供协作式取消
     # 仅当 fn 接受 **kwargs 或显式声明 _cancel_event 参数时才注入
+    _auto_created_event = False
     if timeout and cancel_event is None:
         cancel_event = threading.Event()
+        _auto_created_event = True
     if cancel_event:
         import inspect
         sig = inspect.signature(fn)
@@ -98,6 +100,9 @@ def safe_run(
             kwargs["_cancel_event"] = cancel_event
 
     for attempt in range(max(1, retries)):
+        # 每次重试前重置自动创建的 cancel_event（避免上一轮超时影响本轮）
+        if _auto_created_event and cancel_event is not None:
+            cancel_event.clear()
         try:
             if timeout:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as te:
