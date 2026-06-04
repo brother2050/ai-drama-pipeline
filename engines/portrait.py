@@ -326,8 +326,8 @@ def _ensure_outfit_images(char_id: str, config: dict, container,
             continue
         outfit_desc_en = outfit_val.get("description_en", "")
         if not outfit_desc_en:
-            from infra.constants import ERR_NOT_PREPARED_CN
-            logger.error(f"角色 '{char_id}' 的服装 '{outfit_key}' 尚未生成英文描述，{ERR_NOT_PREPARED_CN}")
+            from infra.constants import ERR_NOT_PREPARED
+            logger.error(f"角色 '{char_id}' 的服装 '{outfit_key}' 尚未生成英文描述，{ERR_NOT_PREPARED}")
             continue
 
         outfit_seed = _outfit_seed(char_id, generation, outfit_idx)

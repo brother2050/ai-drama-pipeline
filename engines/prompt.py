@@ -223,8 +223,8 @@ def build_prompt(params: PromptBuildParams) -> str:
     scene_clean = ""
     if params.scene_desc:
         if not is_ascii_only(params.scene_desc):
-            from infra.constants import ERR_NOT_PREPARED_CN
-            logger.warning(f"场景描述仍为中文，{ERR_NOT_PREPARED_CN}")
+            from infra.constants import ERR_NOT_PREPARED
+            logger.warning(f"场景描述仍为中文，{ERR_NOT_PREPARED}")
         scene_clean = params.scene_desc
 
     char_clean = params.character_desc.strip() if params.character_desc else ""
@@ -235,8 +235,8 @@ def build_prompt(params: PromptBuildParams) -> str:
         if action:
             action = strip_dialogue(action)
             if not is_ascii_only(action):
-                from infra.constants import ERR_NOT_PREPARED_CN
-                logger.warning(f"动作描述仍为中文（action_en 缺失），{ERR_NOT_PREPARED_CN}")
+                from infra.constants import ERR_NOT_PREPARED
+                logger.warning(f"动作描述仍为中文（action_en 缺失），{ERR_NOT_PREPARED}")
     else:
         action = strip_dialogue(action)
 

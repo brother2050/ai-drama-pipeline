@@ -102,8 +102,8 @@ def _validate_outfit(char: dict, char_id: str, outfit_key: str) -> tuple[str, st
     if not desc_en and not desc_zh:
         return "", f"角色 {char_id} 的服装 '{outfit_key}' 描述为空"
     if not desc_en and desc_zh:
-        from infra.constants import ERR_NOT_PREPARED_CN
-        return "", f"角色 {char_id} 的服装 '{outfit_key}' 尚未生成英文描述，{ERR_NOT_PREPARED_CN}"
+        from infra.constants import ERR_NOT_PREPARED
+        return "", f"角色 {char_id} 的服装 '{outfit_key}' 尚未生成英文描述，{ERR_NOT_PREPARED}"
     return desc_en, None
 
 

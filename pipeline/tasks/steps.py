@@ -202,8 +202,8 @@ def _resolve_shot_context(shot: dict, cfg, characters: dict | None, scenes: dict
     if scene:
         scene_desc = scene.get("description_en", "")
         if not scene_desc and scene.get("description"):
-            from infra.constants import ERR_NOT_PREPARED_CN
-            return None, None, None, None, f"场景 '{shot.get('scene', '')}' 尚未生成英文描述，{ERR_NOT_PREPARED_CN}"
+            from infra.constants import ERR_NOT_PREPARED
+            return None, None, None, None, f"场景 '{shot.get('scene', '')}' 尚未生成英文描述，{ERR_NOT_PREPARED}"
 
     # 多人提示
     multi_char_prompt = ""

@@ -89,8 +89,8 @@ def _resolve_scene_desc(scene: dict, sname: str) -> str:
     if not desc_en:
         description = scene.get("description", "")
         if description and not is_ascii_only(description):
-            from infra.constants import ERR_NOT_PREPARED_CN
-            logger.warning(f"  ⚠ 场景 {sname}: 尚未生成英文描述，{ERR_NOT_PREPARED_CN}")
+            from infra.constants import ERR_NOT_PREPARED
+            logger.warning(f"  ⚠ 场景 {sname}: 尚未生成英文描述，{ERR_NOT_PREPARED}")
             return ""
         desc_en = description
     if not desc_en:

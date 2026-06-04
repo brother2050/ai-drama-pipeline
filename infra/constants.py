@@ -86,7 +86,6 @@ STATUS_SKIPPED = "skipped"
 # ══════════════════════════════════════════════════════════
 
 ERR_NOT_PREPARED = "请先执行: drama prepare <集数>"
-ERR_NOT_PREPARED_CN = ERR_NOT_PREPARED  # 合并为统一中文消息
 
 
 # ══════════════════════════════════════════════════════════
