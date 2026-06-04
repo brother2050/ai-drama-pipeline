@@ -575,17 +575,14 @@ class Config:
                 # 双重检查：拿到锁后再检查一次，避免重复重载
                 if self._reloading:
                     return False
-                self.reload()
+                self._reloading = True
+            # 耗时操作在锁外执行，不阻塞其他线程的 get()
+            try:
+                self._do_reload()
+            finally:
+                self._reloading = False
             return True
         return False
-
-    def reload(self) -> None:
-        """重新加载配置"""
-        self._reloading = True
-        try:
-            self._do_reload()
-        finally:
-            self._reloading = False
 
     def _do_reload(self) -> None:
         # 清除 load_config 的 mtime 缓存，强制重新读取文件

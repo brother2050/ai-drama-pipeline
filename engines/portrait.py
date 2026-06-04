@@ -207,7 +207,7 @@ def ensure_portrait(char_id: str, config: dict, container=None, force: bool = Fa
         comfyui = container.get("image")
         from engines.workflow_builder import WorkflowBuilder, WorkflowBuilderConfig
         models = config.get("models", {})
-        wb = WorkflowBuilder(WorkflowBuilderConfig(config=config, models=models, project_dir=str(paths.root), comfyui=comfyui, force=force))
+        wb = WorkflowBuilder(WorkflowBuilderConfig(config=config, models=models, project_dir=str(paths.root), comfyui=comfyui, force=force, no_auto_gen=True))
         wb.load_workflows()
 
         # 读取代数计数器（force 时递增，得到不同的生成结果）
@@ -310,7 +310,7 @@ def _ensure_outfit_images(char_id: str, config: dict, container,
     comfyui = container.get("image")
     from engines.workflow_builder import WorkflowBuilder, WorkflowBuilderConfig
     models = config.get("models", {})
-    wb = WorkflowBuilder(WorkflowBuilderConfig(config=config, models=models, project_dir=str(paths.root), comfyui=comfyui))
+    wb = WorkflowBuilder(WorkflowBuilderConfig(config=config, models=models, project_dir=str(paths.root), comfyui=comfyui, no_auto_gen=True))
     wb.load_workflows()
 
     cover_path = portrait_dir / "cover.png"

@@ -48,6 +48,7 @@ class WorkflowBuilderConfig:
     comfyui: object = None   # ComfyUI 后端实例
     container: object = None # DI 容器
     force: bool = False
+    no_auto_gen: bool = False  # 禁止自动触发定妆照生成（防止递归）
 
 
 class WorkflowBuilder:
@@ -63,6 +64,8 @@ class WorkflowBuilder:
         self.comfyui = cfg.comfyui
         self._container = cfg.container  # 完整 DI 容器（优先使用）
         self.force = cfg.force
+        self.no_auto_gen = cfg.no_auto_gen  # 禁止自动触发定妆照生成
+        self._refs_cache: dict[str, list[str]] = {}  # 角色参考图缓存（防并发重复查找）
 
     def _get_container(self) -> object:
         """获取容器：优先完整 DI 容器，回退到简单 dict"""
@@ -393,7 +396,7 @@ class WorkflowBuilder:
         # 无 LoRA 角色 → 一致性方案
         if chars_without_lora:
             chars_with_refs = [cid for cid in chars_without_lora
-                               if self._get_character_refs(cid, outfit=outfit)]
+                               if self._get_character_refs(cid, outfit=outfit, _no_auto_gen=self.no_auto_gen)]
             missing = set(chars_without_lora) - set(chars_with_refs)
             for cid in missing:
                 logger.warning(f"角色 '{cid}' 无定妆照，跳过一致性注入")
@@ -612,7 +615,7 @@ class WorkflowBuilder:
 
         # 主角色
         if char_ids:
-            refs = self._get_character_refs(char_ids[0], outfit=outfit)
+            refs = self._get_character_refs(char_ids[0], outfit=outfit, _no_auto_gen=self.no_auto_gen)
             # 优先用 PuLID 节点，再用 IP-Adapter 节点，最后回退到第一个 LoadImage
             target_node = (pulid_primary_nodes[0] if pulid_primary_nodes
                           else ipa_primary_nodes[0] if ipa_primary_nodes
@@ -622,7 +625,7 @@ class WorkflowBuilder:
 
         # 第二角色
         for i, cid in enumerate(char_ids[1:]):
-            refs = self._get_character_refs(cid, outfit=outfit)
+            refs = self._get_character_refs(cid, outfit=outfit, _no_auto_gen=self.no_auto_gen)
             # 优先用 pulid_ref2 节点，回退到 ipadapter_ref2
             secondary_pool = pulid_secondary_nodes + ipa_secondary_nodes
             if refs and i < len(secondary_pool):
