@@ -10,7 +10,7 @@ from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
-from infra.config import get_root as _get_root, load_yaml_full
+from infra.config import get_root as _get_root, load_yaml_full, ProjectPaths
 
 ROOT = _get_root()
 
@@ -71,7 +71,6 @@ def _paths() -> "ProjectPaths":
     global _paths_cache
     p = _proj()
     if _paths_cache is None or _paths_cache.root != p:
-        from infra.config import ProjectPaths
         _paths_cache = ProjectPaths(p)
     return _paths_cache
 
