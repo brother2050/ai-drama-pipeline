@@ -209,17 +209,18 @@ def _check_outfit_reference(shot, i: int, plan: ImportPlan, char_ids: set[str],
         return errors
     primary_char = shot.characters.split("+")[0].strip()
     char = next((c for c in plan.characters if c.id == primary_char), None)
-    if not char and project_dir and project_dir.exists():
+    char_outfits = char.outfits if char else None
+    if not char_outfits and project_dir and project_dir.exists():
         try:
             from infra.config import ProjectPaths as _PP, load_yaml_entities as _le
             for e in _le(_PP(project_dir).characters_dir, "character"):
                 if e.get("id") == primary_char:
-                    char = type("C", (), {"outfits": e.get("outfits", {})})()
+                    char_outfits = e.get("outfits", {})
                     break
         except Exception as e:
             logger.debug(f"查找角色 outfit 跳过: {e}")
-    if char and char.outfits and shot.outfit not in char.outfits:
-        errors.append(f"shots[{i}].outfit: 角色 '{primary_char}' 没有名为 '{shot.outfit}' 的服装，可用: {list(char.outfits.keys())}")
+    if char_outfits and shot.outfit and shot.outfit not in char_outfits:
+        errors.append(f"shots[{i}].outfit: 角色 '{primary_char}' 没有名为 '{shot.outfit}' 的服装，可用: {list(char_outfits.keys())}")
     return errors
 
 
