@@ -297,9 +297,13 @@ def normalize_character(char: dict) -> dict:
     """
     # 浅拷贝避免就地修改调用方的原始 dict
     char = dict(char)
-    # outfits 深拷贝：后续会就地修改（添加 default 键、转换格式）
+    # 深拷贝嵌套 dict：后续会就地修改（添加 default 键、setdefault 等）
     if isinstance(char.get("outfits"), dict):
         char["outfits"] = copy.deepcopy(char["outfits"])
+    if isinstance(char.get("bible"), dict):
+        char["bible"] = copy.deepcopy(char["bible"])
+    if isinstance(char.get("reference_images"), list):
+        char["reference_images"] = list(char["reference_images"])
     # bible: 确保存在且有 core_traits
     bible = char.get("bible")
     if not isinstance(bible, dict):

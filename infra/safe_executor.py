@@ -85,10 +85,17 @@ def safe_run(
     last_exc: Exception | None = None
 
     # 超时模式下自动创建取消标志，传入 fn 供协作式取消
+    # 仅当 fn 接受 **kwargs 或显式声明 _cancel_event 参数时才注入
     if timeout and cancel_event is None:
         cancel_event = threading.Event()
     if cancel_event:
-        kwargs["_cancel_event"] = cancel_event
+        import inspect
+        sig = inspect.signature(fn)
+        accepts_var_keyword = any(
+            p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
+        )
+        if accepts_var_keyword or "_cancel_event" in sig.parameters:
+            kwargs["_cancel_event"] = cancel_event
 
     for attempt in range(max(1, retries)):
         try:
