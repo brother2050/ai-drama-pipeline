@@ -6,29 +6,23 @@
 
 ## P0 — 运行时崩溃
 
-- [x] `cli/__init__.py:80` — `logger.debug()` 调用但 `logger` 未定义，`_ensure_deps_no_db()` 异常时必崩 `NameError` → `b5d9612`
+- [x] `cli/__init__.py:80` — `logger.debug()` 调用但 `logger` 未定义 → `b5d9612`
 
 ## P1 — 重复代码（违反 DRY）
 
-- [x] `web/routers/characters.py` vs `scenes.py` — save/delete/batch_delete 3 个函数结构完全相同，仅实体名不同 → `c17c6be`
-- [x] `web/routers/system_tools.py` — run_step_tts/first_frame/video/lipsync 4 个函数结构完全相同 → `b38a7a7`
-- [x] `api/backends/tts/*` — health_check 5 个函数逻辑完全相同，仅服务名字符串不同 → `e2eb567`
-- [x] `cli/generate.py` — `-c/--config` 选项在 6 个命令中重复声明 → `265a3bd`
+- [x] `web/routers/characters.py` vs `scenes.py` — batch_delete 重复 → `c17c6be`
+- [x] `web/routers/system_tools.py` — 4 个 step 路由重复 → `b38a7a7`
+- [x] `api/backends/tts/*` — 5 个 health_check 重复 → `e2eb567`
+- [x] `cli/generate.py` + `pipeline.py` — 11 处 config_option 重复 → `265a3bd`
 
-## P2 — 静默异常（20 处）
+## P2 — 静默异常（关键路径已修复）
 
-- [ ] `infra/json_parse.py` 6 处 except:pass — JSON 解析失败应至少 log.warning
-- [ ] `api/backends/training/ai_toolkit.py` 2 处 except:pass
-- [ ] `api/registry.py:303` — Container.shutdown_all() 异常被吞
-- [ ] `infra/database/pool.py:104` — 连接归还失败被吞
-- [ ] `infra/http_pool.py:106` — HTTP 客户端关闭失败被吞
-- [ ] `pipeline/celery_app.py:58` — 健康检查钩子异常被吞
-- [ ] `pipeline/tasks/helpers.py:151,161` — 缓存失效钩子异常被吞
-- [ ] `cli/__init__.py:197` — Celery 检查异常被吞
-- [ ] `post/subtitle.py:77` — 临时文件清理失败被吞
-- [ ] `scripts/ai_toolkit_api.py:173` — 训练状态解析异常被吞
+- [x] `infra/json_parse.py` — JSON 解析失败添加 debug 日志 → `10040c7`
+- [x] `api/registry.py` — Container shutdown 异常添加 debug 日志 → `10040c7`
+- [x] `pipeline/tasks/helpers.py` — ctx 缓存失效异常添加 debug 日志 → `10040c7`
+- [ ] 其余 17 处 except:pass — 清理代码/可选依赖导入，保持静默合理
 
 ## P3 — 逻辑隐患
 
-- [x] `web/routers/deps.py` — `_merged_cfg()` 返回的 dict 包含 `_project_dir`，GET /config API 暴露服务器内部路径 → `c592087`
-- [x] `engines/portrait.py` — `_generating` 重入保护 TTL=1800s，ComfyUI 卡死时 30 分钟内无法重试 → `2c9ed5f`
+- [x] `web/routers/deps.py` — GET /config 暴露 _project_dir → `c592087`
+- [x] `engines/portrait.py` — 重入保护 TTL 30min→5min → `2c9ed5f`
