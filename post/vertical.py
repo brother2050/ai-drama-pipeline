@@ -75,10 +75,9 @@ def to_vertical(video: str, output: str, mode: str = "face_track") -> str:
     Returns:
         输出文件路径
     """
-    from infra.ffmpeg import probe as ffprobe
+    from infra.ffmpeg import probe as ffprobe, _FFMPEG as ffmpeg
 
     Path(output).parent.mkdir(parents=True, exist_ok=True)
-    ffmpeg = shutil.which("ffmpeg") or "ffmpeg"
 
     # 获取原始尺寸
     info = ffprobe(video)

@@ -87,9 +87,7 @@ def build_concat_filter(inputs: list[str], output: str, transition: str = "cross
         return output
 
     Path(output).parent.mkdir(parents=True, exist_ok=True)
-    ffmpeg = shutil.which("ffmpeg") or "ffmpeg"
-
-    from infra.ffmpeg import probe
+    from infra.ffmpeg import _FFMPEG as ffmpeg, probe
     probe_cache = [probe(p) for p in inputs]
     durations = [float(info.get("format", {}).get("duration", 0)) for info in probe_cache]
     logger.debug(f"视频时长: {durations}")

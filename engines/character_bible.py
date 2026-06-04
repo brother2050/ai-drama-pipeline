@@ -74,23 +74,12 @@ class CharacterBible:
         if char_id in self._cache:
             return self._cache[char_id]
 
-        from infra.config import ProjectPaths, load_yaml_full
+        from infra.config import load_character, ProjectPaths
         paths = ProjectPaths(self._project_dir)
-        char_file = paths.character_yaml(char_id)
-        if not char_file.exists():
-            self._cache[char_id] = {}
-            return {}
-
-        try:
-            data = load_yaml_full(char_file)
-            char = data.get("character", {})
-            bible = char.get("bible", {})
-            self._cache[char_id] = bible
-            return bible
-        except Exception as e:
-            logger.debug(f"加载角色圣经失败 {char_id}: {e}")
-            self._cache[char_id] = {}
-            return {}
+        char = load_character(paths, char_id)
+        bible = char.get("bible", {})
+        self._cache[char_id] = bible
+        return bible
 
     def save(self, char_id: str, bible: dict) -> None:
         """保存角色圣经数据

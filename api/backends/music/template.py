@@ -1,6 +1,6 @@
 """模板配乐 — ffmpeg 生成简单 BGM（开箱即用）"""
 from __future__ import annotations
-import logging, subprocess, shutil
+import logging, subprocess
 from pathlib import Path
 from api.registry import BackendMeta, registry
 
@@ -19,7 +19,7 @@ class TemplateMusic:
         duration = max(1, min(300, duration))  # 1秒 ~ 5分钟
         # 用 ffmpeg 生成简单音调
         freq = {"happy": 440, "sad": 330, "angry": 520, "neutral": 400}.get(mood, 400)
-        ffmpeg = shutil.which("ffmpeg") or "ffmpeg"
+        from infra.ffmpeg import _FFMPEG as ffmpeg
         cmd = [ffmpeg, "-y", "-f", "lavfi", "-i",
                f"sine=frequency={freq}:duration={duration}",
                "-af", f"volume=0.15,tremolo=f=4:d=0.3", output]

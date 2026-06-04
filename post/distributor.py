@@ -34,16 +34,9 @@ def get_platform_presets() -> dict:
 
 def get_video_info(video: str) -> dict:
     """获取视频基本信息"""
-    import json
-    import shutil
     try:
-        ffprobe = shutil.which("ffprobe") or "ffprobe"
-        r = subprocess.run(
-            [ffprobe, "-v", "quiet", "-print_format", "json",
-             "-show_format", "-show_streams", video],
-            capture_output=True, text=True, timeout=30
-        )
-        info = json.loads(r.stdout)
+        from infra.ffmpeg import probe as ffprobe
+        info = ffprobe(video)
         fmt = info.get("format", {})
         stream = next((s for s in info.get("streams", []) if s.get("codec_type") == "video"), {})
         return {
