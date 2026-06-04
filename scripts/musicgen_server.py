@@ -9,7 +9,7 @@ MusicGen 配乐生成服务 — FastAPI 封装
 特性:
   - 自动安装依赖: 首次运行自动检测并安装缺失包
   - 自动分段生成: 超过 15s 自动切段，避免后半段质量退化
-  - 并发生成: 量化模式下多段并发，利用 GPU 流水线
+  - 批量生成: 多段一次 batch forward，GPU 天然并行
   - 精确裁剪: 输出严格匹配请求时长
   - 交叉淡出拼接: 段间 1s fade，听感无缝
 
@@ -90,14 +90,13 @@ import argparse
 import contextlib
 import io
 import time
-from concurrent.futures import ThreadPoolExecutor
-
 import numpy as np
 import soundfile as sf
 import torch
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
+
 
 logger = logging.getLogger("musicgen-server")
 
@@ -230,45 +229,33 @@ def load_model(model_size: str = "medium", quantize: bool = False):
                 f"显存: {used}/{total} MB")
 
 
-def _generate_segment(prompt: str, duration: int) -> np.ndarray:
-    """生成单段音频，输出精确裁剪到目标时长
+def _generate_batch(prompts: list[str], durations: list[int]) -> list[np.ndarray]:
+    """批量生成多段音频 — 一次 forward 同时处理所有段
 
-    MusicGen 的 max_new_tokens 不直接映射为音频秒数（模型内部有
-    codebook 上采样因子），实际输出通常是请求时长的 ~2.5 倍。
-    因此生成后按目标帧数精确裁剪。
+    MusicGen 的 generate() 在 batch_size > 1 时，所有序列对齐到相同的
+    max_new_tokens（取 max），生成后按各自目标帧数裁剪。
+    GPU 矩阵计算在 batch 维度天然并行，一次 batch ≈ 单段耗时。
     """
-    target_frames = duration * _samplerate
-    # 量化模型 token 太多会触发 CUDA 断言，需降低上限
+    target_frames_list = [d * _samplerate for d in durations]
+    max_dur = max(durations)
+
     if _is_quantized:
-        max_tokens = int(duration * 1.5 * (_samplerate // 256))
-        max_tokens = min(max_tokens, 1500)
+        max_tokens = int(max_dur * 1.5 * (_samplerate // 256))
+        max_tokens = min(max_tokens, 3000)
     else:
-        max_tokens = int(duration * 2 * (_samplerate // 256))
+        max_tokens = int(max_dur * 2 * (_samplerate // 256))
         max_tokens = min(max_tokens, 3000)
 
-    inputs = _processor(text=[prompt], return_tensors="pt").to(_model.device)
+    inputs = _processor(text=prompts, return_tensors="pt", padding=True).to(_model.device)
     with torch.no_grad():
         audio = _model.generate(**inputs, max_new_tokens=max_tokens)
 
-    arr = audio[0, 0].cpu().numpy()
-    arr = arr.astype(np.float32) if arr.dtype == np.float16 else arr
-    # 精确裁剪到目标时长
-    return arr[:target_frames]
-
-
-def _generate_concurrent(prompts: list[str], durations: list[int]) -> list[np.ndarray]:
-    """并发生成多段音频（每段独立 forward，避免 batch 对齐导致时长膨胀）
-
-    MusicGen 的 generate() 在 batch_size > 1 时，所有序列对齐到相同的
-    max_new_tokens，导致短段被拉长到最长段的长度。改为每段独立生成，
-    通过 ThreadPoolExecutor 并发执行以利用 GPU 流水线。
-    """
-    def _gen(prompt, duration):
-        return _generate_segment(prompt, duration)
-
-    with ThreadPoolExecutor(max_workers=len(prompts)) as pool:
-        futures = [pool.submit(_gen, p, d) for p, d in zip(prompts, durations)]
-        return [f.result() for f in futures]
+    results = []
+    for i, target_frames in enumerate(target_frames_list):
+        arr = audio[i, 0].cpu().numpy()
+        arr = arr.astype(np.float32) if arr.dtype == np.float16 else arr
+        results.append(arr[:target_frames])
+    return results
 
 
 def _crossfade(a: np.ndarray, b: np.ndarray, fade_samples: int) -> np.ndarray:
@@ -310,8 +297,7 @@ def generate(req: GenRequest):
 
     策略:
     - duration ≤ 15s: 直接生成
-    - duration > 15s + 量化模型: 并发生成多段（每段独立 forward，利用 GPU 流水线）
-    - duration > 15s + 非量化: 逐段串行生成
+    - duration > 15s: 拆段后一次 batch 生成（GPU batch 并行，≈ 单段耗时）
     """
     if _model is None:
         raise HTTPException(503, "模型未加载")
@@ -323,38 +309,13 @@ def generate(req: GenRequest):
     try:
         if duration <= _SEGMENT_SEC:
             # 短音频直接生成
-            audio_np = _generate_segment(req.prompt, duration)
+            audio_np = _generate_batch([req.prompt], [duration])[0]
         else:
             segments_sec = _split_segments(duration)
             n_segments = len(segments_sec)
-
-            # 计算并行度
-            used, _ = _get_gpu_mem()
-            parallel = _estimate_parallelism(used) if _is_quantized else 1
-            parallel = min(parallel, n_segments)
-
-            logger.info(f"  共 {n_segments} 段, 并行度: {parallel}")
-
-            if parallel > 1:
-                # 并发生成（每段独立 forward，避免 batch 对齐膨胀）
-                all_segments = []
-                for batch_start in range(0, n_segments, parallel):
-                    batch_end = min(batch_start + parallel, n_segments)
-                    batch_durations = segments_sec[batch_start:batch_end]
-                    batch_prompts = [req.prompt] * len(batch_durations)
-                    logger.info(f"  批次 {batch_start//parallel + 1}: "
-                                f"段 {batch_start+1}-{batch_end}")
-                    batch_results = _generate_concurrent(batch_prompts, batch_durations)
-                    all_segments.extend(batch_results)
-                audio_np = _concat_segments(all_segments)
-            else:
-                # 串行生成
-                seg_parts = []
-                for i, seg_len in enumerate(segments_sec):
-                    logger.info(f"  段 {i + 1}/{n_segments}: {seg_len}s")
-                    seg = _generate_segment(req.prompt, seg_len)
-                    seg_parts.append(seg)
-                audio_np = _concat_segments(seg_parts)
+            logger.info(f"  共 {n_segments} 段, 批量生成")
+            all_segments = _generate_batch([req.prompt] * n_segments, segments_sec)
+            audio_np = _concat_segments(all_segments)
 
         # 写入 WAV buffer
         buf = io.BytesIO()
