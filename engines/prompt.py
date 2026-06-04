@@ -269,12 +269,13 @@ def _truncate_tag_prompt(prompt: str, max_tokens: int = 75) -> str:
         return prompt
 
     # 按逗号拆分，逐个 tag 累加，超出限制时截断
+    char_limit = max_tokens * 4
     tags = [t.strip() for t in prompt.split(",") if t.strip()]
     result = []
     char_count = 0
     for tag in tags:
         tag_cost = len(tag) / 4 + 1
-        if char_count + tag_cost > max_tokens * 4:
+        if char_count + tag_cost > char_limit:
             break
         result.append(tag)
         char_count += len(tag) + 2  # ", " = 2 chars
