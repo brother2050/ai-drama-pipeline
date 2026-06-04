@@ -95,9 +95,9 @@ SCENE_SYSTEM = _tpl("scene_system")
 
 def generate_characters(llm: object, descriptions: list[str], expected_ids: list[str] | None = None) -> list[dict]:
     """从描述生成角色配置 — 全部成功或抛异常"""
+    from infra.models import normalize_character
     results = _generate_entities(llm, descriptions, expected_ids, CHARACTER_SYSTEM, "角色", max_tokens=1024)
     for char in results:
-        from infra.models import normalize_character
         normalize_character(char)
     return results
 
@@ -133,18 +133,23 @@ def _generate_entities(llm: object, descriptions: list[str], expected_ids: list[
         estimate_item_output_tokens=lambda _: max_tokens,
     )
 
-    entities = []
-    for batch_data in batch_result["results"]:
-        if batch_data:
+    # 按 batch_sizes 精确展平，失败批次填 None 保持对齐
+    entities: list[dict | None] = []
+    for batch_data, batch_size in zip(batch_result["results"], batch_result["batch_sizes"]):
+        if batch_data and isinstance(batch_data, list):
             entities.extend(batch_data)
+        else:
+            entities.extend([None] * batch_size)
 
-    failed_count = sum(1 for d, e in zip(descriptions, entities) if e is None or not isinstance(e, dict))
+    failed_count = sum(1 for e in entities if e is None or not isinstance(e, dict))
     if failed_count:
         raise RuntimeError(f"{label}生成失败（{failed_count}/{len(descriptions)}）: 请检查 LLM 服务。")
 
     # ID 注入 + 名称去重
     used_names: set[str] = set()
     for i, entity in enumerate(entities):
+        if not isinstance(entity, dict):
+            continue
         if expected_ids and i < len(expected_ids):
             entity["id"] = expected_ids[i]
         name = entity.get("name", "").strip()

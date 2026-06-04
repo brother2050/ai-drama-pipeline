@@ -36,8 +36,10 @@ def estimate_tokens(text: str) -> int:
 def _execute_batches(processor, batches, build_prompts, parse_result, on_progress) -> dict:
     """逐批执行（带重试 + 容错隔离）"""
     all_results = []
+    batch_sizes = []
     failed = 0
     for i, batch in enumerate(batches):
+        batch_sizes.append(len(batch))
         if on_progress:
             on_progress(i, len(batches), f"批次 {i+1}/{len(batches)}...")
         try:
@@ -52,7 +54,8 @@ def _execute_batches(processor, batches, build_prompts, parse_result, on_progres
     if on_progress:
         on_progress(len(batches), len(batches),
                     f"完成 ({failed} 批失败)" if failed else "全部成功")
-    return {"results": all_results, "failed_batches": failed, "total_batches": len(batches)}
+    return {"results": all_results, "batch_sizes": batch_sizes,
+            "failed_batches": failed, "total_batches": len(batches)}
 
 
 class AdaptiveBatchProcessor:
