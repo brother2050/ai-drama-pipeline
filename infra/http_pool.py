@@ -88,3 +88,11 @@ def shutdown_all() -> None:
                 logger.debug("HTTP 客户端关闭失败")
                 pass
         _clients.clear()
+
+
+# 注册清理钩子：进程退出时自动关闭 HTTP 连接池
+try:
+    from infra.hooks import on_cleanup
+    on_cleanup(priority=50)(shutdown_all)
+except ImportError:
+    pass

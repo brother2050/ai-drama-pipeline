@@ -90,3 +90,16 @@ def get_pool() -> PgPool:
 
 def placeholder() -> str:
     return "%s"
+
+
+# 注册清理钩子：进程退出时自动关闭数据库连接池
+try:
+    from infra.hooks import on_cleanup
+    def _close_pool():
+        global _pool
+        if _pool is not None:
+            _pool.close()
+            _pool = None
+    on_cleanup(priority=100)(_close_pool)
+except ImportError:
+    pass

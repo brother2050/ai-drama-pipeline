@@ -81,7 +81,7 @@ def check_tool(name: str, cfg: dict) -> dict:
 
 
 def _check_tool_inner(name: str, cfg: dict) -> dict:
-    """内部检测逻辑（注册表驱动）"""
+    """内部检测逻辑（注册表驱动 + 钩子扩展）"""
     from flow.model_registry import ModelRegistry
     registry = ModelRegistry()
 
@@ -94,30 +94,51 @@ def _check_tool_inner(name: str, cfg: dict) -> dict:
     hc = registry.get_service_health_check(name)
     if hc:
         meta = registry.get_service_meta(name) or {}
-        return _execute_health_check(name, hc, cfg,
-                                     backend=meta.get("backend", name),
-                                     type=meta.get("type", "unknown"))
+        result = _execute_health_check(name, hc, cfg,
+                                       backend=meta.get("backend", name),
+                                       type=meta.get("type", "unknown"))
+        # 钩子扩展：允许钩子覆盖或补充检查结果
+        result = _apply_health_hooks(name, cfg, result)
+        return result
 
     # 3. 服务类型名（如 "tts"、"llm"）→ 查默认后端
     service_types = registry.get_registered_service_types()
     if name in service_types:
-        return _check_service_type_backend(name, cfg, registry)
+        result = _check_service_type_backend(name, cfg, registry)
+        return _apply_health_hooks(name, cfg, result)
 
     # 4. 后端名（如 "mimo-voicedesign"）→ 遍历所有服务类型匹配
     for service_type in service_types:
-        # 检查该服务类型下是否有此名称的后端
         backend_meta = registry.get_backend(service_type, name)
         if backend_meta:
             hc = backend_meta.get("health_check")
             if hc:
-                return _execute_health_check(
-                    name, hc, cfg,
-                    backend=name, type=service_type)
-            # 有后端但无 health_check（如纯本地模板）
+                result = _execute_health_check(name, hc, cfg, backend=name, type=service_type)
+                return _apply_health_hooks(name, cfg, result)
             return _result(True, name, service_type, f"{name}（无需健康检查）")
 
-    return {"available": False, "backend": "unknown", "type": "unknown",
-            "reason": f"未注册的工具: {name}"}
+    return _apply_health_hooks(name, cfg,
+        {"available": False, "backend": "unknown", "type": "unknown",
+         "reason": f"未注册的工具: {name}"})
+
+
+def _apply_health_hooks(name: str, cfg: dict, result: dict) -> dict:
+    """执行健康检查钩子，允许钩子覆盖检查结果
+
+    钩子返回 {"available": bool, "reason": str} 时覆盖原结果。
+    钩子返回 None 或无返回值时保留原结果。
+    """
+    from infra.hooks import run_hooks
+    try:
+        hook_results = run_hooks("health_check", name, cfg, service_type=name)
+        for hr in hook_results:
+            if isinstance(hr, dict) and "available" in hr:
+                if not hr["available"]:
+                    result = {**result, "available": False, "reason": hr.get("reason", "钩子检查失败")}
+                break
+    except Exception as e:
+        logger.debug(f"健康检查钩子异常 ({name}): {e}")
+    return result
 
 
 def _hc_api_key(name: str, hc: dict, cfg: dict, backend: str) -> dict:

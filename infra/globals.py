@@ -3,6 +3,8 @@
 所有全局看门狗、健康缓存、并发组的统一入口。
 进程启动时初始化一次，各模块通过 get_*() 访问。
 
+集成 hooks 系统：init/cleanup 钩子在 init_globals/shutdown_globals 时自动执行。
+
 用法:
     from infra.globals import get_watchdog, get_health_cache, get_concurrency_groups
     wd = get_watchdog()
@@ -16,7 +18,8 @@ import threading
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["init_globals", "get_watchdog", "get_health_cache", "get_concurrency_groups", "shutdown_globals"]
+__all__ = ["init_globals", "get_watchdog", "get_health_cache",
+           "get_concurrency_groups", "shutdown_globals"]
 
 _watchdog = None
 _health_cache = None
@@ -59,10 +62,17 @@ def init_globals(
             "llm": 4,                   # LLM 通常可以并行
         })
 
-        logger.info(f"全局基础设施初始化完成: "
-                     f"watchdog(busy={busy_timeout}s), "
-                     f"health_cache(ttl={health_ttl}s), "
-                     f"concurrency_groups(comfyui={comfyui_slots}, tts={tts_slots})")
+    # 执行全局初始化钩子（锁外，避免死锁）
+    from infra.hooks import run_hooks
+    try:
+        run_hooks("init")
+    except Exception as e:
+        logger.error(f"初始化钩子执行失败: {e}")
+
+    logger.info(f"全局基础设施初始化完成: "
+                 f"watchdog(busy={busy_timeout}s), "
+                 f"health_cache(ttl={health_ttl}s), "
+                 f"concurrency_groups(comfyui={comfyui_slots}, tts={tts_slots})")
 
 
 def get_watchdog():
@@ -88,6 +98,13 @@ def get_concurrency_groups():
 
 def shutdown_globals():
     """关闭全局资源（进程退出时调用）"""
+    # 执行清理钩子（锁外，避免死锁）
+    from infra.hooks import run_hooks
+    try:
+        run_hooks("cleanup")
+    except Exception as e:
+        logger.error(f"清理钩子执行失败: {e}")
+
     global _watchdog, _health_cache, _concurrency_groups
     with _lock:
         if _watchdog:

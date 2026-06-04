@@ -69,15 +69,19 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
     language = shot.get("language", "zh")
 
     from infra.globals import get_watchdog, get_concurrency_groups
+    from infra.safe_executor import safe_run
     wd = get_watchdog()
     groups = get_concurrency_groups()
 
-    try:
+    def _do_tts():
         with groups.acquire("tts"):
             with wd.track(f"{shot_id}:tts", backend="tts"):
                 tts_inst, tts_name = cont.get_with_fallback("tts")
                 tts_inst.synthesize(dialogue, audio_path, voice_config=voice_config,
                                     emotion=emotion, language=language)
+
+    try:
+        safe_run(_do_tts, retries=2, base_delay=1.0, task_id=f"{shot_id}:tts")
     except Exception as e:
         return _err(shot_id, "tts", f"TTS 合成失败: {e}")
     err = _validate_output(audio_path, "tts", min_size=1000)
@@ -281,6 +285,7 @@ def first_frame_core(p: FirstFrameParams) -> dict:
         return _err(p.shot_id, "first_frame", "首帧工作流为空（缺少模板）")
 
     from infra.globals import get_watchdog, get_concurrency_groups
+    from infra.safe_executor import safe_run
     wd = get_watchdog()
     groups = get_concurrency_groups()
 
@@ -288,10 +293,13 @@ def first_frame_core(p: FirstFrameParams) -> dict:
     _check_lora_availability(wf, paths, p.cfg, comfyui)
     wf = _upload_reference_images(wf, shot, wb, comfyui, paths)
 
-    try:
+    def _do_generate():
         with groups.acquire("comfyui"):
             with wd.track(f"{p.shot_id}:first_frame", backend="comfyui"):
-                files = comfyui.generate(wf, str(p.out_dir))
+                return comfyui.generate(wf, str(p.out_dir))
+
+    try:
+        files = safe_run(_do_generate, retries=2, base_delay=2.0, task_id=f"{p.shot_id}:first_frame")
     except Exception as e:
         return _err(p.shot_id, "first_frame", f"ComfyUI 首帧生成失败: {e}")
     if not files:
@@ -383,13 +391,17 @@ def video_core(shot_id: str, cfg, cont, out_dir: Path, *, shot: dict | None = No
     video_wf = _upload_first_frame_if_needed(video_wf, frame_path, server_filename, paths, cont.get("video"))
 
     from infra.globals import get_watchdog, get_concurrency_groups
+    from infra.safe_executor import safe_run
     wd = get_watchdog()
     groups = get_concurrency_groups()
 
-    try:
+    def _do_generate():
         with groups.acquire("comfyui"):
             with wd.track(f"{shot_id}:video", backend="comfyui"):
-                files = cont.get("video").generate(video_wf, str(out_dir))
+                return cont.get("video").generate(video_wf, str(out_dir))
+
+    try:
+        files = safe_run(_do_generate, retries=2, base_delay=2.0, task_id=f"{shot_id}:video")
     except Exception as e:
         return _err(shot_id, "video", f"视频生成失败: {e}")
 
@@ -428,14 +440,18 @@ def lipsync_core(shot_id: str, cont, out_dir: Path, *, force: bool = False) -> d
 
     synced_path = str(out_dir / "synced.mp4")
     from infra.globals import get_watchdog, get_concurrency_groups
+    from infra.safe_executor import safe_run
     wd = get_watchdog()
     groups = get_concurrency_groups()
 
-    try:
+    def _do_lipsync():
         with groups.acquire("lipsync"):
             with wd.track(f"{shot_id}:lipsync", backend="lipsync"):
                 lipsync_inst, lipsync_name = cont.get_with_fallback("lipsync")
                 lipsync_inst.sync(str(video_path), str(audio_path), synced_path)
+
+    try:
+        safe_run(_do_lipsync, retries=2, base_delay=1.0, task_id=f"{shot_id}:lipsync")
     except Exception as e:
         return _err(shot_id, "lipsync", f"口型同步失败: {e}")
     err = _validate_output(synced_path, "lipsync", min_size=10000)
