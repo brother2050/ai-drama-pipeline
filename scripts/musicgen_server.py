@@ -3,13 +3,13 @@
 MusicGen 配乐生成服务 — FastAPI 封装
 
 部署方式:
-  1. pip install fastapi uvicorn transformers soundfile torch
-  2. python scripts/musicgen_server.py --model medium --port 8000
+  1. pip install fastapi uvicorn transformers soundfile torch bitsandbytes accelerate
+  2. python scripts/musicgen_server.py --model large --quantize --port 8000
   3. 项目配置 music.api_url = "http://你的IP:8000/generate"
 
 API:
   POST /generate  {"prompt": "sad piano", "duration": 30}  → WAV 音频
-  GET  /health    → {"status": "ok", "model": "medium"}
+  GET  /health    → {"status": "ok", "model": "large", "quantized": true}
 """
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="MusicGen 配乐服务", version="1.0", lifespan=lifespan)
+app = FastAPI(title="MusicGen 配乐服务", version="1.1", lifespan=lifespan)
 
 # 全局模型（启动时加载）
 _model = None
@@ -49,21 +49,42 @@ class GenRequest(BaseModel):
     duration: int = Field(30, ge=5, le=120, description="生成时长（秒）")
 
 
-def load_model(model_size: str = "medium"):
-    """加载 MusicGen 模型"""
+def load_model(model_size: str = "medium", quantize: bool = False):
+    """加载 MusicGen 模型
+
+    Args:
+        model_size: small / medium / large
+        quantize: 是否使用 4-bit 量化（large 模型推荐开启）
+    """
     global _model, _processor, _samplerate
+    from transformers import AutoProcessor, MusicgenForConditionalGeneration
+
     model_name = f"facebook/musicgen-{model_size}"
-    logger.info(f"加载模型: {model_name} ...")
+    logger.info(f"加载模型: {model_name} (quantize={quantize}) ...")
     t0 = time.time()
 
     _processor = AutoProcessor.from_pretrained(model_name)
-    _model = MusicgenForConditionalGeneration.from_pretrained(model_name)
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    _model = _model.to(device)
+    if quantize:
+        from transformers import BitsAndBytesConfig
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=torch.float16,
+            bnb_4bit_quant_type="nf4",
+        )
+        _model = MusicgenForConditionalGeneration.from_pretrained(
+            model_name,
+            quantization_config=bnb_config,
+            device_map="auto",
+        )
+        logger.info("已启用 4-bit NF4 量化")
+    else:
+        _model = MusicgenForConditionalGeneration.from_pretrained(model_name)
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        _model = _model.to(device)
+
     _samplerate = _model.config.sampling_rate
-
-    logger.info(f"模型加载完成 ({time.time() - t0:.1f}s), 设备: {device}")
+    logger.info(f"模型加载完成 ({time.time() - t0:.1f}s), 设备: {_model.device}")
 
 
 @app.post("/generate")
@@ -108,24 +129,28 @@ def health():
     return {
         "status": "ok",
         "model": f"musicgen-{args.model}",
+        "quantized": args.quantize,
         "device": str(_model.device),
         "samplerate": _samplerate,
     }
 
 
 if __name__ == "__main__":
-    from transformers import AutoProcessor, MusicgenForConditionalGeneration
-
     parser = argparse.ArgumentParser(description="MusicGen 配乐生成服务")
     parser.add_argument("--model", default="medium", choices=["small", "medium", "large"],
                         help="模型大小 (default: medium)")
+    parser.add_argument("--quantize", action="store_true",
+                        help="启用 4-bit 量化（large 模型推荐，显存从 ~16GB 降到 ~4GB）")
     parser.add_argument("--port", type=int, default=8000, help="服务端口 (default: 8000)")
     parser.add_argument("--host", default="0.0.0.0", help="监听地址 (default: 0.0.0.0)")
     args = parser.parse_args()
 
+    if args.model == "large" and not args.quantize:
+        logger.info("提示: large 模型建议加 --quantize 参数，否则可能 OOM")
+
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
-    load_model(args.model)
+    load_model(args.model, quantize=args.quantize)
 
     import uvicorn
     uvicorn.run(app, host=args.host, port=args.port, log_level="info")

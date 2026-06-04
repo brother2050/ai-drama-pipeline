@@ -5,20 +5,20 @@
 ### 1. 环境准备（GPU 机器）
 
 ```bash
-pip install fastapi uvicorn transformers soundfile torch
+pip install fastapi uvicorn transformers soundfile torch bitsandbytes accelerate
 ```
 
 ### 2. 启动服务
 
 ```bash
-# medium 模型（推荐，5GB 显存，效果好）
+# large 模型 + 4-bit 量化（推荐，~4GB 显存，效果最好）
+python scripts/musicgen_server.py --model large --quantize --port 8000
+
+# medium 模型（~8GB 显存）
 python scripts/musicgen_server.py --model medium --port 8000
 
-# small 模型（2GB 显存，速度快）
+# small 模型（~4GB 显存，速度快）
 python scripts/musicgen_server.py --model small --port 8000
-
-# large 模型（8GB 显存，效果最好）
-python scripts/musicgen_server.py --model large --port 8000
 ```
 
 首次启动会自动下载模型（~1.5GB / 3.3GB / 6.6GB），之后缓存复用。
@@ -49,13 +49,21 @@ music:
 
 ## GPU 显存需求
 
-| 模型 | 参数量 | 显存 | 生成 30s 耗时 | 效果 |
-|------|--------|------|--------------|------|
-| small | 300M | ~6GB | ~5s | 一般 |
-| medium | 1.5B | ~15GB | ~15s | 推荐 |
-| large | 3.3B | ~20GB | ~30s | 最好 |
+| 模型 | 参数量 | 显存 (FP16) | 显存 (4-bit) | 生成 30s 耗时 | 效果 |
+|------|--------|-------------|-------------|--------------|------|
+| small | 300M | ~4GB | — | ~5s | 一般 |
+| medium | 1.5B | ~8GB | — | ~15s | 推荐入门 |
+| large | 3.3B | ~16GB | **~4GB** | ~30s | 最好 |
 
-推荐 **medium + V100-32G/A100/4090**。T4(16GB) 可跑 small。
+**推荐 large + `--quantize`**（4-bit NF4 量化，显存从 16GB 降到 ~4GB，T4/15GB 卡均可跑）。
+
+```bash
+# 15GB 显存卡 → large + 4-bit 量化（推荐）
+python scripts/musicgen_server.py --model large --quantize --port 8000
+
+# T4 (16GB) → medium 或 large + 量化
+python scripts/musicgen_server.py --model medium --port 8000
+```
 
 ## 国内平台部署
 
@@ -133,7 +141,10 @@ music:
 A: 首次加载模型到 GPU 需要 30-60s，后续请求秒级。
 
 **Q: 生成的音乐质量不好？**
-A: 试试 large 模型，或用更详细的英文 prompt（加上风格、乐器、节奏等描述）。
+A: 试试 large 模型（加 `--quantize` 省显存），或用更详细的英文 prompt（加上风格、乐器、节奏等描述）。
+
+**Q: large 模型 OOM？**
+A: 加 `--quantize` 参数启用 4-bit NF4 量化，显存从 ~16GB 降到 ~4GB。需要安装 `bitsandbytes` 和 `accelerate`。
 
 **Q: 能生成纯音乐不要人声吗？**
 A: prompt 里加 `instrumental, no vocals`。
