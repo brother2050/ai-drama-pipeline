@@ -327,7 +327,7 @@ def test_check_available_tool_missing():
 
 def test_download_seko_image_timeout(tmp_dir):
     """Seko 图片下载超时不崩溃"""
-    from pipeline.tasks import _download_seko_image
+    from pipeline.tasks.seko import _download_seko_image
     # 请求一个不存在的地址，应快速失败
     result = _download_seko_image("http://192.0.2.1:12345/fake.jpg", str(tmp_dir / "fake.jpg"),
                                    timeout=1, retries=1)

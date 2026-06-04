@@ -39,7 +39,6 @@ from pipeline.tasks.helpers import (
     _load_shots, _find_shot, _shot_dir, _check_available,
     _db_record_step, _prepare,
 )
-from pipeline.tasks.seko import _download_seko_image
 
 __all__ = [
     # 管线
