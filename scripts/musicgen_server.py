@@ -103,7 +103,9 @@ def _generate_segment(prompt: str, duration: int) -> np.ndarray:
     with torch.no_grad():
         audio = _model.generate(**inputs, max_new_tokens=max_tokens)
 
-    return audio[0, 0].cpu().numpy()
+    # float16 → float32（soundfile 不支持 float16 WAV）
+    arr = audio[0, 0].cpu().numpy()
+    return arr.astype(np.float32) if arr.dtype == np.float16 else arr
 
 
 def _crossfade(a: np.ndarray, b: np.ndarray, fade_samples: int) -> np.ndarray:
