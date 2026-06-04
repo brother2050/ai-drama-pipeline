@@ -13,59 +13,62 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-# 设置测试项目目录
-import atexit
-_test_root = tempfile.mkdtemp(prefix="drama_test_")
-atexit.register(lambda: shutil.rmtree(_test_root, ignore_errors=True))
-_test_project = f"{_test_root}/projects/default"
-os.makedirs(f"{_test_project}/config", exist_ok=True)
-os.makedirs(f"{_test_project}/config/characters", exist_ok=True)
-os.makedirs(f"{_test_project}/config/scenes", exist_ok=True)
 
-# 写一个最小配置
-import yaml
-with open(f"{_test_project}/config/project.yaml", "w") as f:
-    yaml.dump({"project": {"name": "测试项目"}, "models": {"tts_backend": "mimo-voicedesign"}}, f)
+@pytest.fixture(scope="session")
+def test_env():
+    """Session 级别：创建临时测试项目目录 + 写入测试数据"""
+    test_root = tempfile.mkdtemp(prefix="drama_test_")
+    test_project = f"{test_root}/projects/default"
+    os.makedirs(f"{test_project}/config", exist_ok=True)
+    os.makedirs(f"{test_project}/config/characters", exist_ok=True)
+    os.makedirs(f"{test_project}/config/scenes", exist_ok=True)
 
-# 写入测试分镜到 DB（需要 AI_DRAMA_DB_DSN）
-_dsn = os.environ.get("AI_DRAMA_DB_DSN", "")
-if _dsn:
-    try:
-        from infra.database.pool import PgPool
-        from infra.database.storyboard_db import save_episode_shots
-        _pool = PgPool(_dsn)
-        save_episode_shots(_pool, 1, [
-            {"shot_id": "001", "scene_id": "客厅", "characters": "女主",
-             "action": "坐在沙发上", "dialogue": "你好", "camera": "固定",
-             "shot_type": "中景", "duration": "4", "emotion": "neutral"},
-            {"shot_id": "002", "scene_id": "厨房", "characters": "男主",
-             "action": "做饭", "dialogue": "......", "camera": "缓慢推近",
-             "shot_type": "近景", "duration": "3", "emotion": "calm"},
-        ])
-        _pool.closeall()
-    except Exception as _e:
-        import logging
-        logging.getLogger(__name__).warning(f"测试 DB 初始化跳过: {_e}")
+    # 写最小配置
+    with open(f"{test_project}/config/project.yaml", "w") as f:
+        yaml.dump({"project": {"name": "测试项目"}, "models": {"tts_backend": "mimo-voicedesign"}}, f)
 
-# 写一个测试角色
-with open(f"{_test_project}/config/characters/nvzhu.yaml", "w") as f:
-    yaml.dump({"character": {"id": "nvzhu", "name": "女主", "appearance": "黑色长发"}}, f)
+    # 写测试角色
+    with open(f"{test_project}/config/characters/nvzhu.yaml", "w") as f:
+        yaml.dump({"character": {"id": "nvzhu", "name": "女主", "appearance": "黑色长发"}}, f)
 
-# 写一个测试场景
-with open(f"{_test_project}/config/scenes/keting.yaml", "w") as f:
-    yaml.dump({"scene": {"id": "keting", "name": "客厅", "description": "现代客厅"}}, f)
+    # 写测试场景
+    with open(f"{test_project}/config/scenes/keting.yaml", "w") as f:
+        yaml.dump({"scene": {"id": "keting", "name": "客厅", "description": "现代客厅"}}, f)
+
+    # 写入测试分镜到 DB（需要 AI_DRAMA_DB_DSN）
+    dsn = os.environ.get("AI_DRAMA_DB_DSN", "")
+    if dsn:
+        try:
+            from infra.database.pool import PgPool
+            from infra.database.storyboard_db import save_episode_shots
+            pool = PgPool(dsn)
+            save_episode_shots(pool, 1, [
+                {"shot_id": "001", "scene_id": "客厅", "characters": "女主",
+                 "action": "坐在沙发上", "dialogue": "你好", "camera": "固定",
+                 "shot_type": "中景", "duration": "4", "emotion": "neutral"},
+                {"shot_id": "002", "scene_id": "厨房", "characters": "男主",
+                 "action": "做饭", "dialogue": "......", "camera": "缓慢推近",
+                 "shot_type": "近景", "duration": "3", "emotion": "calm"},
+            ])
+            pool.closeall()
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"测试 DB 初始化跳过: {e}")
+
+    yield test_root
+    shutil.rmtree(test_root, ignore_errors=True)
 
 
 @pytest.fixture
-def client():
+def client(test_env):
     """创建测试客户端"""
-    # Monkey-patch ROOT 到测试根目录（包含 projects/default/ 结构）
-    with patch("web.routers.deps.ROOT", Path(_test_root)):
+    with patch("web.routers.deps.ROOT", Path(test_env)):
         from web.app import create_app
         app = create_app()
         from fastapi.testclient import TestClient

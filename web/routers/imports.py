@@ -326,8 +326,12 @@ def get_import_prompt_template(params: ImportPromptParams = Depends()):
     replacements = _build_prompt_replacements(params, style_desc, genre_desc, presets, last_shot_info, episodes_summary)
 
     prompt = tpl.get("template", "")
-    for key, val in replacements.items():
-        prompt = prompt.replace(f"${{{key}}}", val)
+    # 单次替换：用 re.sub 一次性替换所有 ${key}，避免二次替换
+    import re as _re
+    def _replace_var(m):
+        var_name = m.group(1)
+        return replacements.get(var_name, m.group(0))
+    prompt = _re.sub(r'\$\{(\w+)\}', _replace_var, prompt)
 
     project_stats = _get_project_stats()
     return {

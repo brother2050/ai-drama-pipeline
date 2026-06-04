@@ -21,6 +21,7 @@ const API = '/api';
 
 const _cache = new Map();
 const CACHE_TTL = 30000;
+const MAX_CACHE_SIZE = 200;  // LRU：超过此数量时淘汰最旧的条目
 const MAX_UNDO = 50;
 const MAX_POLL = 300;
 
@@ -156,7 +157,15 @@ function modalPrompt(message, defaultValue = '', opts = {}) {
 function cachedFetch(key, fetcher, ttl = CACHE_TTL) {
   const e = _cache.get(key);
   if (e && Date.now() - e.ts < ttl) return Promise.resolve(e.data);
-  return fetcher().then(d => { _cache.set(key, { data: d, ts: Date.now() }); return d; });
+  return fetcher().then(d => {
+    // LRU：超过容量时淘汰最旧的条目
+    if (_cache.size >= MAX_CACHE_SIZE) {
+      const oldest = _cache.keys().next().value;
+      _cache.delete(oldest);
+    }
+    _cache.set(key, { data: d, ts: Date.now() });
+    return d;
+  });
 }
 function invalidateCache(prefix) { for (const k of _cache.keys()) if (k.startsWith(prefix)) _cache.delete(k); }
 

@@ -116,8 +116,9 @@ def _check_episode(ep: int) -> None:
 
 def _safe_path(base: Path, *parts: str) -> Path:
     """安全路径拼接 — resolve() + is_relative_to() 双重校验"""
+    # 仅解码路径遍历相关的编码（%2F → /），不改动其他 %XX
     from urllib.parse import unquote
-    parts = [unquote(p) for p in parts if p]
+    parts = [unquote(p, errors="ignore") for p in parts if p]
     joined = "/".join(parts)
     if not joined:
         return base.resolve()
@@ -204,7 +205,9 @@ def yaml_save(yaml_dir: str, entity_key: str, entity_id: str, data: dict) -> Non
             if not isinstance(existing, dict):
                 existing = {}
             # 剔除嵌套的 entity_key（防止旧数据残留）
-            existing.pop(entity_key, None)
+            if entity_key in existing:
+                logger.warning(f"YAML {path.name} 中 {entity_key} 段内有嵌套的 '{entity_key}' key，已剔除")
+                existing.pop(entity_key, None)
         except Exception:
             file_data = {}
             existing = {}

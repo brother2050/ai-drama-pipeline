@@ -18,12 +18,28 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 # 配置 Celery eager 模式（不需要 Redis broker）
+# 使用 fixture 级别设置，避免污染其他测试模块
 from pipeline.celery_app import app as celery_app
-celery_app.conf.update(
-    task_always_eager=True,
-    task_eager_propagates=True,
-    result_backend="cache+memory://",
-)
+
+_orig_eager = celery_app.conf.task_always_eager
+_orig_propagate = celery_app.conf.task_eager_propagates
+_orig_backend = celery_app.conf.result_backend
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _celery_eager_mode():
+    """Session 级别设置 Celery eager 模式，结束后恢复"""
+    celery_app.conf.update(
+        task_always_eager=True,
+        task_eager_propagates=True,
+        result_backend="cache+memory://",
+    )
+    yield
+    celery_app.conf.update(
+        task_always_eager=_orig_eager,
+        task_eager_propagates=_orig_propagate,
+        result_backend=_orig_backend,
+    )
 
 
 @pytest.fixture
