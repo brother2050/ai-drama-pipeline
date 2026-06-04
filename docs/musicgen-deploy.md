@@ -2,17 +2,7 @@
 
 ## 快速开始
 
-### 1. 环境准备（GPU 机器）
-
-```bash
-# 必装
-pip install torch transformers numpy soundfile fastapi uvicorn pydantic
-
-# 仅 --quantize 需要（large 模型推荐）
-pip install bitsandbytes accelerate
-```
-
-### 2. 启动服务
+### 1. 启动（依赖自动安装）
 
 ```bash
 # large 模型 + 4-bit 量化（推荐，~4GB 显存，效果最好）
@@ -25,9 +15,12 @@ python scripts/musicgen_server.py --model medium --port 8000
 python scripts/musicgen_server.py --model small --port 8000
 ```
 
+首次运行自动检测并安装缺失依赖（`torch`、`transformers`、`soundfile` 等）。
+`--quantize` 模式会额外安装 `bitsandbytes` 和 `accelerate`。
+
 首次启动会自动下载模型（~1.5GB / 3.3GB / 6.6GB），之后缓存复用。
 
-### 3. 验证服务
+### 2. 验证服务
 
 ```bash
 # 健康检查
@@ -40,7 +33,7 @@ curl -X POST http://localhost:8000/generate \
   -o test.wav
 ```
 
-### 4. 配置项目
+### 3. 配置项目
 
 编辑 `config/system.yaml`：
 
@@ -141,9 +134,9 @@ python scripts/musicgen_server.py --model medium --port 8000
 
 ## 环境踩坑记录
 
-### 版本锁定（已验证可用组合）
+### 版本锁定（脚本自动处理，此表仅供参考）
 
-> ⚠ 以下版本组合经过实测，不要随意升级，否则可能出现不兼容问题。
+> 脚本首次运行会自动安装以下依赖，无需手动操作。
 
 | 包 | 推荐版本 | 说明 |
 |---|---|---|

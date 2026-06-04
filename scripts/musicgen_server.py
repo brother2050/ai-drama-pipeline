@@ -3,16 +3,15 @@
 MusicGen 配乐生成服务 — FastAPI 封装
 
 部署方式:
-  1. pip install torch transformers numpy soundfile fastapi uvicorn pydantic
-     # 仅 --quantize 需要: pip install bitsandbytes accelerate
-  2. python scripts/musicgen_server.py --model large --quantize --port 8000
-  3. 项目配置 music.api_url = "http://你的IP:8000/generate"
+  python scripts/musicgen_server.py --model large --quantize --port 8000
+  # 依赖自动安装，无需手动 pip install
 
 特性:
+  - 自动安装依赖: 首次运行自动检测并安装缺失包
   - 自动分段生成: 超过 15s 自动切段，避免后半段质量退化
-  - 4-bit 并行批处理: 量化模型显存低时自动并行生成多段，吞吐量翻倍
+  - 并发生成: 量化模式下多段并发，利用 GPU 流水线
+  - 精确裁剪: 输出严格匹配请求时长
   - 交叉淡出拼接: 段间 1s fade，听感无缝
-  - 支持 medium / large 两个模型
 
 API:
   POST /generate  {"prompt": "sad piano", "duration": 30}  → WAV 音频
@@ -20,10 +19,57 @@ API:
 """
 from __future__ import annotations
 
+import importlib
+import logging
+import subprocess
+import sys
+
+_bootstrap_log = logging.getLogger("musicgen-bootstrap")
+
+
+def _ensure_deps(quantize: bool = False):
+    """检测并安装缺失依赖（首次运行自动完成）"""
+
+    # (import_name, pip_name)
+    _CORE = [
+        ("torch", "torch"),
+        ("transformers", "transformers==4.57.6"),
+        ("numpy", "numpy==1.26.4"),
+        ("soundfile", "soundfile"),
+        ("fastapi", "fastapi"),
+        ("uvicorn", "uvicorn[standard]"),
+        ("pydantic", "pydantic"),
+    ]
+    _QUANTIZE = [
+        ("bitsandbytes", "bitsandbytes"),
+        ("accelerate", "accelerate"),
+    ]
+
+    missing = []
+    for mod_name, pip_name in _CORE + (_QUANTIZE if quantize else []):
+        try:
+            importlib.import_module(mod_name)
+        except ImportError:
+            missing.append(pip_name)
+
+    if not missing:
+        return
+
+    _bootstrap_log.info(f"安装缺失依赖: {', '.join(missing)}")
+    subprocess.check_call(
+        [sys.executable, "-m", "pip", "install", "--quiet", *missing],
+    )
+    _bootstrap_log.info("依赖安装完成")
+
+
+# ── 启动时检测 --quantize 参数并安装依赖 ──
+_Quantize_Flag = "--quantize" in sys.argv
+_ensure_deps(quantize=_Quantize_Flag)
+
+# ── 正式导入 ──
 import argparse
 import contextlib
 import io
-import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
 
