@@ -12,9 +12,8 @@ from web.routers.deps import (
     _cfg, _merged_cfg, _cfg_path, _paths,
     _check_uuid,
     _check_tool, _submit_task,
-    _deep_merge,
 )
-from infra.config import cfg_get as _cfg_get
+from infra.config import cfg_get as _cfg_get, deep_merge as _deep_merge
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
