@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import importlib
 import logging
+import os
 import subprocess
 import sys
 
@@ -28,7 +29,11 @@ _bootstrap_log = logging.getLogger("musicgen-bootstrap")
 
 
 def _ensure_deps(quantize: bool = False):
-    """检测并安装缺失依赖（首次运行自动完成）"""
+    """检测并安装缺失依赖（首次运行自动完成）
+
+    bitsandbytes 包含 CUDA 原生扩展，pip install 后无法在同进程导入。
+    检测到这种情况时自动重新 exec 自身（加 --_deps-installed 标记避免死循环）。
+    """
 
     # (import_name, pip_name)
     _CORE = [
@@ -45,21 +50,34 @@ def _ensure_deps(quantize: bool = False):
         ("accelerate", "accelerate"),
     ]
 
+    deps_to_check = _CORE + (_QUANTIZE if quantize else [])
     missing = []
-    for mod_name, pip_name in _CORE + (_QUANTIZE if quantize else []):
+    for mod_name, _pip_name in deps_to_check:
         try:
             importlib.import_module(mod_name)
         except ImportError:
-            missing.append(pip_name)
+            missing.append(_pip_name)
 
     if not missing:
         return
+
+    # 已经重试过一次仍然缺失 → 放弃，提示用户手动安装
+    if "--_deps-installed" in sys.argv:
+        _bootstrap_log.error(
+            f"依赖安装后仍无法导入: {', '.join(missing)}\n"
+            f"请手动安装: pip install {' '.join(missing)}"
+        )
+        sys.exit(1)
 
     _bootstrap_log.info(f"安装缺失依赖: {', '.join(missing)}")
     subprocess.check_call(
         [sys.executable, "-m", "pip", "install", "--quiet", *missing],
     )
-    _bootstrap_log.info("依赖安装完成")
+    _bootstrap_log.info("依赖安装完成，重启进程以加载原生扩展...")
+
+    # 重新 exec 自身，让新安装的 CUDA 扩展生效
+    args = sys.argv + ["--_deps-installed"]
+    os.execv(sys.executable, [sys.executable, *args])
 
 
 # ── 启动时检测 --quantize 参数并安装依赖 ──
@@ -334,6 +352,10 @@ def health():
 
 
 if __name__ == "__main__":
+    # 移除内部标记，避免 argparse 报错
+    if "--_deps-installed" in sys.argv:
+        sys.argv.remove("--_deps-installed")
+
     parser = argparse.ArgumentParser(description="MusicGen 配乐生成服务")
     parser.add_argument("--model", default="medium", choices=["small", "medium", "large"],
                         help="模型大小 (default: medium)")
