@@ -224,8 +224,9 @@ def test_strip_dialogue_removes_speech():
 
 def test_tool_cache_ttl():
     """工具缓存 TTL"""
-    from infra.toolcheck import _TOOL_CACHE_TTL
-    assert _TOOL_CACHE_TTL == 30
+    from infra.globals import get_health_cache
+    cache = get_health_cache()
+    assert cache._ttl == 30
 
 
 # ── reset_registry ──
@@ -306,8 +307,9 @@ def test_validate_shot_bad_duration():
 
 def test_check_available_comfyui_down():
     """ComfyUI 不可达时返回不可用"""
-    from infra.toolcheck import _check_tool_inner, _tool_cache
-    _tool_cache.clear()  # 清除缓存
+    from infra.toolcheck import _check_tool_inner
+    from infra.globals import get_health_cache
+    get_health_cache().invalidate()  # 清除缓存
     with patch("infra.toolcheck._check_tool_inner", return_value={"available": False, "reason": "ComfyUI 不可达"}):
         result = _check_tool_inner("comfyui", {"comfyui": {"url": "http://127.0.0.1:8188"}})
         assert result["available"] is False

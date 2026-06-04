@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from pathlib import Path
 
 import click
 from rich.console import Console
@@ -35,7 +36,7 @@ def register_project_commands(cli):
     @click.option("--list-presets", is_flag=True, help="列出所有可用的 style 和 genre 预设")
     def project_new(name, style, genre, list_presets):
         if list_presets:
-            sys_path = SYSTEM_CONFIG_PATH
+            sys_path = Path(SYSTEM_CONFIG_PATH)
             if sys_path.exists():
                 data = load_yaml_full(sys_path)
                 presets = data.get("presets", {})
