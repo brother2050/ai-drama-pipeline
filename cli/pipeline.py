@@ -17,14 +17,28 @@ def register_pipeline_commands(cli):
     @click.argument("level", type=click.Choice(["draft", "standard", "high"]), default="draft")
     @click.option("-c", "--config", "config_path", default=None)
     @click.option("--force", is_flag=True, help="强制覆盖已有文件")
-    def preview(episode, level, config_path, force):
-        """快速预览（通过 Celery 异步执行）"""
+    @click.option("--local", is_flag=True, help="本地执行（不走 Celery，无需 Redis/PostgreSQL）")
+    def preview(episode, level, config_path, force, local):
+        """快速预览"""
         from cli import _ensure_deps, _resolve_config, _run_via_celery
-        _ensure_deps()
         cfg = _resolve_config(config_path)
-        console.print(f"\n[bold cyan]🎬 预览 第{episode}集 ({level})[/bold cyan]\n")
-        if not _run_via_celery("pipeline_preview", cfg, episode, level, force=force):
-            sys.exit(1)
+
+        if local:
+            # 本地模式：直接调用 run_preview，不依赖 Celery/Redis/PostgreSQL
+            from cli import _load_env
+            _load_env()
+            console.print(f"\n[bold cyan]🎬 预览 第{episode}集 ({level}) — 本地模式[/bold cyan]\n")
+            from pipeline.preview import run_preview
+            try:
+                run_preview(cfg, episode, level, force=force)
+            except Exception as e:
+                console.print(f"[red]❌ 预览失败: {e}[/red]")
+                sys.exit(1)
+        else:
+            _ensure_deps()
+            console.print(f"\n[bold cyan]🎬 预览 第{episode}集 ({level})[/bold cyan]\n")
+            if not _run_via_celery("pipeline_preview", cfg, episode, level, force=force):
+                sys.exit(1)
 
     @cli.command()
     @click.argument("episode", type=int, default=1)
@@ -59,14 +73,28 @@ def register_pipeline_commands(cli):
     @click.argument("episode", type=int)
     @click.option("--vertical", is_flag=True, help="横转竖")
     @click.option("-c", "--config", "config_path", default=None)
-    def post(episode, vertical, config_path):
+    @click.option("--local", is_flag=True, help="本地执行（不走 Celery）")
+    def post(episode, vertical, config_path, local):
         """后期合成"""
         from cli import _ensure_deps, _resolve_config, _run_via_celery
-        _ensure_deps()
         cfg = _resolve_config(config_path)
-        console.print(f"\n[bold cyan]🎬 后期合成 第{episode}集[/bold cyan]\n")
-        if not _run_via_celery("pipeline_post", cfg, episode, vertical=vertical):
-            sys.exit(1)
+
+        if local:
+            from cli import _load_env
+            _load_env()
+            console.print(f"\n[bold cyan]🎬 后期合成 第{episode}集 — 本地模式[/bold cyan]\n")
+            from post.production import run_post
+            try:
+                run_post(cfg, episode, vertical)
+            except Exception as e:
+                console.print(f"[red]❌ 后期合成失败: {e}[/red]")
+                sys.exit(1)
+            console.print("[bold green]✅ 后期合成完成！[/bold green]")
+        else:
+            _ensure_deps()
+            console.print(f"\n[bold cyan]🎬 后期合成 第{episode}集[/bold cyan]\n")
+            if not _run_via_celery("pipeline_post", cfg, episode, vertical=vertical):
+                sys.exit(1)
 
     @cli.command("all")
     @click.argument("episode", type=int, default=1)
