@@ -5,7 +5,11 @@
 ### 1. 环境准备（GPU 机器）
 
 ```bash
-pip install fastapi uvicorn transformers soundfile torch bitsandbytes accelerate
+# 必装
+pip install torch transformers numpy soundfile fastapi uvicorn pydantic
+
+# 仅 --quantize 需要（large 模型推荐）
+pip install bitsandbytes accelerate
 ```
 
 ### 2. 启动服务
@@ -144,14 +148,12 @@ python scripts/musicgen_server.py --model medium --port 8000
 | 包 | 推荐版本 | 说明 |
 |---|---|---|
 | `transformers` | `==4.57.6` | 5.x 不兼容 PyTorch 2.10（`AuxRequest` 导入错误） |
-| `numpy` | `==1.26.4` | 2.x 与 scipy/sklearn 二进制不兼容 |
-| `scipy` | `==1.17.1` | 需匹配 numpy 1.x |
-| `scikit-learn` | `==1.9.0` | 需匹配 numpy 1.x |
+| `numpy` | `==1.26.4` | 2.x 与部分音频处理库二进制不兼容 |
 | `torch` | `>=2.10.0` | 需支持 CUDA 12.x |
 
 快速安装：
 ```bash
-pip install transformers==4.57.6 numpy==1.26.4 scipy==1.17.1 scikit-learn==1.9.0
+pip install transformers==4.57.6 numpy==1.26.4
 ```
 
 ### libcusparseLt.so.0 找不到

@@ -3,7 +3,8 @@
 MusicGen 配乐生成服务 — FastAPI 封装
 
 部署方式:
-  1. pip install fastapi uvicorn transformers soundfile torch bitsandbytes accelerate
+  1. pip install torch transformers numpy soundfile fastapi uvicorn pydantic
+     # 仅 --quantize 需要: pip install bitsandbytes accelerate
   2. python scripts/musicgen_server.py --model large --quantize --port 8000
   3. 项目配置 music.api_url = "http://你的IP:8000/generate"
 
