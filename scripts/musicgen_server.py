@@ -69,7 +69,7 @@ def _get_gpu_mem() -> tuple[int, int]:
         return 0, 0
     return (
         torch.cuda.memory_allocated() // 1024 // 1024,
-        torch.cuda.get_device_properties(0).total_mem // 1024 // 1024,
+        torch.cuda.get_device_properties(0).total_memory // 1024 // 1024,
     )
 
 
