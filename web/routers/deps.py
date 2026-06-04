@@ -157,10 +157,8 @@ def _reset_proj_cache():
     invalidate_config_cache()
     # 同时清除 Celery 任务的 Config+Container 缓存
     try:
-        from pipeline.tasks.helpers import _ctx_cache, _ctx_lock
-        with _ctx_lock:
-            import pipeline.tasks.helpers as h
-            h._ctx_cache = None
+        from pipeline.tasks.helpers import invalidate_ctx_cache
+        invalidate_ctx_cache()
     except Exception:
         logger.debug("上下文缓存重置失败")
         pass
