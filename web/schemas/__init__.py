@@ -4,6 +4,8 @@ from __future__ import annotations
 from pydantic import BaseModel, Field, field_validator
 import re
 
+from infra.models import validate_id
+
 __all__ = [
     "StepRequest", "TTSRequest", "PostRequest", "MusicRequest",
     "SubtitleRequest", "PipelineRequest", "CharacterData", "SceneData",
@@ -128,9 +130,7 @@ class CharacterData(BaseModel):
     @field_validator("id")
     @classmethod
     def validate_id(cls, v: str) -> str:
-        if not re.match(r"^[a-zA-Z0-9_\-\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]+$", v):
-            raise ValueError("角色 ID 只允许字母、数字、中文、下划线、连字符")
-        return v
+        return validate_id(v, allow_chinese=True)
 
 
 # ── 场景 ──
@@ -146,9 +146,7 @@ class SceneData(BaseModel):
     @field_validator("id")
     @classmethod
     def validate_id(cls, v: str) -> str:
-        if not re.match(r"^[a-zA-Z0-9_\-\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]+$", v):
-            raise ValueError("场景 ID 只允许字母、数字、中文、下划线、连字符")
-        return v
+        return validate_id(v, allow_chinese=True)
 
 
 # ── 项目 ──
