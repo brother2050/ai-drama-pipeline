@@ -148,6 +148,14 @@ class WorkflowBuilder:
         aspect_ratio = gpu_cfg.get("aspect_ratio")
         image_steps = gpu_cfg.get("image_steps")
 
+        # 预构建采样器节点集合（避免在循环内重复查询注册表）
+        sampler_types = {"KSampler", "KSamplerAdvanced", "BasicScheduler"}
+        for svc in ("image", "video"):
+            for bname in self.registry.list_backend_names(svc):
+                sn = self.registry.get_sampler_node(bname) if svc == "image" else self.registry.get_video_sampler_node(bname)
+                if sn:
+                    sampler_types.add(sn)
+
         for nid, node in wf.items():
             ct = node.get("class_type", "")
             inp = node.get("inputs", {})
@@ -176,15 +184,7 @@ class WorkflowBuilder:
                     inp["height"] = target_h
 
             # 步数 → 所有采样器节点（仅首帧）
-            # 从注册表读取各后端的 sampler_node，构建完整集合
-            _sampler_types = {"KSampler", "KSamplerAdvanced", "BasicScheduler"}
-            # 动态追加注册表中声明的 sampler_node（如 CogVideoXSampler）
-            for svc in ("image", "video"):
-                for bname in self.registry.list_backend_names(svc):
-                    sn = self.registry.get_sampler_node(bname) if svc == "image" else self.registry.get_video_sampler_node(bname)
-                    if sn:
-                        _sampler_types.add(sn)
-            if ct in _sampler_types and stage == "first_frame":
+            if ct in sampler_types and stage == "first_frame":
                 if image_steps:
                     inp["steps"] = image_steps
 
