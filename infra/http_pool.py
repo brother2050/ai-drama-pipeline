@@ -52,13 +52,22 @@ def _normalize_base_url(url: str | None) -> str:
 def get_client(base_url: str | None = "", *, timeout: float = _DEFAULT_TIMEOUT) -> httpx.Client:
     """获取或创建共享 httpx.Client。base_url 为 None 或空字符串时等效。"""
     key = (_normalize_base_url(base_url), timeout)
+    
+    # 检查客户端是否已关闭（配置热重载后会关闭）
     client = _clients.get(key)
     if client is not None:
-        return client
-    with _lock:
-        client = _clients.get(key)
-        if client is not None:
+        if client._is_closed:
+            logger.debug(f"HTTP 客户端已关闭，重新创建: base_url={key[0]!r}")
+        else:
             return client
+    
+    with _lock:
+        # 双重检查：锁内再次确认
+        client = _clients.get(key)
+        if client is not None and not client._is_closed:
+            return client
+        
+        # 创建新客户端
         kwargs: dict = {
             "timeout": httpx.Timeout(timeout, connect=10),
             "follow_redirects": True,
