@@ -114,8 +114,11 @@ class MusicGenAPI:
             Path(output).write_bytes(r.content)
         elif audio_base64:
             Path(output).write_bytes(base64.b64decode(audio_base64))
-        elif audio_data and isinstance(audio_data, str) and len(audio_data) > 100:
-            Path(output).write_bytes(base64.b64decode(audio_data))
+        elif audio_data and isinstance(audio_data, str):
+            try:
+                Path(output).write_bytes(base64.b64decode(audio_data))
+            except Exception:
+                raise RuntimeError(f"MusicGen 响应中 audio 字段不是有效 base64")
         else:
             raise RuntimeError(f"MusicGen 响应中无音频数据: {data}")
 

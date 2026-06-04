@@ -214,15 +214,17 @@ class AIToolkitTrainer:
 
         url = f"{self._api_url.rstrip('/')}/api/datasets/upload"
 
-        # 构建 multipart 文件
-        files = []
-        for p in img_paths:
-            mime = mimetypes.guess_type(p)[0] or "image/png"
-            files.append(("files", (Path(p).name, open(p, "rb"), mime)))
-
-        data = {"datasetName": dataset_name}
-
+        # 构建 multipart 文件（确保异常时关闭所有句柄）
+        open_files = []
         try:
+            files = []
+            for p in img_paths:
+                fh = open(p, "rb")
+                open_files.append(fh)
+                mime = mimetypes.guess_type(p)[0] or "image/png"
+                files.append(("files", (Path(p).name, fh, mime)))
+
+            data = {"datasetName": dataset_name}
             resp = self._client.post(url, files=files, data=data,
                               headers=self._auth_headers(),
                               timeout=120)
@@ -232,10 +234,11 @@ class AIToolkitTrainer:
                 raise RuntimeError(f"上传图片失败: {result['error']}")
             return result.get("files", [])
         finally:
-            # 确保文件句柄关闭
-            for _, (_, fh, _) in files:
-                if hasattr(fh, "close"):
+            for fh in open_files:
+                try:
                     fh.close()
+                except Exception:
+                    pass
 
     def _api_create_job(self, name: str, job_config: dict) -> dict:
         """POST /api/jobs — 创建训练作业
@@ -474,14 +477,23 @@ class AIToolkitTrainer:
         try:
             log = self._api_get_job_log(job_id)
             if log:
-                for line in reversed(log.split("\n")):
-                    match = re.search(r"([\w/\\]+\.safetensors)", line)
-                    if match:
-                        try:
-                            self._download_result(match.group(1), output_path)
-                            return output_path
-                        except Exception as e:
-                            logger.warning(f"  下载失败: {e}")
+                # 优先匹配 output 目录下的 .safetensors（最终输出）
+                output_pattern = re.compile(r"(output[/\\][\w/\\]*\.safetensors)")
+                # 回退：匹配包含 lora/final/save 关键词的路径
+                final_pattern = re.compile(r"([\w/\\]*(?:lora|final|save)[\w/\\]*\.safetensors)")
+                # 最后兜底：任意 .safetensors
+                any_pattern = re.compile(r"([\w/\\]+\.safetensors)")
+
+                for pattern in [output_pattern, final_pattern, any_pattern]:
+                    for line in reversed(log.split("\n")):
+                        match = pattern.search(line)
+                        if match:
+                            try:
+                                self._download_result(match.group(1), output_path)
+                                return output_path
+                            except Exception as e:
+                                logger.warning(f"  下载 {match.group(1)} 失败: {e}")
+                                continue
         except Exception as e:
             logger.debug(f"从作业日志获取输出路径失败: {e}")
 

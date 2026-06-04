@@ -82,10 +82,12 @@ def _ensure_deps(quantize: bool = False):
 
 
 # ── 启动时检测 --quantize 参数并安装依赖 ──
-_Quantize_Flag = "--quantize" in sys.argv
-_ensure_deps(quantize=_Quantize_Flag)
+# 仅在 __main__ 中安装依赖，避免被 import 时执行 pip install / os.execv
+if __name__ == "__main__":
+    _Quantize_Flag = "--quantize" in sys.argv
+    _ensure_deps(quantize=_Quantize_Flag)
 
-# ── 正式导入 ──
+# ── 正式导入（依赖由 __main__ 中的 _ensure_deps 保证）──
 import argparse
 import contextlib
 import io
