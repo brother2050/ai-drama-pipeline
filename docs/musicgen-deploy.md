@@ -135,6 +135,49 @@ python scripts/musicgen_server.py --model medium --port 8000
 
 也可以在镜头中直接指定 `prompt` 字段覆盖 mood 映射。
 
+## 环境踩坑记录
+
+### 版本锁定（已验证可用组合）
+
+> ⚠ 以下版本组合经过实测，不要随意升级，否则可能出现不兼容问题。
+
+| 包 | 推荐版本 | 说明 |
+|---|---|---|
+| `transformers` | `==4.57.6` | 5.x 不兼容 PyTorch 2.10（`AuxRequest` 导入错误） |
+| `numpy` | `==1.26.4` | 2.x 与 scipy/sklearn 二进制不兼容 |
+| `scipy` | `==1.17.1` | 需匹配 numpy 1.x |
+| `scikit-learn` | `==1.9.0` | 需匹配 numpy 1.x |
+| `torch` | `>=2.10.0` | 需支持 CUDA 12.x |
+
+快速安装：
+```bash
+pip install transformers==4.57.6 numpy==1.26.4 scipy==1.17.1 scikit-learn==1.9.0
+```
+
+### libcusparseLt.so.0 找不到
+
+**症状**：`ImportError: libcusparseLt.so.0: cannot open shared object file`
+
+**根因**：PyTorch 2.10+ 编译时链接了 CUDA 12.6 的 `libcusparseLt`（稀疏矩阵加速库），系统 CUDA（如 12.2）只有 `libcusparse` 没有 `libcusparseLt`。nvidia pip 包 `nvidia-cusparselt` 提供了这个库，但不在系统默认搜索路径中。
+
+**排查**：
+```bash
+# 确认库文件存在（在 pip 安装的 nvidia 包中）
+find / -name "libcusparseLt*" 2>/dev/null
+# 通常在: ~/.pyenv/versions/3.11.1/lib/python3.11/site-packages/nvidia/cusparselt/lib/
+```
+
+**修复**（持久化到 shell 配置）：
+```bash
+# 找到实际路径后加入 LD_LIBRARY_PATH
+echo 'export LD_LIBRARY_PATH="/path/to/nvidia/cusparselt/lib:$LD_LIBRARY_PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+### nvidia-smi CUDA Version vs nvcc CUDA Version
+
+`nvidia-smi` 显示的是**驱动支持的最高 CUDA 版本**（如 13.0），`nvcc` 显示的是**实际安装的 CUDA Toolkit 版本**（如 12.2）。两者可以不同，PyTorch pip 包自带 CUDA runtime，不依赖系统 CUDA Toolkit。
+
 ## 常见问题
 
 **Q: 首次请求很慢？**
