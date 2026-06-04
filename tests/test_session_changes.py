@@ -341,36 +341,30 @@ class TestLoadShotsSignature:
 # ══════════════════════════════════════════════════════════
 
 class TestAsciiCheck:
-    """验证 contains_non_ascii / is_ascii_only 使用 str.isascii()"""
+    """验证 is_ascii_only 使用 str.isascii()"""
 
     def test_chinese(self):
-        from infra.constants import contains_non_ascii, is_ascii_only
-        assert contains_non_ascii("你好") is True
+        from infra.constants import is_ascii_only
         assert is_ascii_only("你好") is False
 
     def test_english(self):
-        from infra.constants import contains_non_ascii, is_ascii_only
-        assert contains_non_ascii("hello") is False
+        from infra.constants import is_ascii_only
         assert is_ascii_only("hello") is True
 
     def test_mixed(self):
-        from infra.constants import contains_non_ascii, is_ascii_only
-        assert contains_non_ascii("hello你好") is True
+        from infra.constants import is_ascii_only
         assert is_ascii_only("hello你好") is False
 
     def test_empty(self):
-        from infra.constants import contains_non_ascii, is_ascii_only
-        assert contains_non_ascii("") is False
+        from infra.constants import is_ascii_only
         assert is_ascii_only("") is True
 
     def test_special_chars(self):
-        from infra.constants import contains_non_ascii, is_ascii_only
-        assert contains_non_ascii("café") is True  # é is non-ASCII
-        assert is_ascii_only("café") is False
+        from infra.constants import is_ascii_only
+        assert is_ascii_only("café") is False  # é is non-ASCII
 
     def test_numbers_and_symbols(self):
-        from infra.constants import contains_non_ascii, is_ascii_only
-        assert contains_non_ascii("123!@#") is False
+        from infra.constants import is_ascii_only
         assert is_ascii_only("123!@#") is True
 
 

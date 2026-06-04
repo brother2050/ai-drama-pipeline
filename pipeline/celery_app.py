@@ -1,10 +1,8 @@
 """Celery 应用配置 — 异步任务队列核心"""
 from __future__ import annotations
 
-from infra.constants import STATUS_ERROR
 import logging
 import os
-import traceback
 
 from celery import Celery
 from celery.signals import task_failure
@@ -36,23 +34,6 @@ app.conf.update(
     # 所有 pipeline 任务统一分发到 drama 队列（由 task_default_queue 控制），
     # 无需逐个声明 task_routes。新增任务只需 include 到上方 include 列表。
 )
-
-
-def format_task_error(exc: Exception, task_name: str = "", task_id: str = "") -> dict:
-    """统一的 Celery 任务错误格式
-
-    Returns:
-        {"status": STATUS_ERROR, "error": str, "error_type": str, "task": str, "task_id": str}
-    """
-    # traceback 只记日志，不存入 Redis（防止泄露服务器路径）
-    logger.error(f"任务异常: {task_name} ({task_id}): {exc}\n{traceback.format_exc()}")
-    return {
-        "status": STATUS_ERROR,
-        "error": str(exc),
-        "error_type": type(exc).__name__,
-        "task": task_name,
-        "task_id": task_id,
-    }
 
 
 # 全局失败回调 — 所有任务失败时自动记录日志

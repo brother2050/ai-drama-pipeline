@@ -262,19 +262,6 @@ def test_subtitle():
     print("✅ 字幕生成正常")
 
 
-# ── post/effects.py ──
-
-def test_effects():
-    """测试特效"""
-    from post.effects import build_color_grade_filter
-
-    f = build_color_grade_filter({"brightness": 0.1, "contrast": 1.2})
-    assert "eq=brightness=0.1" in f
-    assert "eq=contrast=1.2" in f
-
-    assert build_color_grade_filter({}) is None
-    print("✅ 特效处理正常")
-
 
 # ── infra/transitions.py ──
 
@@ -569,7 +556,6 @@ def run_all():
         test_prompt,
         test_multi_char,
         test_subtitle,
-        test_effects,
         test_transitions,
         test_music,
         test_distributor,

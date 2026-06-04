@@ -227,20 +227,12 @@ def test_subtitle_task(test_project):
 
 def test_celery_app_config():
     """Celery 配置正确"""
-    from pipeline.celery_app import app, format_task_error
+    from pipeline.celery_app import app
 
     assert app.main == "drama"
     assert app.conf.task_track_started == True
     assert app.conf.task_acks_late == True
     assert app.conf.worker_prefetch_multiplier == 1
-
-    # 统一错误格式
-    err = format_task_error(ValueError("测试错误"), "test_task", "abc-123")
-    assert err["status"] == "error"
-    assert err["error"] == "测试错误"
-    assert err["error_type"] == "ValueError"
-    assert err["task"] == "test_task"
-    assert err["task_id"] == "abc-123"
 
 
 def test_celery_tasks_registered():
