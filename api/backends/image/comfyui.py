@@ -32,7 +32,7 @@ class ComfyUI:
     def check_image_exists(self, filename: str, subfolder: str = "", asset_type: str = "output") -> bool:
         """检查图片是否已存在于 ComfyUI 服务器
 
-        通过 HEAD 请求 /view 端点验证，HTTP 200 表示文件存在。
+        通过 GET 请求 /view 端点验证，HTTP 200 表示文件存在。
         Args:
             asset_type: "output"（生成结果）或 "input"（上传的图片），默认 "output"
         """
@@ -40,8 +40,8 @@ class ComfyUI:
             params = {"filename": filename, "type": asset_type}
             if subfolder:
                 params["subfolder"] = subfolder
-            r = self._client.head(f"{self._url}/view", params=params,
-                                  headers=self._headers())
+            r = self._client.get(f"{self._url}/view", params=params,
+                                 headers=self._headers())
             return r.status_code == 200
         except Exception:
             return False

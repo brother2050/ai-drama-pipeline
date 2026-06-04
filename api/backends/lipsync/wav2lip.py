@@ -32,7 +32,7 @@ class Wav2Lip:
 
     def health_check(self) -> tuple[bool, str]:
         try:
-            r = self._fast_client.get(self._url)
+            r = self._fast_client.get(f"{self._url}/docs")
             return True, f"Wav2Lip reachable (HTTP {r.status_code})"
         except Exception as e:
             return False, f"Wav2Lip unreachable: {e}"

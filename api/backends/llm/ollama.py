@@ -49,6 +49,8 @@ class OllamaLLM:
                         return val
         except Exception as e:
             logger.debug(f"{type(e).__name__}: {e}")
+        # 查询失败，缓存默认值避免重复查询
+        self._ctx = 8192
         return 8192
 
     def chat(self, prompt: str, system: str = "", **kwargs) -> str:

@@ -64,7 +64,7 @@ class MimoVoiceClone:
         if emotion_style:
             messages.append({"role": "user", "content": emotion_style})
         else:
-            messages.append({"role": "user", "content": ""})
+            messages.append({"role": "user", "content": "请朗读以下内容"})
         messages.append({"role": "assistant", "content": text})
 
         # 构建 audio 参数（根据模型选择不同格式）
