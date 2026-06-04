@@ -51,11 +51,11 @@ music:
 
 | 模型 | 参数量 | 显存 | 生成 30s 耗时 | 效果 |
 |------|--------|------|--------------|------|
-| small | 300M | ~2GB | ~5s | 一般 |
-| medium | 1.5B | ~5GB | ~15s | 推荐 |
-| large | 3.3B | ~8GB | ~30s | 最好 |
+| small | 300M | ~6GB | ~5s | 一般 |
+| medium | 1.5B | ~15GB | ~15s | 推荐 |
+| large | 3.3B | ~20GB | ~30s | 最好 |
 
-推荐 **medium + T4/A10/3090**。
+推荐 **medium + V100-32G/A100/4090**。T4(16GB) 可跑 small。
 
 ## 国内平台部署
 
@@ -109,6 +109,8 @@ music:
   "samplerate": 32000
 }
 ```
+
+> **注意**: transformers 4.x 需要 PyTorch 2.10+，若遇到 `AuxRequest` 导入错误，降级 transformers：`pip install transformers==4.57.6`
 
 ## mood → prompt 映射
 
