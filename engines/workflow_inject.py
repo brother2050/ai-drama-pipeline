@@ -255,9 +255,7 @@ def inject_pulid_flux(builder: object, wf: dict, char_ids: list[str],
     """注入 PuLID-Flux 面部一致性节点（Flux 后端专用）"""
     wf = copy.deepcopy(wf)
 
-    primary_refs = builder._get_character_refs(char_ids[0], outfit=outfit) if char_ids else []
-    if not primary_refs:
-        logger.warning(f"角色 '{char_ids[0] if char_ids else '?'}' 无定妆照，跳过 PuLID-Flux 注入")
+    if not char_ids:
         return wf
 
     ksampler = find_first_node(wf, "KSampler")
@@ -270,18 +268,25 @@ def inject_pulid_flux(builder: object, wf: dict, char_ids: list[str],
         return wf
 
     weight = pulid_config.get("weight", 0.9)
-    suffix = random.randint(1000, 9999)
-    wf = _inject_pulid_nodes(wf, ksampler, model_source, primary_refs[0], pulid_config, weight, suffix)
-    logger.info(f"注入 PuLID-Flux: {char_ids[0]} (weight={weight}, refs={os.path.basename(primary_refs[0])})")
+    primary_injected = False
 
-    if len(char_ids) > 1:
-        for secondary_id in char_ids[1:]:
-            secondary_refs = builder._get_character_refs(secondary_id, outfit=outfit)
-            if secondary_refs:
-                secondary_weight = max(0.3, weight * 0.7)
-                wf = inject_pulid_flux_chain(
-                    builder, wf, secondary_id, secondary_refs,
-                    weight=secondary_weight, pulid_config=pulid_config)
+    for char_id in char_ids:
+        refs = builder._get_character_refs(char_id, outfit=outfit)
+        if not refs:
+            logger.warning(f"角色 '{char_id}' 无定妆照，跳过该角色的 PuLID-Flux 注入")
+            continue
+
+        if not primary_injected:
+            suffix = random.randint(1000, 9999)
+            wf = _inject_pulid_nodes(wf, ksampler, model_source, refs[0], pulid_config, weight, suffix)
+            logger.info(f"注入 PuLID-Flux: {char_id} (weight={weight}, refs={os.path.basename(refs[0])})")
+            primary_injected = True
+        else:
+            secondary_weight = max(0.3, weight * 0.7)
+            wf = inject_pulid_flux_chain(
+                builder, wf, char_id, refs,
+                weight=secondary_weight, pulid_config=pulid_config)
+
     return wf
 
 
@@ -488,6 +493,7 @@ def inject_lora(wf: dict, lora_path: str, strength: float = 0.7,
     }
 
     wf[ksampler]["inputs"]["model"] = [lora_node_id, 0]
+    wf[ksampler]["inputs"]["clip"] = [lora_node_id, 1]
 
     logger.info(f"注入 LoRA 节点: {lora_node_id} (strength={strength})")
     return wf

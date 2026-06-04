@@ -305,6 +305,7 @@ def produce_task(self, config_path: str, episode: int, vertical: bool = False, f
             logger.error(f"后期失败: {e}", exc_info=True)
 
         # ── 质量门禁：生产后检查 ──
+        quality_issues = []
         try:
             from engines.quality_gate import check_quality
             proj_root = str(Path(config_path).resolve().parent.parent)
@@ -316,11 +317,11 @@ def produce_task(self, config_path: str, episode: int, vertical: bool = False, f
                     logger.warning(f"⚠ 质量检查: {w['name']} — {w['message']}")
                 for e in errors:
                     logger.error(f"❌ 质量检查: {e['name']} — {e['message']}")
-                results["quality_issues"] = issues
+                quality_issues = issues
         except Exception as e:
             logger.debug(f"质量门禁跳过: {e}")
 
-        return {"status": STATUS_DONE, "episode": episode, "shots": results}
+        return {"status": STATUS_DONE, "episode": episode, "shots": results, "quality_issues": quality_issues}
 
 
 def _check_portrait_readiness(paths) -> tuple[list[str], list[str]]:
