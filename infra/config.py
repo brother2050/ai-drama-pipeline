@@ -26,7 +26,7 @@ except ImportError:
 __all__ = ["Config", "ProjectPaths", "load_config", "save_config", "save_yaml",
            "load_yaml_full", "load_character", "load_scene", "cfg_get",
            "SYSTEM_CONFIG_PATH", "REGISTRY_PATH", "PROMPT_TEMPLATES_PATH", "REPO_LOGS_DIR",
-           "resolve_project_config",
+           "deep_merge", "resolve_project_config",
            "get_active_project_dir", "projects_dir", "get_root"]
 
 # 系统全局配置路径（单一数据源，避免各处重复拼接）
