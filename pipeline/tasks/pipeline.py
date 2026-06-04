@@ -218,7 +218,7 @@ def preview_task(self, config_path: str, episode: int, preset: str = "draft", fo
     project_name = Path(config_path).resolve().parent.parent.name
     from infra.database._db import project_scope
     with project_scope(project_name):
-        shots = _load_shots(config_path, episode)
+        shots = _load_shots(episode)
         if not shots:
             return {"status": "empty", "message": f"第{episode}集没有镜头"}
         # 生产前自检：确保定妆照和场景图就绪
@@ -281,7 +281,7 @@ def produce_task(self, config_path: str, episode: int, vertical: bool = False, f
     project_name = Path(config_path).resolve().parent.parent.name
     from infra.database._db import project_scope
     with project_scope(project_name):
-        shots = _load_shots(config_path, episode)
+        shots = _load_shots(episode)
         if not shots:
             return {"status": "empty", "message": f"第{episode}集没有镜头"}
 

@@ -39,15 +39,15 @@ def _safe_int(val, default=0) -> int:
         return default
 
 
-def _load_shots(config_path: str, episode: int) -> list[dict]:
+def _load_shots(episode: int) -> list[dict]:
     """从 DB 加载指定集的镜头列表"""
     from engines.storyboard import load_storyboard
     return load_storyboard(episode=episode)
 
 
-def _find_shot(config_path: str, episode: int, shot_id: str) -> dict | None:
+def _find_shot(episode: int, shot_id: str) -> dict | None:
     """查找单个镜头（DB 查询）"""
-    for s in _load_shots(config_path, episode):
+    for s in _load_shots(episode):
         if s.get("shot_id") == shot_id:
             return s
     return None
@@ -242,7 +242,7 @@ def _prepare(params: PrepareParams):
     # 3. 查镜头
     shot = params.shot
     if params.need_shot and shot is None:
-        shot = _find_shot(params.config_path, params.episode, params.shot_id)
+        shot = _find_shot(params.episode, params.shot_id)
     if params.need_shot and not shot:
         _db_record_step(params.episode, params.shot_id, params.step, {"status": STATUS_ERROR, "reason": "镜头不存在"})
         return None, None, None, _err(params.shot_id, params.step, "镜头不存在")
