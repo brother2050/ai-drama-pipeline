@@ -14,6 +14,7 @@ API:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import io
 import logging
 import time
@@ -27,7 +28,14 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger("musicgen-server")
 
-app = FastAPI(title="MusicGen 配乐服务", version="1.0")
+
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan 事件处理（替代已弃用的 on_event）"""
+    yield
+
+
+app = FastAPI(title="MusicGen 配乐服务", version="1.0", lifespan=lifespan)
 
 # 全局模型（启动时加载）
 _model = None
@@ -56,12 +64,6 @@ def load_model(model_size: str = "medium"):
     _samplerate = _model.config.samplerate
 
     logger.info(f"模型加载完成 ({time.time() - t0:.1f}s), 设备: {device}")
-
-
-@app.on_event("startup")
-def startup():
-    """服务启动时由 uvicorn 触发，但模型加载由 main 控制"""
-    pass
 
 
 @app.post("/generate")
