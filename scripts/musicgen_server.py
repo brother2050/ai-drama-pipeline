@@ -24,6 +24,7 @@ import logging
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 _bootstrap_log = logging.getLogger("musicgen-bootstrap")
 
@@ -150,10 +151,44 @@ def _estimate_parallelism(model_mem_mb: int) -> int:
     return max(1, min(n, 4))  # 上限 4，避免过度并行
 
 
+def _setup_hf_env():
+    """配置 HuggingFace 镜像和 Token（从 .env 或环境变量读取）"""
+    # HF_ENDPOINT: 国内镜像加速（.env.example 中有配置）
+    if not os.environ.get("HF_ENDPOINT"):
+        # 尝试从项目 .env 读取
+        env_file = Path(__file__).resolve().parent.parent / ".env"
+        if env_file.exists():
+            for line in env_file.read_text().splitlines():
+                line = line.strip()
+                if line.startswith("HF_ENDPOINT=") and not line.startswith("#"):
+                    val = line.split("=", 1)[1].strip().strip("\"'")
+                    if val:
+                        os.environ["HF_ENDPOINT"] = val
+                        logger.info(f"HF 镜像: {val}")
+                        break
+
+    # HF_TOKEN: 提升速率限制
+    if os.environ.get("HF_TOKEN"):
+        logger.info("HF_TOKEN 已配置（认证请求，速率更高）")
+    else:
+        env_file = Path(__file__).resolve().parent.parent / ".env"
+        if env_file.exists():
+            for line in env_file.read_text().splitlines():
+                line = line.strip()
+                if line.startswith("HF_TOKEN=") and not line.startswith("#"):
+                    val = line.split("=", 1)[1].strip().strip("\"'")
+                    if val:
+                        os.environ["HF_TOKEN"] = val
+                        logger.info("HF_TOKEN 已从 .env 加载")
+                        break
+
+
 def load_model(model_size: str = "medium", quantize: bool = False):
     """加载 MusicGen 模型"""
     global _model, _processor, _samplerate, _model_name, _is_quantized, _vram_total_mb
     from transformers import AutoProcessor, MusicgenForConditionalGeneration
+
+    _setup_hf_env()
 
     _model_name = model_size
     _is_quantized = quantize
@@ -161,7 +196,7 @@ def load_model(model_size: str = "medium", quantize: bool = False):
     logger.info(f"加载模型: {model_name} (quantize={quantize}) ...")
     t0 = time.time()
 
-    _processor = AutoProcessor.from_pretrained(model_name)
+    _processor = AutoProcessor.from_pretrained(model_name, use_fast=True)
 
     if quantize:
         from transformers import BitsAndBytesConfig
@@ -174,10 +209,16 @@ def load_model(model_size: str = "medium", quantize: bool = False):
             model_name,
             quantization_config=bnb_config,
             device_map="auto",
+            use_safetensors=True,
+            torch_dtype=torch.float16,
         )
         logger.info("已启用 4-bit NF4 量化")
     else:
-        _model = MusicgenForConditionalGeneration.from_pretrained(model_name)
+        _model = MusicgenForConditionalGeneration.from_pretrained(
+            model_name,
+            use_safetensors=True,
+            torch_dtype=torch.float16,
+        )
         device = "cuda" if torch.cuda.is_available() else "cpu"
         _model = _model.to(device)
 
