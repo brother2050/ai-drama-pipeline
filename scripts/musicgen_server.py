@@ -372,6 +372,13 @@ def generate(req: GenRequest):
         raise HTTPException(500, f"生成失败: {e}")
 
 
+@app.get("/")
+def root():
+    """根路径 — 服务信息"""
+    return {"service": "MusicGen 配乐服务", "version": "1.3",
+            "endpoints": {"generate": "POST /generate", "health": "GET /health"}}
+
+
 @app.get("/health")
 def health():
     """健康检查"""
