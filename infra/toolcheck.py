@@ -10,7 +10,6 @@ from __future__ import annotations
 import logging
 import os
 import shutil
-import time
 
 from infra.network import port_ok as _port_ok, redis_port as _redis_port
 

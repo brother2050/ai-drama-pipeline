@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from infra.constants import STATUS_DONE, STATUS_ERROR
-import hashlib
 import logging
 import os
 import re

@@ -224,7 +224,6 @@ def _handle_celery_result(task, result_handler=None) -> bool:
 
 
 def _run_via_celery(task_name: str, first_arg, *args, result_handler=None, **kwargs) -> bool:
-    import time
     from pipeline.celery_app import app
     from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 

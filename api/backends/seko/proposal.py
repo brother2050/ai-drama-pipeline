@@ -12,7 +12,6 @@ from pathlib import Path
 
 import httpx
 
-from infra.http_pool import get_client as _get_shared_client
 
 logger = logging.getLogger(__name__)
 

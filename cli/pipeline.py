@@ -48,7 +48,7 @@ def register_pipeline_commands(cli):
     @click.option("--local", is_flag=True, help="本地执行（不走 Celery）")
     def prepare(episode, config_path, force, no_translate, local):
         """准备阶段 — 批量预翻译（生产前运行一次）"""
-        from cli import _ensure_deps, _ensure_deps_no_db, _resolve_config, _run_via_celery
+        from cli import _ensure_deps, _resolve_config, _run_via_celery
         cfg = _resolve_config(config_path)
 
         if local:

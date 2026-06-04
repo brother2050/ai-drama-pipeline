@@ -25,7 +25,6 @@ ProgressCB = Callable[[int, int, str], None] | None
 
 def _process_single_scene(f: Path, wb, comfyui, paths, cfg, force: bool) -> tuple[bool, str]:
     """处理单个场景，返回 (success, scene_name)"""
-    from infra.config import save_yaml
     try:
         data = load_yaml_full(f)
     except Exception as e:

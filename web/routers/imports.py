@@ -10,8 +10,7 @@ from pathlib import Path
 from fastapi import APIRouter, Body, Depends, HTTPException
 
 from web.routers.deps import (
-    ROOT, _cfg, _merged_cfg, _cfg_path, _paths, _proj,
-    _check_id, _submit_task, _reset_proj_cache,
+    ROOT, _merged_cfg, _cfg_path, _paths, _check_id, _submit_task, _reset_proj_cache,
 )
 
 logger = logging.getLogger(__name__)
