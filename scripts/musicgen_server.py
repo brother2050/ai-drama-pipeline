@@ -179,9 +179,13 @@ def _generate_segment(prompt: str, duration: int) -> np.ndarray:
     因此生成后按目标帧数精确裁剪。
     """
     target_frames = duration * _samplerate
-    # 请求略多 token 确保生成足够长的音频（2x buffer）
-    max_tokens = int(duration * 2 * (_samplerate // 256))
-    max_tokens = min(max_tokens, 3000)
+    # 量化模型 token 太多会触发 CUDA 断言，需降低上限
+    if _is_quantized:
+        max_tokens = int(duration * 1.5 * (_samplerate // 256))
+        max_tokens = min(max_tokens, 1500)
+    else:
+        max_tokens = int(duration * 2 * (_samplerate // 256))
+        max_tokens = min(max_tokens, 3000)
 
     inputs = _processor(text=[prompt], return_tensors="pt").to(_model.device)
     with torch.no_grad():
