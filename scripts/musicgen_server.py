@@ -137,24 +137,19 @@ def _generate_segment(prompt: str, duration: int) -> np.ndarray:
     return arr.astype(np.float32) if arr.dtype == np.float16 else arr
 
 
-def _generate_batch(prompts: list[str], durations: list[int]) -> list[np.ndarray]:
-    """批量生成多段音频（单次 forward，吞吐更高）
+def _generate_concurrent(prompts: list[str], durations: list[int]) -> list[np.ndarray]:
+    """并发生成多段音频（每段独立 forward，避免 batch 对齐导致时长膨胀）
 
-    注意: MusicGen 的 generate() 支持 batch_size > 1，
-    但所有 prompt 必须同时生成，长度取最长的 max_tokens。
+    MusicGen 的 generate() 在 batch_size > 1 时，所有序列对齐到相同的
+    max_new_tokens，导致短段被拉长到最长段的长度。改为每段独立生成，
+    通过 ThreadPoolExecutor 并发执行以利用 GPU 流水线。
     """
-    inputs = _processor(text=prompts, return_tensors="pt", padding=True).to(_model.device)
-    max_tokens = max(d * (_samplerate // 256) for d in durations)
-    max_tokens = min(max_tokens, 1500)
+    def _gen(prompt, duration):
+        return _generate_segment(prompt, duration)
 
-    with torch.no_grad():
-        audio = _model.generate(**inputs, max_new_tokens=max_tokens)
-
-    results = []
-    for i in range(len(prompts)):
-        arr = audio[i, 0].cpu().numpy()
-        results.append(arr.astype(np.float32) if arr.dtype == np.float16 else arr)
-    return results
+    with ThreadPoolExecutor(max_workers=len(prompts)) as pool:
+        futures = [pool.submit(_gen, p, d) for p, d in zip(prompts, durations)]
+        return [f.result() for f in futures]
 
 
 def _crossfade(a: np.ndarray, b: np.ndarray, fade_samples: int) -> np.ndarray:
@@ -196,7 +191,7 @@ def generate(req: GenRequest):
 
     策略:
     - duration ≤ 15s: 直接生成
-    - duration > 15s + 量化模型: 批量并行生成多段（利用剩余显存）
+    - duration > 15s + 量化模型: 并发生成多段（每段独立 forward，利用 GPU 流水线）
     - duration > 15s + 非量化: 逐段串行生成
     """
     if _model is None:
@@ -222,7 +217,7 @@ def generate(req: GenRequest):
             logger.info(f"  共 {n_segments} 段, 并行度: {parallel}")
 
             if parallel > 1:
-                # 批量并行生成
+                # 并发生成（每段独立 forward，避免 batch 对齐膨胀）
                 all_segments = []
                 for batch_start in range(0, n_segments, parallel):
                     batch_end = min(batch_start + parallel, n_segments)
@@ -230,7 +225,7 @@ def generate(req: GenRequest):
                     batch_prompts = [req.prompt] * len(batch_durations)
                     logger.info(f"  批次 {batch_start//parallel + 1}: "
                                 f"段 {batch_start+1}-{batch_end}")
-                    batch_results = _generate_batch(batch_prompts, batch_durations)
+                    batch_results = _generate_concurrent(batch_prompts, batch_durations)
                     all_segments.extend(batch_results)
                 audio_np = _concat_segments(all_segments)
             else:
