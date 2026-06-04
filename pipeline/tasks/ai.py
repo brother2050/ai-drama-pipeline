@@ -97,12 +97,10 @@ def _generate_entities_for_storyboard(llm, shots, char_ids, scene_ids, outline, 
 
 def _extract_entity_ids(shots: list[dict]) -> tuple[set[str], set[str]]:
     """从分镜中提取所有引用的角色/场景 ID"""
+    from engines.shot_utils import parse_char_ids
     char_ids, scene_ids = set(), set()
     for shot in shots:
-        for cid in (shot.get("characters") or "").split("+"):
-            cid = cid.strip()
-            if cid:
-                char_ids.add(cid)
+        char_ids.update(parse_char_ids(shot))
         sid = (shot.get("scene_id") or "").strip()
         if sid:
             scene_ids.add(sid)
@@ -120,7 +118,7 @@ def _generate_characters_for_storyboard(llm, shots, char_ids, outline, style, ge
 
     char_descriptions = []
     for cid in sorted_ids:
-        char_shots = [s for s in shots if cid in (s.get("characters") or "").split("+")]
+        char_shots = [s for s in shots if cid in parse_char_ids(s)]
         actions = [s.get("action", "") for s in char_shots[:5]]
         dialogues = [s.get("dialogue", "") for s in char_shots[:5] if s.get("dialogue") and s.get("dialogue") != "......"]
         parts = [

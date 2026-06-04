@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from engines.shot_utils import parse_char_ids
 from infra.constants import STATUS_DONE, STATUS_ERROR
 import hashlib
 import logging
@@ -53,7 +54,7 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
     if not force and Path(audio_path).exists():
         return _skip(shot_id, "tts", "音频已存在")
 
-    char_ids = [c.strip() for c in shot.get("characters", "").split("+") if c.strip()]
+    char_ids = parse_char_ids(shot)
     if characters:
         char_data = characters.get(char_ids[0], {}) if char_ids else {}
     else:
@@ -181,7 +182,7 @@ def _resolve_shot_context(shot: dict, cfg, characters: dict | None, scenes: dict
     from engines.prompt import get_view_appearance
     from engines.multi_char import MultiCharacterHandler
 
-    char_ids = [c.strip() for c in shot.get("characters", "").split("+") if c.strip()]
+    char_ids = parse_char_ids(shot)
     characters, scenes = _ensure_char_scene_data(cfg, characters, scenes)
 
     # 角色描述

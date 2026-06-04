@@ -8,7 +8,19 @@ from infra.constants import VALID_EMOTIONS, VALID_SHOT_TYPES, VALID_CAMERAS
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["postprocess_shots", "strip_dialogue"]
+__all__ = ["postprocess_shots", "strip_dialogue", "parse_char_ids"]
+
+
+def parse_char_ids(shot: dict) -> list[str]:
+    """从镜头数据中解析角色 ID 列表（"+" 分隔）
+
+    Args:
+        shot: 镜头数据 dict，含 "characters" 字段
+
+    Returns:
+        角色 ID 列表（已 strip + 去空）
+    """
+    return [c.strip() for c in shot.get("characters", "").split("+") if c.strip()]
 
 
 def postprocess_shots(shots: list[dict], episode: int, *, strict: bool = False) -> list[dict]:

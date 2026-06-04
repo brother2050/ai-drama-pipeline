@@ -269,12 +269,10 @@ def _is_default_storyboard(config_path: str, shots: list[dict]) -> bool:
     default_scenes = {s["id"] for s in DEFAULT_SCENES}
     if not default_chars:
         return False
+    from engines.shot_utils import parse_char_ids
     shot_chars, shot_scenes = set(), set()
     for s in shots:
-        for c in (s.get("characters") or "").split("+"):
-            c = c.strip()
-            if c:
-                shot_chars.add(c)
+        shot_chars.update(parse_char_ids(s))
         scene = (s.get("scene_id") or "").strip()
         if scene:
             shot_scenes.add(scene)

@@ -17,6 +17,7 @@ import random
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from engines.shot_utils import parse_char_ids
 from engines.workflow import (
     find_first_node, find_load_image_nodes,
     resolve_node_aliases, set_clip_text_prompts,
@@ -306,7 +307,7 @@ class WorkflowBuilder:
 
     def _find_ref_image(self, shot: dict) -> str | None:
         """查找镜头的参考图（定妆照或 outfit 参考图）"""
-        char_ids = [c.strip() for c in shot.get("characters", "").split("+") if c.strip()]
+        char_ids = parse_char_ids(shot)
         if not char_ids:
             return None
         cid = char_ids[0]
@@ -341,7 +342,7 @@ class WorkflowBuilder:
 
         # 获取角色圣经上下文
         character_bible = ""
-        char_ids = [c.strip() for c in shot.get("characters", "").split("+") if c.strip()]
+        char_ids = parse_char_ids(shot)
         if char_ids:
             try:
                 from engines.character_bible import CharacterBible
@@ -472,7 +473,7 @@ class WorkflowBuilder:
             self._setup_img2img(wf, shot, backend_meta)
 
         # 4. 注入角色一致性（LoRA + IP-Adapter/PuLID）
-        char_ids = [c.strip() for c in shot.get("characters", "").split("+") if c.strip()]
+        char_ids = parse_char_ids(shot)
         outfit = shot.get("outfit", "")
         if char_ids:
             wf = self._inject_character_consistency(wf, char_ids, outfit, img_backend)
@@ -591,7 +592,7 @@ class WorkflowBuilder:
     def build_upload_map(self, shot: dict, wf: dict) -> dict[str, str]:
         """构建参考图上传映射 {node_id: file_path}"""
         uploads: dict[str, str] = {}
-        char_ids = [c.strip() for c in shot.get("characters", "").split("+") if c.strip()]
+        char_ids = parse_char_ids(shot)
         outfit = shot.get("outfit", "")
 
         all_load_nodes = find_load_image_nodes(wf)

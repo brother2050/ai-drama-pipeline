@@ -103,8 +103,9 @@ class ConsistencyChecker:
             # 同场景内服装变化 = 可能的问题
             if prev.get("scene_id") == curr.get("scene_id"):
                 # 检查是否有角色变化（不同角色可以穿不同衣服）
-                prev_chars = set(c.strip() for c in prev.get("characters", "").split("+") if c.strip())
-                curr_chars = set(c.strip() for c in curr.get("characters", "").split("+") if c.strip())
+                from engines.shot_utils import parse_char_ids
+                prev_chars = set(parse_char_ids(prev))
+                curr_chars = set(parse_char_ids(curr))
                 if prev_chars == curr_chars:
                     errors.append(
                         f"镜头 {curr.get('shot_id', '?')}: 同场景同角色内服装突变 "
@@ -116,11 +117,11 @@ class ConsistencyChecker:
         """检查角色存在性：引用的角色必须存在"""
         errors = []
         char_ids = {c.get("id", "") for c in characters}
+        from engines.shot_utils import parse_char_ids
         for shot in shots:
             sid = shot.get("shot_id", "?")
-            for cid in (shot.get("characters") or "").split("+"):
-                cid = cid.strip()
-                if cid and cid not in char_ids:
+            for cid in parse_char_ids(shot):
+                if cid not in char_ids:
                     errors.append(f"镜头 {sid}: 角色 '{cid}' 不存在")
         return errors
 
