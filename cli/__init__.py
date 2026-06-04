@@ -26,6 +26,9 @@ from infra.config import get_root as _get_root
 
 ROOT = _get_root()
 
+# 共享 CLI 选项（消除 pipeline.py / generate.py 中 11 处重复声明）
+config_option = click.option("-c", "--config", "config_path", default=None, help="配置文件路径")
+
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 

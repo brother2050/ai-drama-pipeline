@@ -6,6 +6,8 @@ import sys
 import click
 from rich.console import Console
 
+from cli import config_option
+
 console = Console()
 
 
@@ -15,7 +17,7 @@ def register_pipeline_commands(cli):
     @cli.command()
     @click.argument("episode", type=int, default=1)
     @click.argument("level", type=click.Choice(["draft", "standard", "high"]), default="draft")
-    @click.option("-c", "--config", "config_path", default=None)
+    @config_option
     @click.option("--force", is_flag=True, help="强制覆盖已有文件")
     @click.option("--local", is_flag=True, help="本地执行（不走 Celery，无需 Redis/PostgreSQL）")
     def preview(episode, level, config_path, force, local):
@@ -42,7 +44,7 @@ def register_pipeline_commands(cli):
 
     @cli.command()
     @click.argument("episode", type=int, default=1)
-    @click.option("-c", "--config", "config_path", default=None)
+    @config_option
     @click.option("--force", is_flag=True, help="强制覆盖已有翻译")
     @click.option("--no-translate", is_flag=True, help="跳过翻译")
     @click.option("--local", is_flag=True, help="本地执行（不走 Celery）")
@@ -72,7 +74,7 @@ def register_pipeline_commands(cli):
     @cli.command()
     @click.argument("episode", type=int)
     @click.option("--vertical", is_flag=True, help="横转竖")
-    @click.option("-c", "--config", "config_path", default=None)
+    @config_option
     @click.option("--force", is_flag=True, help="强制覆盖已有文件")
     def produce(episode, vertical, config_path, force):
         """完整生产（通过 Celery 异步执行）"""
@@ -86,7 +88,7 @@ def register_pipeline_commands(cli):
     @cli.command()
     @click.argument("episode", type=int)
     @click.option("--vertical", is_flag=True, help="横转竖")
-    @click.option("-c", "--config", "config_path", default=None)
+    @config_option
     @click.option("--local", is_flag=True, help="本地执行（不走 Celery）")
     def post(episode, vertical, config_path, local):
         """后期合成"""
@@ -113,7 +115,7 @@ def register_pipeline_commands(cli):
     @cli.command("all")
     @click.argument("episode", type=int, default=1)
     @click.option("--vertical", is_flag=True, help="横转竖")
-    @click.option("-c", "--config", "config_path", default=None)
+    @config_option
     @click.option("--force", is_flag=True, help="强制覆盖已有文件")
     def run_all(episode, vertical, config_path, force):
         """一键全流程（等价于依次运行 preview → produce → post）"""
@@ -139,7 +141,7 @@ def register_pipeline_commands(cli):
         console.print("\n[bold green]✅ 全流程完成！[/bold green]")
 
     @cli.command()
-    @click.option("-c", "--config", "config_path", default=None)
+    @config_option
     def portraits(config_path) -> None:
         """生成定妆照（通过 Celery）"""
         from cli import _ensure_deps, _resolve_config, _run_via_celery

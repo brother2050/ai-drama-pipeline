@@ -7,6 +7,8 @@ from pathlib import Path
 import click
 from rich.console import Console
 
+from cli import config_option
+
 console = Console()
 
 
@@ -23,7 +25,7 @@ def register_generate_commands(cli):
     @click.option("-o", "--outline", default=None, help="大纲文件路径（txt/md）")
     @click.option("--text", default=None, help="直接输入大纲文本")
     @click.option("-d", "--duration", type=int, default=90, help="目标时长（秒，默认 90）")
-    @click.option("-c", "--config", "config_path", default=None)
+    @config_option
     @click.option("--append", is_flag=True, help="追加到现有分镜表（不覆盖）")
     def gen_storyboard(episode, outline, text, duration, config_path, append):
         """📝 从剧情大纲生成分镜表"""
@@ -82,7 +84,7 @@ def register_generate_commands(cli):
 
     @generate.command("characters")
     @click.option("-d", "--desc", multiple=True, required=True, help="角色描述（可多次指定）")
-    @click.option("-c", "--config", "config_path", default=None)
+    @config_option
     def gen_characters(desc, config_path):
         """👤 从描述生成角色配置"""
         from cli import _get_llm
@@ -122,7 +124,7 @@ def register_generate_commands(cli):
 
     @generate.command("scenes")
     @click.option("-d", "--desc", multiple=True, required=True, help="场景描述（可多次指定）")
-    @click.option("-c", "--config", "config_path", default=None)
+    @config_option
     def gen_scenes(desc, config_path):
         """🏔️ 从描述生成场景配置"""
         from cli import _get_llm
@@ -161,7 +163,7 @@ def register_generate_commands(cli):
         console.print(f"\n[bold green]✅ 生成 {len(scene_list)} 个场景[/bold green]")
 
     @generate.command("bible")
-    @click.option("-c", "--config", "config_path", default=None)
+    @config_option
     @click.option("--outline", default=None, help="剧情大纲文件（用于推断人际关系）")
     def gen_bible(config_path, outline):
         """📖 为所有角色生成角色圣经（Character Bible）"""
@@ -205,7 +207,7 @@ def register_generate_commands(cli):
     @click.argument("episode", type=int, default=1)
     @click.option("-o", "--outline", required=True, help="大纲文件路径")
     @click.option("-d", "--duration", type=int, default=90, help="目标时长（秒）")
-    @click.option("-c", "--config", "config_path", default=None)
+    @config_option
     def gen_all(episode, outline, duration, config_path):
         """🚀 一键生成：大纲 → 角色 + 场景 + 分镜"""
         from cli import _get_llm, _print_shots_preview
