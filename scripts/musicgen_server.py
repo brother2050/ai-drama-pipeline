@@ -61,7 +61,7 @@ def load_model(model_size: str = "medium"):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     _model = _model.to(device)
-    _samplerate = _model.config.samplerate
+    _samplerate = _model.config.sampling_rate
 
     logger.info(f"模型加载完成 ({time.time() - t0:.1f}s), 设备: {device}")
 
