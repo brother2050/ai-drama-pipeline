@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from infra.batch_processor import estimate_tokens
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +36,8 @@ class MultiCharacterHandler:
             parts.append(f"{desc}, {pos}")
         prompt = ", ".join(parts)
 
-        # 粗略估算 token 数（英文约 1 token/4 字符）
-        est_tokens = len(prompt) // 4
+        # 估算 token 数
+        est_tokens = estimate_tokens(prompt)
         if est_tokens > clip_token_limit:
             logger.warning(
                 f"多人 prompt 约 {est_tokens} tokens，超过 CLIP 限制 {clip_token_limit}，"

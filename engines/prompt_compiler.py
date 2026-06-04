@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -32,14 +33,17 @@ logger = logging.getLogger(__name__)
 __all__ = ["PromptCompiler", "get_compiler"]
 
 # 模板缓存
+_compiler_lock = threading.Lock()
 _compiler_instance: PromptCompiler | None = None
 
 
 def get_compiler() -> PromptCompiler:
-    """获取全局 PromptCompiler 单例"""
+    """获取全局 PromptCompiler 单例（线程安全）"""
     global _compiler_instance
     if _compiler_instance is None:
-        _compiler_instance = PromptCompiler()
+        with _compiler_lock:
+            if _compiler_instance is None:
+                _compiler_instance = PromptCompiler()
     return _compiler_instance
 
 

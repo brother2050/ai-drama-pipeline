@@ -25,7 +25,7 @@ class MusicGenerator:
             music_backend = cont.get("music")
             return music_backend.generate(duration, output, mood=mood)
         except Exception as e:
-            logger.debug(f"音乐后端不可用 ({e})，回退到 ffmpeg 模板")
+            logger.warning(f"音乐后端不可用 ({e})，回退到 ffmpeg 模板（建议安装 MusicGen 获得更好音质）")
             return self._template(duration, output, mood)
 
     def _template(self, duration: float, output: str, mood: str) -> str:

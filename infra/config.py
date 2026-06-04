@@ -310,7 +310,6 @@ def load_yaml_entities(directory: Path, entity_key: str, *, with_paths: bool = F
     Returns:
         实体列表，或 (路径, 实体) 元组列表
     """
-    import yaml as _yaml
     if not directory.exists():
         return []
     result = []
@@ -319,7 +318,7 @@ def load_yaml_entities(directory: Path, entity_key: str, *, with_paths: bool = F
             continue
         try:
             with open(f, encoding="utf-8") as fh:
-                data = _yaml.safe_load(fh) or {}
+                data = yaml.safe_load(fh) or {}
             entity = data.get(entity_key, {})
             if entity.get("id"):
                 result.append((f, entity) if with_paths else entity)
@@ -334,9 +333,8 @@ def load_yaml_full(path: Path) -> dict:
 
     替代手动 open() + yaml.safe_load() 模式，统一异常处理。
     """
-    import yaml as _yaml
     with open(path, encoding="utf-8") as f:
-        return _yaml.safe_load(f) or {}
+        return yaml.safe_load(f) or {}
 
 
 _cache: dict[str, tuple[dict, float]] = {}

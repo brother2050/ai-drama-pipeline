@@ -27,10 +27,11 @@ RETRY_BASE_DELAY = 3     # 重试基础延迟（秒），指数退避
 def estimate_tokens(text: str) -> int:
     """保守估算 token 数（宁可高估多分批，也不低估撞限制）
 
-    中文约 1 token ≈ 0.6~1.0 汉字，英文约 1 token ≈ 3~4 字符。
-    取 len/1.5 作为保守上限。
+    中文约 1 token/汉字，英文约 1 token/4 字符。
     """
-    return max(1, len(text) // 2)
+    cjk = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+    other = len(text) - cjk
+    return max(1, int(cjk + other / 4))
 
 
 def _execute_batches(processor, batches, build_prompts, parse_result, on_progress) -> dict:

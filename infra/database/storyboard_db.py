@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import csv
 import logging
+import math
 from pathlib import Path
 
 from infra.database._db import query, row_to_dict, safe_float, _get_project
@@ -87,7 +88,6 @@ def save_episode_shots(pool, episode: int, shots: list[dict]) -> int:
     使用 upsert + 清理旧数据，保证原子性：中途崩溃不会丢失已有数据。
     写入前验证数据完整性（NaN/负数/空 shot_id）。
     """
-    import math
     project = _get_project()
     # 写入前验证
     for shot in shots:
@@ -126,7 +126,6 @@ def save_episode_shots(pool, episode: int, shots: list[dict]) -> int:
 
 def upsert_shot(pool, episode: int, shot_id: str, data: dict):
     """写入/更新单个镜头（写入前验证数据完整性）"""
-    import math
     project = _get_project()
     # 验证 duration
     dur = data.get("duration", 4)

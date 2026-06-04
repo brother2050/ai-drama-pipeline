@@ -17,8 +17,23 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "ImportOutfit", "ImportCharacter", "ImportScene",
     "ImportShot", "ImportPlan", "ImportValidator", "get_translation_status",
-    "normalize_character",
+    "normalize_character", "validate_id",
 ]
+
+
+# ── 共享校验函数 ────────────────────────────────────────
+
+def validate_id(v: str, *, allow_chinese: bool = False) -> str:
+    """校验实体 ID — 字母、数字、下划线、连字符，可选允许中文"""
+    if allow_chinese:
+        pattern = r"^[a-zA-Z0-9_\-\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]+$"
+        label = "字母、数字、中文、下划线、连字符"
+    else:
+        pattern = r"^[a-zA-Z0-9_-]+$"
+        label = "字母、数字、下划线、连字符"
+    if not re.match(pattern, v):
+        raise ValueError(f"ID 只允许{label}")
+    return v
 
 
 # ── 导入子模型 ──────────────────────────────────────────
@@ -44,9 +59,7 @@ class ImportCharacter(BaseModel):
     @field_validator("id")
     @classmethod
     def validate_id(cls, v: str) -> str:
-        if not re.match(r"^[a-zA-Z0-9_-]+$", v):
-            raise ValueError("角色 ID 只允许字母、数字、下划线、连字符")
-        return v
+        return validate_id(v)
 
 
 class ImportScene(BaseModel):
@@ -62,9 +75,7 @@ class ImportScene(BaseModel):
     @field_validator("id")
     @classmethod
     def validate_id(cls, v: str) -> str:
-        if not re.match(r"^[a-zA-Z0-9_-]+$", v):
-            raise ValueError("场景 ID 只允许字母、数字、下划线、连字符")
-        return v
+        return validate_id(v)
 
 
 class ImportShot(BaseModel):
