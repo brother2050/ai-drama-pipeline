@@ -210,13 +210,15 @@ class AIToolkitTrainer:
         Returns:
             上传成功的文件名列表
         """
+        import mimetypes
 
         url = f"{self._api_url.rstrip('/')}/api/datasets/upload"
 
         # 构建 multipart 文件
         files = []
         for p in img_paths:
-            files.append(("files", (Path(p).name, open(p, "rb"), "image/png")))
+            mime = mimetypes.guess_type(p)[0] or "image/png"
+            files.append(("files", (Path(p).name, open(p, "rb"), mime)))
 
         data = {"datasetName": dataset_name}
 
@@ -432,7 +434,7 @@ class AIToolkitTrainer:
                 time.sleep(self._poll_interval)
                 continue
 
-            status = job_data.get("status", "unknown")
+            status = job_data.get("status", "unknown").lower()
             step = job_data.get("step", 0)
             info = job_data.get("info", "")
 

@@ -24,6 +24,8 @@ class FishSpeech:
                    emotion: str = "neutral", language: str = "zh") -> str:
         voice_config = voice_config or {}
         Path(output).parent.mkdir(parents=True, exist_ok=True)
+        if emotion != "neutral":
+            logger.debug(f"Fish-Speech 不支持 emotion 参数，已忽略 (emotion={emotion})")
         r = self._client.post(f"{self._url}/v1/tts", json={
             "text": text, "reference_id": voice_config.get("reference_id", ""),
             "format": "wav",

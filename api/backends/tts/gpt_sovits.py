@@ -29,6 +29,8 @@ class GptSovits:
         voice_config = voice_config or {}
         ref_audio = voice_config.get("reference_audio", "")
         Path(output).parent.mkdir(parents=True, exist_ok=True)
+        if emotion != "neutral":
+            logger.debug(f"GPT-SoVITS 不支持 emotion 参数，已忽略 (emotion={emotion})")
         r = self._client.post(f"{self._url}/tts", json={
             "text": text, "text_language": language,
             "refer_audio_path": ref_audio,

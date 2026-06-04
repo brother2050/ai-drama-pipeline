@@ -104,7 +104,10 @@ class ServiceRegistry:
                 if not key:
                     continue
             return meta.name
-        raise ValueError(f"没有可用的 {service_type} 后端")
+        # 列出各后端缺失的环境变量，帮助用户排查
+        missing = [f"{m.name} (需要 {m.api_key_env})" for m in candidates if m.requires_api_key]
+        detail = f"，缺失: {', '.join(missing)}" if missing else ""
+        raise ValueError(f"没有可用的 {service_type} 后端{detail}")
 
 
 class Container:
@@ -146,22 +149,29 @@ class Container:
         if name is None:
             name = self._resolve(service_type)
         key = f"{service_type}:{name}"
+        # 快速路径：已缓存
         with self._lock:
             if key in self._instances:
                 return self._instances[key]
-            # 检查后端是否在注册表中标记为未实现
-            try:
-                from flow.model_registry import ModelRegistry
-                reg = ModelRegistry()
-                backend_meta = reg.get_backend_meta(service_type, name)
-                if backend_meta and backend_meta.get("status") == "not_implemented":
-                    available = registry.list_by_type(service_type)
-                    raise ValueError(
-                        f"{service_type} 后端 '{name}' 尚未实现，请选择其他后端。"
-                        f"可用: {available}")
-            except ImportError:
-                logger.debug("后端模块导入跳过")
-                pass
+
+        # 检查后端是否在注册表中标记为未实现（锁外，避免阻塞）
+        try:
+            from flow.model_registry import ModelRegistry
+            reg = ModelRegistry()
+            backend_meta = reg.get_backend_meta(service_type, name)
+            if backend_meta and backend_meta.get("status") == "not_implemented":
+                available = registry.list_by_type(service_type)
+                raise ValueError(
+                    f"{service_type} 后端 '{name}' 尚未实现，请选择其他后端。"
+                    f"可用: {available}")
+        except ImportError:
+            logger.debug("后端模块导入跳过")
+
+        # 创建实例（锁内）
+        with self._lock:
+            # 双重检查：另一个线程可能已经创建
+            if key in self._instances:
+                return self._instances[key]
             cfg = self._backend_config(service_type, name)
             inst = registry.create(service_type, name, cfg)
             self._instances[key] = inst
@@ -189,6 +199,7 @@ class Container:
 
         # 遍历同类型其他后端（按 priority 排序）
         candidates = registry.list_by_type(service_type)
+        last_error = None
         for candidate in candidates:
             if candidate == primary:
                 continue
@@ -200,11 +211,15 @@ class Container:
                         continue
                 logger.info(f"Fallback: {service_type}:{primary} → {candidate}")
                 return inst, candidate
-            except Exception:
+            except Exception as e:
+                last_error = e
                 continue
 
-        # 全部失败，返回主后端（让调用方处理错误）
-        return self.get(service_type, primary), primary
+        # 全部失败，抛出明确错误
+        raise RuntimeError(
+            f"所有 {service_type} 后端均不可用（主后端 {primary}"
+            f"{f', 最后错误: {last_error}' if last_error else ''}）"
+        )
 
     def _resolve(self, service_type: str) -> str:
         # 1. 优先从 models 段读取（如 tts_backend, image_backend）
@@ -214,8 +229,9 @@ class Container:
         name = models.get(cfg_key)
         if name:
             # 配置值可能是工作流模板名（如 sd15/flux），而非 API 后端名
-            # 检查是否为已注册的 API 后端，不是则回退到自动选择
-            if registry.get(service_type, name):
+            # 检查是否为已注册的 API 后端（规范化名：fish-speech ↔ fish_speech）
+            normalized = name.replace("-", "_")
+            if registry.get(service_type, name) or registry.get(service_type, normalized):
                 return name
             logger.warning(
                 f"models.{cfg_key}='{name}' 不是已注册的 {service_type} API 后端，"
@@ -256,6 +272,9 @@ class Container:
         return cfg
 
     def reload(self, new_config: dict) -> list[str]:
+        # 清除类型映射缓存（YAML 可能新增了服务类型）
+        Container._TYPE_KEY.clear()
+
         # 收集需要重建的后端（锁内只做比较）
         to_rebuild = []
         with self._lock:
@@ -265,14 +284,25 @@ class Container:
                 old = self._snapshots.get(key, {})
                 new = self._backend_config(stype, bname)
                 if old != new:
-                    to_rebuild.append((key, inst, stype, bname, new))
+                    to_rebuild.append((key, stype, bname, new))
+                    # 先从缓存中移除，防止其他线程使用旧实例
+                    del self._instances[key]
+                    del self._snapshots[key]
 
         # 锁外执行耗时的 shutdown + create
         changed = []
-        for key, old_inst, stype, bname, new_cfg in to_rebuild:
-            if hasattr(old_inst, "shutdown"):
+        for key, stype, bname, new_cfg in to_rebuild:
+            # 获取旧实例用于 shutdown（已从缓存移除，不会有新引用）
+            old_inst = None
+            # 重新检查：可能另一个 reload 已经处理了
+            with self._lock:
+                if key in self._instances:
+                    continue  # 已被其他线程重建
+                old_inst_snapshot = self._snapshots.get(key)
+
+            if hasattr(old_inst_snapshot, "shutdown"):
                 try:
-                    old_inst.shutdown()
+                    old_inst_snapshot.shutdown()
                 except Exception:
                     pass
             new_inst = registry.create(stype, bname, new_cfg)
@@ -299,7 +329,6 @@ class Container:
             pool_shutdown()
         except Exception:
             logger.debug("HTTP 连接池关闭失败")
-            pass
 
 
 # 全局单例

@@ -36,9 +36,14 @@ class MusicGenAPI:
     """
 
     def __init__(self, config: dict):
+        # 兼容两种 config 格式：
+        # 1. Container 扁平化后：api_url 在顶层
+        # 2. 原始嵌套格式：music.api_url
         music_cfg = config.get("music", {})
-        self._api_url = (music_cfg.get("api_url") or "").rstrip("/")
-        self._api_key = music_cfg.get("api_key", "")
+        self._api_url = (config.get("api_url")
+                         or music_cfg.get("api_url") or "").rstrip("/")
+        self._api_key = (config.get("api_key")
+                         or music_cfg.get("api_key") or "")
         self._timeout = config.get("timeouts", {}).get("music", 300)
         self._client = get_client(timeout=self._timeout)
         self._headers = auth_headers(self._api_key)

@@ -16,7 +16,7 @@ class TemplateMusic:
     def generate(self, duration: float, output: str, *,
                  mood: str = "neutral", bpm: int = 120) -> str:
         Path(output).parent.mkdir(parents=True, exist_ok=True)
-        duration = max(1, duration)  # 至少 1 秒
+        duration = max(1, min(300, duration))  # 1秒 ~ 5分钟
         # 用 ffmpeg 生成简单音调
         freq = {"happy": 440, "sad": 330, "angry": 520, "neutral": 400}.get(mood, 400)
         ffmpeg = shutil.which("ffmpeg") or "ffmpeg"

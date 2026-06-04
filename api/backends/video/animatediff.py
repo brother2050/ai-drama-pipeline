@@ -24,7 +24,7 @@ class _ComfyUIVideoBase:
             from api.backends.image.comfyui import ComfyUI
             self._comfyui = ComfyUI({
                 "url": self._comfyui_url,
-                "timeout": self._timeout,
+                "timeouts": {"comfyui": self._timeout},
                 "api_key": self._api_key,
             })
         return self._comfyui

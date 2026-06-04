@@ -104,10 +104,19 @@ def wait_for_proposal(
     import time
 
     logger.info(f"等待策划案完成，taskId: {task_id}，每 {interval} 秒轮询一次（最多 {max_retries} 次）...")
+    consecutive_errors = 0
     for attempt in range(1, max_retries + 1):
         result = check_proposal_status(task_id, api_key=api_key, config=config)
         if result.get("code") != 200:
+            # 服务器错误（5xx）可重试，客户端错误（4xx）直接返回
+            code = result.get("code", 0)
+            consecutive_errors += 1
+            if code >= 500 and consecutive_errors < 5:
+                logger.warning(f"API 服务器错误 (code={code})，重试 {consecutive_errors}/5")
+                time.sleep(interval)
+                continue
             return result
+        consecutive_errors = 0
 
         data = result.get("data", {})
         status = data.get("taskStatus", "RUNNING")

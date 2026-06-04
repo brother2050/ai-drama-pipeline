@@ -70,7 +70,11 @@ class ComfyUI:
         r = self._client.post(f"{self._url}/prompt", json={"prompt": workflow, "client_id": client_id},
                       headers=self._headers())
         if r.status_code != 200:
-            raise RuntimeError(f"ComfyUI /prompt 提交失败 (HTTP {r.status_code}): {_extract_error(r)}")
+            try:
+                detail = _extract_error(r)
+            except Exception:
+                detail = r.text[:500]
+            raise RuntimeError(f"ComfyUI /prompt 提交失败 (HTTP {r.status_code}): {detail}")
         try:
             resp = r.json()
         except Exception:
