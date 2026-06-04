@@ -19,6 +19,7 @@ models:
   wav2lip:
     api_url: http://127.0.0.1:8084
 llm:
+  # ⚠ 新用户须知：设为 true 并配置 api_key 后才能使用 AI 生成（分镜/角色/场景）
   enabled: false
   backend: openai
   base_url: https://api.siliconflow.cn

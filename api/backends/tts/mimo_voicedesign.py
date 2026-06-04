@@ -27,18 +27,20 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["MimoVoiceDesign"]
 
-# V2.5 语速修饰（VoiceDesign 独有，比通用描述多语速信息）
+# V2.5 语速修饰（VoiceDesign 独有，仅增强特定情绪，其余从 EMOTION_STYLE 继承）
 _EMOTION_STYLE_V25 = {
-    **{k: v + "，语速稍快" for k, v in EMOTION_STYLE.items() if k in ("happy", "angry")},
-    **{k: v + "，语速缓慢" for k, v in EMOTION_STYLE.items() if k == "sad"},
-    **{k: v + "，声音沉稳有力" for k, v in EMOTION_STYLE.items() if k == "serious"},
-    **{k: v + "，声音温和自然" for k, v in EMOTION_STYLE.items() if k == "calm"},
-    **{k: v + "，声音有力" for k, v in EMOTION_STYLE.items() if k == "determined"},
-    **{k: v + "，声音颤抖紧张" for k, v in EMOTION_STYLE.items() if k == "fearful"},
-    **{k: v + "，声音柔和细腻" for k, v in EMOTION_STYLE.items() if k == "romantic"},
-    **{k: v + "，声音充满张力" for k, v in EMOTION_STYLE.items() if k == "action"},
-    **{k: v + "，带着自信" for k, v in EMOTION_STYLE.items() if k == "smug"},
-    "neutral": "",
+    **EMOTION_STYLE,  # 基础：继承所有原始情绪描述
+    # 增强：为特定情绪添加语速/音色修饰
+    "happy": EMOTION_STYLE["happy"] + "，语速稍快",
+    "angry": EMOTION_STYLE["angry"] + "，语速稍快",
+    "sad": EMOTION_STYLE["sad"] + "，语速缓慢",
+    "serious": EMOTION_STYLE["serious"] + "，声音沉稳有力",
+    "calm": EMOTION_STYLE["calm"] + "，声音温和自然",
+    "determined": EMOTION_STYLE["determined"] + "，声音有力",
+    "fearful": EMOTION_STYLE["fearful"] + "，声音颤抖紧张",
+    "romantic": EMOTION_STYLE["romantic"] + "，声音柔和细腻",
+    "action": EMOTION_STYLE["action"] + "，声音充满张力",
+    "smug": EMOTION_STYLE["smug"] + "，带着自信",
 }
 
 

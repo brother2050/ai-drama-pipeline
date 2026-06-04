@@ -278,7 +278,11 @@ def _check_llm(cfg: dict, defaults: dict) -> tuple[bool, str, str, bool]:
 def _check_tts(cfg: dict, reg, defaults: dict, table: Table):
     from infra.config import cfg_get
     tts = cfg.get("models", {}).get("tts_backend", defaults.get("tts_backend"))
-    if not tts or not reg:
+    if not tts:
+        table.add_row("TTS", "[yellow]⚠ 未配置后端[/yellow]", "-", "语音合成")
+        return
+    if not reg:
+        table.add_row(f"TTS ({tts})", "[yellow]⚠ 注册表不可用[/yellow]", "-", "语音合成")
         return
     hc = reg.get_health_check("tts", tts)
     if not hc:
