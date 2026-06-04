@@ -23,7 +23,6 @@ from engines.workflow import (
 )
 from engines.workflow_inject import (
     inject_character_refs as _inject_character_refs,
-    inject_ip_adapter_plus as _inject_ip_adapter_plus,
     inject_pulid_flux as _inject_pulid_flux,
     find_character_lora as _find_character_lora,
     find_style_lora as _find_style_lora,

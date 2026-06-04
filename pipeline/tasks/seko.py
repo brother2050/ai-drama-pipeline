@@ -190,7 +190,7 @@ def _parse_seko_storyboard(steps: list[dict], episode: int) -> list[dict]:
         characters, dialogue = _parse_shot_dialogue(block)
 
         shots.append({
-            "episode": str(episode), "shot_id": shot_id,
+            "episode": episode, "shot_id": shot_id,
             "scene_id": fields["scene"], "characters": characters,
             "action": fields["action"], "dialogue": dialogue,
             "camera": fields["camera"], "shot_type": fields["shot_type"],

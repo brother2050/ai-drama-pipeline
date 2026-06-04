@@ -33,7 +33,7 @@ def postprocess_shots(shots: list[dict], episode: int, *, strict: bool = False) 
         shot["shot_id"] = sid
         used_ids.add(sid)
 
-        shot["episode"] = str(episode)
+        shot["episode"] = episode
 
         # duration: 截断到 [2, 8]
         try:

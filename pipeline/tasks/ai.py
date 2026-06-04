@@ -358,7 +358,7 @@ def _ai_chat_edit_inner(self, config_path, episode, message, current_shots):
         return {"status": STATUS_ERROR, "reason": err}
 
     for shot in result:
-        shot["episode"] = str(episode)
+        shot["episode"] = episode
     self.update_state(state="PROGRESS", meta={"step": "chat_edit", "progress": 90, "message": "编辑完成"})
     resp = {"status": STATUS_DONE, "shots": result, "message": f"已修改 {len(result)} 个镜头"}
     if len(current_shots) > MAX_SHOTS_FOR_EDIT:

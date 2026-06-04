@@ -23,6 +23,7 @@
 """
 from __future__ import annotations
 
+import concurrent.futures
 import functools
 import logging
 import random
@@ -79,9 +80,16 @@ def safe_run(
 
     for attempt in range(max(1, retries)):
         try:
-            return fn(*args, **kwargs)
+            if timeout:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as te:
+                    future = te.submit(fn, *args, **kwargs)
+                    return future.result(timeout=timeout)
+            else:
+                return fn(*args, **kwargs)
         except retryable as e:
             last_exc = e
+            if isinstance(e, concurrent.futures.TimeoutError):
+                last_exc = TimeoutError(f"{task_id or fn.__name__}: 执行超时 ({timeout}s)")
             if attempt < retries - 1:
                 delay = min(base_delay * (2 ** attempt) + random.uniform(0, 0.5), max_delay)
                 logger.warning(
