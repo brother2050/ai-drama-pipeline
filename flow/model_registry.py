@@ -520,11 +520,11 @@ class ModelRegistry:
         return result if result else None
 
     def reload(self):
-        self._data = self._load(self._resolve_registry_path())
-        self._SECTION_MAP = self._build_section_map(self._data)
-        # 更新缓存 mtime，避免下次 __new__ 重新加载
-        try:
-            ModelRegistry._instance_mtime = os.path.getmtime(self._resolve_registry_path())
-        except OSError:
-            logger.debug("注册表 mtime 更新失败")
-            pass
+        with self._instance_lock:
+            self._data = self._load(self._resolve_registry_path())
+            self._SECTION_MAP = self._build_section_map(self._data)
+            # 更新缓存 mtime，避免下次 __new__ 重新加载
+            try:
+                ModelRegistry._instance_mtime = os.path.getmtime(self._resolve_registry_path())
+            except OSError:
+                logger.debug("注册表 mtime 更新失败")

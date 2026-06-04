@@ -260,7 +260,11 @@ def _apply_preset(config_path: str, preset: str) -> str:
             "image_steps": int(base_steps * 1.4),
             "resolution": [min(1920, int(base_res[0] * 1.5)), min(1080, int(base_res[1] * 1.5))],
         }
-    else:  # standard
+    elif preset == "standard":
+        overrides = {
+            "image_steps": int(base_steps * 1.2),
+        }
+    else:
         return config_path
     # 写入临时配置文件（继承原配置 + 覆盖 generation 段）
     existing = load_config(config_path)

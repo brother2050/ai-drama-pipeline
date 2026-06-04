@@ -288,10 +288,10 @@ def normalize_character(char: dict) -> dict:
         char["bible"] = {}
     char["bible"].setdefault("core_traits", "")
 
-    # reference_images: 清理外部 URL（只允许本地路径）
+    # reference_images: 清理外部 URL，保留本地路径
     refs = char.get("reference_images")
-    if isinstance(refs, list) and any(isinstance(r, str) and r.startswith("http") for r in refs):
-        char["reference_images"] = []
+    if isinstance(refs, list):
+        char["reference_images"] = [r for r in refs if not (isinstance(r, str) and r.startswith("http"))]
 
     # outfits: 确保 default 键 + 统一格式
     outfits = char.get("outfits")
@@ -304,8 +304,8 @@ def normalize_character(char: dict) -> dict:
             elif isinstance(v, dict):
                 v.setdefault("description", "")
                 v.setdefault("reference_images", [])
-                if any(isinstance(r, str) and r.startswith("http") for r in v.get("reference_images", [])):
-                    v["reference_images"] = []
+                v["reference_images"] = [r for r in v.get("reference_images", [])
+                                         if not (isinstance(r, str) and r.startswith("http"))]
     elif outfits is None:
         char["outfits"] = {"default": {"description": "", "reference_images": []}}
 
