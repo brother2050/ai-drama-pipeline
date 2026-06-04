@@ -31,11 +31,8 @@ class Wav2Lip:
         return output
 
     def health_check(self) -> tuple[bool, str]:
-        try:
-            r = self._fast_client.get(f"{self._url}/docs")
-            return True, f"Wav2Lip reachable (HTTP {r.status_code})"
-        except Exception as e:
-            return False, f"Wav2Lip unreachable: {e}"
+        from api.backends import http_health_check
+        return http_health_check(self._url, self._fast_client, "Wav2Lip")
 
 def _f(config): return Wav2Lip(config)
 registry.register(BackendMeta(name="wav2lip", service_type="lipsync", factory=_f,

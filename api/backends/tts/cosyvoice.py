@@ -35,11 +35,8 @@ class CosyVoice:
         return output
 
     def health_check(self) -> tuple[bool, str]:
-        try:
-            r = self._fast_client.get(f"{self._url}/docs")
-            return True, f"CosyVoice reachable (HTTP {r.status_code})"
-        except Exception as e:
-            return False, f"CosyVoice unreachable: {e}"
+        from api.backends import http_health_check
+        return http_health_check(self._url, self._fast_client, "CosyVoice")
 
     def shutdown(self):
         pass  # 共享连接池，无需关闭

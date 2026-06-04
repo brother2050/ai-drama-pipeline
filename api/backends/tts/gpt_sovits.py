@@ -42,11 +42,8 @@ class GptSovits:
         return output
 
     def health_check(self) -> tuple[bool, str]:
-        try:
-            r = self._fast_client.get(f"{self._url}/docs")
-            return True, f"GPT-SoVITS reachable (HTTP {r.status_code})"
-        except Exception as e:
-            return False, f"GPT-SoVITS unreachable: {e}"
+        from api.backends import http_health_check
+        return http_health_check(self._url, self._fast_client, "GPT-SoVITS")
 
     def shutdown(self) -> None:
         pass  # 共享连接池，无需关闭
