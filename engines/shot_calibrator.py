@@ -168,7 +168,7 @@ def _enrich_stage(llm: object, shots: list[dict], system: str, label: str, requi
     if not result or not isinstance(result, list):
         return None
 
-    # 按 shot_id 合并
+    # 按 shot_id 合并（shot_id 匹配失败时回退到按索引匹配）
     result_map = {}
     for item in result:
         if isinstance(item, dict):
@@ -177,11 +177,12 @@ def _enrich_stage(llm: object, shots: list[dict], system: str, label: str, requi
                 result_map[sid] = item
 
     merged = []
-    for shot in shots:
+    for i, shot in enumerate(shots):
         sid = shot.get("shot_id", "")
         update = result_map.get(sid, {})
-        merged_shot = {**shot, **update}
-        merged.append(merged_shot)
+        if not update and i < len(result) and isinstance(result[i], dict):
+            update = result[i]
+        merged.append({**shot, **update})
 
     # 校验必填字段
     if required_fields:

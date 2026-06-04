@@ -459,6 +459,7 @@ class Config:
         self._data["_project_dir"] = self._project_dir
         self._warnings: list[str] = []
         self._validate()
+        self._paths_instance: ProjectPaths | None = None
         # 记录源文件 mtime，用于热读取检测
         self._record_mtimes()
 
@@ -522,8 +523,10 @@ class Config:
 
     @property
     def paths(self) -> ProjectPaths:
-        """统一路径管理对象"""
-        return ProjectPaths(self._project_dir)
+        """统一路径管理对象（缓存实例）"""
+        if self._paths_instance is None:
+            self._paths_instance = ProjectPaths(self._project_dir)
+        return self._paths_instance
 
     @property
     def path(self) -> str:
