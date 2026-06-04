@@ -17,7 +17,7 @@ __all__ = ["ensure_portrait", "_view_seed", "_outfit_seed", "_generate_view",
 # 重入保护：正在生成中的角色，防止 build_first_frame → _get_character_refs → ensure_portrait 死循环
 _generating: dict[str, float] = {}  # char_id → start_time（TTL 防残留）
 _generating_lock = threading.Lock()
-_GENERATING_TTL = 1800  # 30 分钟超时，大分辨率+复杂工作流可能耗时较长
+_GENERATING_TTL = 300  # 5 分钟超时（单张定妆照生成不应超过此时间，超时则视为卡死）
 
 
 @dataclass
