@@ -100,8 +100,8 @@ from pydantic import BaseModel, Field
 
 logger = logging.getLogger("musicgen-server")
 
-# 每段最大生成时长（秒），经验上 ≤15s 质量最稳定
-_SEGMENT_SEC = 15
+# 每段最大生成时长（秒），官方推荐 8s 为最佳音质甜区
+_SEGMENT_SEC = 8
 # 交叉淡入淡出时长（秒）
 _CROSSFADE_SEC = 1.0
 
