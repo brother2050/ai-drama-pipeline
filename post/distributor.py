@@ -7,7 +7,7 @@ from pathlib import Path
 
 import yaml
 
-from infra.constants import STATUS_ERROR
+from infra.constants import STATUS_DONE, STATUS_ERROR
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +121,7 @@ def distribute(video: str, platforms: list[str] | None = None) -> dict[str, dict
         compat = check_platform_compat(video, p)
         adapt = get_adapt_params(video, p)
         results[p] = {
-            "status": "ready" if compat["compatible"] else "needs_adapt",
+            "status": STATUS_DONE if compat["compatible"] else "needs_adapt",
             "preset": preset,
             "compatibility": compat,
             "adapt_params": adapt,

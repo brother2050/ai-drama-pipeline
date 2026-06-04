@@ -16,7 +16,7 @@ def resolve_node_aliases(workflow: dict, available_nodes: set[str]) -> dict:
     if not available_nodes:
         return workflow
     aliases = workflow.pop("_node_aliases", {})
-    for nid, node in workflow.items():
+    for nid, node in list(workflow.items()):
         if nid.startswith("_"):
             continue
         ct = node.get("class_type", "")

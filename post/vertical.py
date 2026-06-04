@@ -99,8 +99,8 @@ def to_vertical(video: str, output: str, mode: str = "face_track") -> str:
         # face_track 模式：尝试检测人脸中心，回退到 blur_bg
         face_pos = _find_face_center(video)
         if face_pos:
-            cx, cy = face_pos
-            logger.info(f"检测到人脸中心: ({cx}, {cy})")
+            cx, _cy = face_pos
+            logger.info(f"检测到人脸中心: ({cx}, {_cy})")
             # 以目标 9:16 比例计算裁剪区域
             crop_h = h  # 保持原始高度
             crop_w = int(crop_h * target_w / target_h)  # 对应的裁剪宽度

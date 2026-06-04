@@ -7,8 +7,6 @@ import logging
 import re
 from pathlib import Path
 
-import yaml
-
 from pipeline.celery_app import app
 from pipeline.tasks.helpers import _ensure_path, _paths
 

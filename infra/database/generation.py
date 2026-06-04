@@ -1,23 +1,10 @@
 """生成状态数据库操作 — 按项目隔离（project 自动从 .active 获取）"""
 from __future__ import annotations
 
-from dataclasses import dataclass
 from infra.constants import STATUS_PENDING
 from infra.database._db import query, row_to_dict, _get_project
 
 __all__ = ["upsert_status", "get_shot_status", "get_episode_statuses", "get_pending_shots", "clear_episode"]
-
-
-@dataclass
-class StatusRecord:
-    """生成状态记录 — 消除 upsert_status 的 8 个参数"""
-    episode: int
-    shot_id: str
-    stage: str
-    status: str = STATUS_PENDING
-    path: str = ""
-    error: str = ""
-    elapsed: float = 0.0
 
 
 def upsert_status(pool, episode: int, shot_id: str, stage: str,

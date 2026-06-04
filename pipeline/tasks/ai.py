@@ -80,7 +80,7 @@ def _generate_shots(llm, outline, episode, duration, style, genre):
 
 def _generate_entities_for_storyboard(llm, shots, char_ids, scene_ids, outline, style, genre, paths):
     """生成角色+场景，返回 (id_remap, warnings, error_or_None)"""
-    id_remap, warnings = {}, {}
+    id_remap, warnings = {}, []
     if char_ids:
         result = _generate_characters_for_storyboard(llm, shots, char_ids, outline, style, genre, paths)
         if result.get("error"):
