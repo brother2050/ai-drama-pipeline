@@ -20,21 +20,28 @@ _merged_cache: dict = {"data": None, "path": None, "ts": 0}
 _CFG_TTL = 5.0
 
 
+def _cache_get(cache: dict, path: str, loader):
+    """通用 TTL 缓存：命中返回缓存数据，miss 调用 loader(path) 并更新缓存。"""
+    now = time.monotonic()
+    if cache["data"] is not None and cache["path"] == path and now - cache["ts"] < _CFG_TTL:
+        return cache["data"]
+    data = loader(path)
+    cache.update(data=data, path=path, ts=now)
+    return data
+
+
 def _cfg() -> dict:
     """获取项目级配置（不含 system.yaml 合并）。
 
     用途：读取 project.yaml 中的项目名、风格等项目专属字段。
     与 _merged_cfg() 的区别：_merged_cfg() 会合并 system.yaml 的全局配置。
     """
-    path = _cfg_path()
-    now = time.monotonic()
-    if _cfg_cache["data"] is not None and _cfg_cache["path"] == path and now - _cfg_cache["ts"] < _CFG_TTL:
-        return _cfg_cache["data"]
-    from infra.config import Config
-    data = Config(path).data
-    data.pop("_project_dir", None)
-    _cfg_cache.update(data=data, path=path, ts=now)
-    return data
+    def _load(path):
+        from infra.config import Config
+        data = Config(path).data
+        data.pop("_project_dir", None)
+        return data
+    return _cache_get(_cfg_cache, _cfg_path(), _load)
 
 
 def _merged_cfg() -> dict:
@@ -43,14 +50,10 @@ def _merged_cfg() -> dict:
     用途：读取 ComfyUI URL、LLM 配置、TTS 后端等系统级+项目级合并后的最终值。
     大多数场景应使用此函数，而非 _cfg()。
     """
-    path = _cfg_path()
-    now = time.monotonic()
-    if _merged_cache["data"] is not None and _merged_cache["path"] == path and now - _merged_cache["ts"] < _CFG_TTL:
-        return _merged_cache["data"]
-    from infra.config import Config
-    data = Config(path).data
-    _merged_cache.update(data=data, path=path, ts=now)
-    return data
+    def _load(path):
+        from infra.config import Config
+        return Config(path).data
+    return _cache_get(_merged_cache, _cfg_path(), _load)
 
 
 _paths_cache: ProjectPaths | None = None

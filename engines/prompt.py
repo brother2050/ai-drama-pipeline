@@ -9,6 +9,9 @@ from infra.constants import is_ascii_only
 
 logger = logging.getLogger(__name__)
 
+# SD1.5 CLIP tokenizer: 1 token ≈ 4 英文字符（含逗号和空格）
+_CHARS_PER_TOKEN = 4
+
 __all__ = [
     "PromptBuildParams", "batch_generate_appearance_prompts", "get_view_appearance",
     "build_prompt", "translate_to_english", "batch_translate_to_english",
@@ -261,25 +264,21 @@ def _truncate_tag_prompt(prompt: str, max_tokens: int = 75) -> str:
     """将逗号分隔的 tag prompt 截断到指定 token 数以内。
 
     SD1.5 CLIP tokenizer 限制 75 tokens（不含 start/end token）。
-    粗略估算：1 token ≈ 4 字符（英文），按逗号分隔的 tag 边界截断，
-    保留前面的 tag（style/genre/scene/character 优先），丢弃末尾溢出部分。
-
-    注意：token 估算仅适用于英文 tag（CLIP 对中文约 2 字符/token，
-    但首帧 prompt 通常是英文，中文场景罕见）。
+    按逗号分隔的 tag 边界截断，保留前面的 tag（style/genre/scene/character 优先），
+    丢弃末尾溢出部分。
     """
-    # 粗略估算 token 数（英文约 4 字符/token，含逗号和空格）
-    est_tokens = len(prompt) / 4
+    est_tokens = len(prompt) / _CHARS_PER_TOKEN
     if est_tokens <= max_tokens:
         return prompt
 
     # 按逗号拆分，逐个 tag 累加，超出限制时截断
+    char_limit = max_tokens * _CHARS_PER_TOKEN
     tags = [t.strip() for t in prompt.split(",") if t.strip()]
     result = []
     char_count = 0
     for tag in tags:
-        # 估算新增 token：tag 字符数/4 + 1(逗号+空格)
-        tag_cost = len(tag) / 4 + 1
-        if char_count + tag_cost > max_tokens * 4:
+        tag_cost = len(tag) / _CHARS_PER_TOKEN + 1
+        if char_count + tag_cost > char_limit:
             break
         result.append(tag)
         char_count += len(tag) + 2  # ", " = 2 chars

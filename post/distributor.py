@@ -1,6 +1,7 @@
 """多平台分发 — 注册表驱动，平台参数从 config/platforms.yaml 加载"""
 from __future__ import annotations
 
+import functools
 import logging
 from pathlib import Path
 
@@ -24,11 +25,10 @@ def _load_platforms() -> dict:
         return yaml.safe_load(f) or {}
 
 
+@functools.lru_cache(maxsize=1)
 def get_platform_presets() -> dict:
-    """获取所有平台预设（带缓存）"""
-    if not hasattr(get_platform_presets, "_cache"):
-        get_platform_presets._cache = _load_platforms()
-    return get_platform_presets._cache
+    """获取所有平台预设（进程级缓存，重启后重置）"""
+    return _load_platforms()
 
 
 def get_video_info(video: str) -> dict:

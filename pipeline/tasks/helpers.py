@@ -129,6 +129,8 @@ def _try_mark_running_atomic(episode: int, shot_id: str, step: str) -> bool:
 # ══════════════════════════════════════════════════════════
 
 _PROJECTS_DIR = None  # 延迟初始化，从 infra.config.get_root() 推导
+# 进程内缓存：Celery prefork 模型下每个 Worker 子进程独立持有副本，天然安全。
+# 若切换到 eventlet/gevent 等协程模型，需改用 threading.local() 或 per-task 缓存。
 _ctx_cache: tuple[str, object, object] | None = None  # (config_path, Config, Container)
 _ctx_lock = threading.Lock()
 

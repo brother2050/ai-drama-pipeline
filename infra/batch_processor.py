@@ -89,6 +89,7 @@ class AdaptiveBatchProcessor:
         limits = self._get_limits(llm)
         self._input_budget = min(int(limits["context_window"] * 0.6), hard_cap_tokens)
         self._output_budget = int(limits["max_output"] * 0.8)  # 留 20% 给格式开销
+        self._last_error: Exception | None = None
 
     def _get_limits(self, llm) -> dict:
         """从 ModelRegistry 查询模型限制，带 fallback"""
@@ -190,8 +191,6 @@ class AdaptiveBatchProcessor:
                     logger.warning(f"批次失败 (尝试 {attempt+1}), {wait}s 后重试: {e}")
                     time.sleep(wait)
         raise last_error
-
-    _last_error: Exception | None = None
 
     def _learn_from_last_error(self) -> None:
         """从 API 错误中学习模型限制"""
