@@ -108,8 +108,12 @@ def to_vertical(video: str, output: str, mode: str = "face_track") -> str:
             vf = (f"crop={crop_w}:{crop_h}:{crop_x}:0,scale={target_w}:{target_h}")
         else:
             logger.info("未检测到人脸，使用模糊背景模式")
-            vf = (f"split[original][blur];[blur]scale={target_w}:{target_h},boxblur=20[bg];"
-                  f"[original]scale=-2:{target_h}[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2")
+            # 背景: 铺满 9:16 + 模糊；前景: 等比缩放适配 9:16 框，居中叠加
+            vf = (f"split[original][blur];"
+                  f"[blur]scale={target_w}:{target_h},boxblur=20[bg];"
+                  f"[original]scale={target_w}:{target_h}"
+                  f":force_original_aspect_ratio=decrease[fg];"
+                  f"[bg][fg]overlay=(W-w)/2:(H-h)/2")
 
     cmd = [ffmpeg, "-y", "-i", video, "-vf", vf, "-c:a", "copy", output]
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=1200)
