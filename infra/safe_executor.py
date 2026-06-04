@@ -83,7 +83,16 @@ def safe_run(
             if timeout:
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as te:
                     future = te.submit(fn, *args, **kwargs)
-                    return future.result(timeout=timeout)
+                    try:
+                        return future.result(timeout=timeout)
+                    except concurrent.futures.TimeoutError:
+                        # 后台线程无法取消（Python 不支持强制终止线程），
+                        # 线程将在完成后自动回收。长时间任务应配合外部取消机制。
+                        logger.warning(
+                            f"[SafeExecutor] {task_id or fn.__name__}: "
+                            f"执行超时 ({timeout}s)，后台线程继续运行直至完成"
+                        )
+                        raise
             else:
                 return fn(*args, **kwargs)
         except retryable as e:

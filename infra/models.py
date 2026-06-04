@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import copy
 import logging
 import re
 from pathlib import Path
@@ -283,6 +284,11 @@ def normalize_character(char: dict) -> dict:
     适用场景：LLM 生成、Seko 导入、Web 手动创建。
     确保无论数据来源如何，输出格式一致。
     """
+    # 浅拷贝避免就地修改调用方的原始 dict
+    char = dict(char)
+    # outfits 深拷贝：后续会就地修改（添加 default 键、转换格式）
+    if isinstance(char.get("outfits"), dict):
+        char["outfits"] = copy.deepcopy(char["outfits"])
     # bible: 确保存在且有 core_traits
     bible = char.get("bible")
     if not isinstance(bible, dict):

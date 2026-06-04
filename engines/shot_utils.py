@@ -76,7 +76,7 @@ def strip_dialogue(text: str) -> str:
     text = re.sub(rf'\b{_SPEECH}\s*[:：]\s*["\'][^"\']*["\']', '', text, flags=re.IGNORECASE)
     text = re.sub(rf'\b{_SPEECH}\s*[:：]\s*[^,.]{{0,30}}[,.]?\s*', ' ', text, flags=re.IGNORECASE)
     # 中文：[主语][动作]对话动词[：]["内容"]
-    _VERB = r'[说喊道问答呼吼叫骂叹叫嚷]'
+    _VERB = r'(?:嘟囔|嘀咕|唠叨|念叨|絮叨|嚷嚷|咆哮|嘶吼|低语|呢喃|自言自语|[说喊道问答呼吼叫骂叹叫嚷讲念])'
     _PRE = r'(?:[他她我你您它們们]|\w{0,4})'
     text = re.sub(rf'(?:^|[，。,.、\s])\s*{_PRE}\s*{_VERB}{{1,3}}[着道了口气声]*\s*[：:]?\s*[""「].*?[""」]', '', text)
     text = re.sub(rf'(?:^|[，。,.、\s])\s*{_PRE}\s*{_VERB}{{1,3}}[着道了口气声]*\s*[：:]\s*[^，。,.]{{0,30}}[，。,.]?\s*', '', text)
