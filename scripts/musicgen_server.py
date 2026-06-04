@@ -183,7 +183,7 @@ def _setup_hf_env():
 
 
 def load_model(model_size: str = "medium", quantize: bool = False):
-    """加载 MusicGen 模型"""
+    """加载 MusicGen 模型（优先本地缓存，无缓存时自动下载）"""
     global _model, _processor, _samplerate, _model_name, _is_quantized, _vram_total_mb
     from transformers import AutoProcessor, MusicgenForConditionalGeneration
 
@@ -195,7 +195,13 @@ def load_model(model_size: str = "medium", quantize: bool = False):
     logger.info(f"加载模型: {model_name} (quantize={quantize}) ...")
     t0 = time.time()
 
-    _processor = AutoProcessor.from_pretrained(model_name, use_fast=True)
+    # 优先本地缓存，无缓存时自动下载
+    try:
+        _processor = AutoProcessor.from_pretrained(model_name, use_fast=True,
+                                                   local_files_only=True)
+    except Exception:
+        logger.info("本地无缓存，从 HuggingFace 下载...")
+        _processor = AutoProcessor.from_pretrained(model_name, use_fast=True)
 
     if quantize:
         from transformers import BitsAndBytesConfig
@@ -204,20 +210,23 @@ def load_model(model_size: str = "medium", quantize: bool = False):
             bnb_4bit_compute_dtype=torch.float16,
             bnb_4bit_quant_type="nf4",
         )
-        _model = MusicgenForConditionalGeneration.from_pretrained(
-            model_name,
-            quantization_config=bnb_config,
-            device_map="auto",
-            use_safetensors=True,
-            torch_dtype=torch.float16,
-        )
+        try:
+            _model = MusicgenForConditionalGeneration.from_pretrained(
+                model_name, quantization_config=bnb_config, device_map="auto",
+                use_safetensors=True, torch_dtype=torch.float16, local_files_only=True)
+        except Exception:
+            _model = MusicgenForConditionalGeneration.from_pretrained(
+                model_name, quantization_config=bnb_config, device_map="auto",
+                use_safetensors=True, torch_dtype=torch.float16)
         logger.info("已启用 4-bit NF4 量化")
     else:
-        _model = MusicgenForConditionalGeneration.from_pretrained(
-            model_name,
-            use_safetensors=True,
-            torch_dtype=torch.float16,
-        )
+        try:
+            _model = MusicgenForConditionalGeneration.from_pretrained(
+                model_name, use_safetensors=True, torch_dtype=torch.float16,
+                local_files_only=True)
+        except Exception:
+            _model = MusicgenForConditionalGeneration.from_pretrained(
+                model_name, use_safetensors=True, torch_dtype=torch.float16)
         device = "cuda" if torch.cuda.is_available() else "cpu"
         _model = _model.to(device)
 
