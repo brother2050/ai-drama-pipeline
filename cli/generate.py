@@ -107,8 +107,13 @@ def register_generate_commands(cli):
         char_dir = paths.characters_dir
         char_dir.mkdir(parents=True, exist_ok=True)
 
+        seen_ids = set()
         for char in chars:
             cid = char.get("id", "unknown")
+            if cid in seen_ids:
+                console.print(f"[yellow]⚠ 跳过重复 id: {cid}[/yellow]")
+                continue
+            seen_ids.add(cid)
             path = char_dir / f"{cid}.yaml"
             save_yaml(path, {"character": char})
             console.print(f"  ✅ {char.get('name', '?')} ({cid}) → {path.name}")
@@ -142,8 +147,13 @@ def register_generate_commands(cli):
         scene_dir = paths.scenes_dir
         scene_dir.mkdir(parents=True, exist_ok=True)
 
+        seen_ids = set()
         for scene in scene_list:
             sid = scene.get("id", "unknown")
+            if sid in seen_ids:
+                console.print(f"[yellow]⚠ 跳过重复 id: {sid}[/yellow]")
+                continue
+            seen_ids.add(sid)
             path = scene_dir / f"{sid}.yaml"
             save_yaml(path, {"scene": scene})
             console.print(f"  ✅ {scene.get('name', '?')} ({sid}) → {path.name}")

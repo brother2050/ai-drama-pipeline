@@ -236,9 +236,9 @@ def _check_comfyui(cfg: dict) -> tuple[bool, str]:
     if not url:
         return False, ""
     try:
-        from infra.http_pool import get_fast_client
+        from infra.http_pool import get_fast_client, auth_headers
         api_key = cfg.get("comfyui", {}).get("api_key", "")
-        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        headers = auth_headers(api_key, content_type="") if api_key else {}
         r = get_fast_client().get(f"{url}/system_stats", headers=headers)
         return r.status_code == 200, url
     except Exception:
@@ -255,12 +255,12 @@ def _check_llm(cfg: dict, defaults: dict) -> tuple[bool, str, str, bool]:
     if not base_url:
         return False, backend, base_url, True
     try:
-        from infra.http_pool import get_fast_client
+        from infra.http_pool import get_fast_client, auth_headers
         check_url = base_url.rstrip("/")
         if not check_url.endswith("/v1"):
             check_url += "/v1"
         api_key = llm_cfg.get("api_key", "")
-        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        headers = auth_headers(api_key) if api_key else {}
         r = get_fast_client().get(f"{check_url}/models", headers=headers)
         return r.status_code == 200, backend, base_url, True
     except Exception:

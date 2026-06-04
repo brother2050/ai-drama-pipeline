@@ -45,15 +45,29 @@ def register_pipeline_commands(cli):
     @click.option("-c", "--config", "config_path", default=None)
     @click.option("--force", is_flag=True, help="强制覆盖已有翻译")
     @click.option("--no-translate", is_flag=True, help="跳过翻译")
-    def prepare(episode, config_path, force, no_translate):
+    @click.option("--local", is_flag=True, help="本地执行（不走 Celery）")
+    def prepare(episode, config_path, force, no_translate, local):
         """准备阶段 — 批量预翻译（生产前运行一次）"""
-        from cli import _ensure_deps, _resolve_config, _run_via_celery
-        _ensure_deps()
+        from cli import _ensure_deps, _ensure_deps_no_db, _resolve_config, _run_via_celery
         cfg = _resolve_config(config_path)
-        console.print(f"\n[bold cyan]🔧 准备阶段 第{episode}集[/bold cyan]\n")
-        if not _run_via_celery("pipeline_ai_prepare", cfg, episode,
-                               force=force, translate=not no_translate):
-            sys.exit(1)
+
+        if local:
+            from cli import _load_env
+            _load_env()
+            console.print(f"\n[bold cyan]🔧 准备阶段 第{episode}集 — 本地模式[/bold cyan]\n")
+            from engines.llm_generator import batch_translate_shots
+            try:
+                batch_translate_shots(cfg, episode, force=force, translate=not no_translate)
+            except Exception as e:
+                console.print(f"[red]❌ 准备阶段失败: {e}[/red]")
+                sys.exit(1)
+            console.print("[bold green]✅ 准备阶段完成！[/bold green]")
+        else:
+            _ensure_deps()
+            console.print(f"\n[bold cyan]🔧 准备阶段 第{episode}集[/bold cyan]\n")
+            if not _run_via_celery("pipeline_ai_prepare", cfg, episode,
+                                   force=force, translate=not no_translate):
+                sys.exit(1)
 
     @cli.command()
     @click.argument("episode", type=int)

@@ -55,9 +55,8 @@ def _resolve_config(config_path: str | None = None) -> str:
 
 
 def _ensure_deps():
-    """启动前检查"""
+    """启动前检查（Redis + PostgreSQL + 初始化全局资源）"""
     _load_env()
-    from infra.network import port_ok, redis_port
     if not _ensure_redis():
         sys.exit(1)
     if not _ensure_postgres():
@@ -65,6 +64,19 @@ def _ensure_deps():
     from infra.globals import init_globals
     init_globals()
     # 启动文件系统监控（角色/场景 YAML 变化自动失效缓存）
+    _start_file_monitor()
+
+
+def _ensure_deps_no_db():
+    """启动前检查（仅 Redis，不要求 PostgreSQL）— 用于 local 模式"""
+    _load_env()
+    if not _ensure_redis():
+        sys.exit(1)
+    try:
+        from infra.globals import init_globals
+        init_globals()
+    except Exception as e:
+        logger.debug(f"全局资源初始化跳过: {e}")
     _start_file_monitor()
 
 
@@ -96,25 +108,29 @@ def _ensure_redis() -> bool:
     if redis:
         subprocess.Popen([redis, "--daemonize", "yes"],
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        time.sleep(1)
-        if _port_open(_redis_port()):
-            console.print("[green]✅ Redis 已启动[/green]")
-            return True
+        # 等待 Redis 启动（最多 3 秒）
+        for _ in range(6):
+            time.sleep(0.5)
+            if _port_open(_redis_port()):
+                console.print("[green]✅ Redis 已启动[/green]")
+                return True
 
     if shutil.which("brew"):
         subprocess.run(["brew", "services", "start", "redis"],
                        capture_output=True, timeout=30)
-        time.sleep(1)
-        if _port_open(_redis_port()):
-            return True
+        for _ in range(6):
+            time.sleep(0.5)
+            if _port_open(_redis_port()):
+                return True
 
     if sys.platform == "win32":
         for cmd in [["net", "start", "Redis"], ["sc", "start", "Redis"]]:
             try:
                 subprocess.run(cmd, capture_output=True, timeout=30)
-                time.sleep(2)
-                if _port_open(_redis_port()):
-                    return True
+                for _ in range(6):
+                    time.sleep(0.5)
+                    if _port_open(_redis_port()):
+                        return True
             except Exception:
                 continue
 

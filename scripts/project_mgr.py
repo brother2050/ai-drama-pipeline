@@ -208,7 +208,9 @@ def create_project(name: str, root: Path, console, style: str = "cinematic", gen
     console.print(f"[green]✅ 项目 '{name}' 已创建并设为当前[/green]")
     console.print(f"[dim]  路径: {project_dir}[/dim]")
     console.print(f"[dim]  风格: {style} | 题材: {genre}[/dim]")
-    console.print(f"[dim]  已生成: 2 角色 + 2 场景 + 8 分镜[/dim]")
+    if name == DEFAULT_PROJECT:
+        from config.default_storyboard import DEFAULT_CHARACTERS, DEFAULT_SCENES, DEFAULT_SHOTS
+        console.print(f"[dim]  已生成: {len(DEFAULT_CHARACTERS)} 角色 + {len(DEFAULT_SCENES)} 场景 + {len(DEFAULT_SHOTS)} 分镜[/dim]")
     console.print(f"[dim]  下一步: drama serve 启动工作台[/dim]")
 
 

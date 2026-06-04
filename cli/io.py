@@ -54,6 +54,9 @@ def register_io_commands(cli):
 
         if name:
             data["project_name"] = name
+        if not data.get("project_name"):
+            console.print("[red]❌ JSON 中缺少 project_name 字段[/red]")
+            sys.exit(1)
         if append:
             data["append"] = True
 
