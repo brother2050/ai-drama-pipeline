@@ -8,7 +8,7 @@ from fastapi import APIRouter, HTTPException
 from web.routers.deps import (
     _cfg_path, _paths,
     _check_id, _submit_task,
-    yaml_list, yaml_save, parse_entity, yaml_delete,
+    yaml_list, yaml_save, parse_entity, yaml_delete, yaml_batch_delete,
 )
 
 logger = logging.getLogger(__name__)
@@ -38,17 +38,7 @@ def delete_scene(scene_id: str) -> dict:
 
 @router.post("/scenes/batch-delete")
 def batch_delete_scenes(req: BatchDeleteRequest) -> dict:
-    deleted = []
-    errors = []
-    for scene_id in req.ids:
-        try:
-            yaml_delete("scenes", scene_id, "场景")
-            deleted.append(scene_id)
-        except HTTPException as e:
-            errors.append({"id": scene_id, "error": e.detail})
-        except Exception as e:
-            errors.append({"id": scene_id, "error": str(e)})
-    return {"status": "ok", "deleted": deleted, "errors": errors}
+    return yaml_batch_delete("scenes", req.ids, "场景")
 
 
 @router.post("/scenes/{scene_id}/generate-image")

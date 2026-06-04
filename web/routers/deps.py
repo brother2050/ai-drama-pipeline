@@ -233,3 +233,17 @@ def yaml_delete(yaml_dir: str, entity_id: str, label: str) -> None:
     asset_dir = p.assets_entity_dir(yaml_dir) / entity_id
     if asset_dir.exists():
         shutil.rmtree(asset_dir, ignore_errors=True)
+
+
+def yaml_batch_delete(yaml_dir: str, entity_ids: list[str], label: str) -> dict:
+    """通用 YAML 批量删除（消除 characters/scenes 重复的 batch_delete 逻辑）"""
+    deleted, errors = [], []
+    for eid in entity_ids:
+        try:
+            yaml_delete(yaml_dir, eid, label)
+            deleted.append(eid)
+        except HTTPException as e:
+            errors.append({"id": eid, "error": e.detail})
+        except Exception as e:
+            errors.append({"id": eid, "error": str(e)})
+    return {"status": "ok", "deleted": deleted, "errors": errors}

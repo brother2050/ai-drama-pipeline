@@ -6,7 +6,7 @@
 
 ## P0 — 运行时崩溃
 
-- [ ] `cli/__init__.py:80` — `logger.debug()` 调用但 `logger` 未定义，`_ensure_deps_no_db()` 异常时必崩 `NameError`
+- [x] `cli/__init__.py:80` — `logger.debug()` 调用但 `logger` 未定义，`_ensure_deps_no_db()` 异常时必崩 `NameError` → `b5d9612`
 
 ## P1 — 重复代码（违反 DRY）
 

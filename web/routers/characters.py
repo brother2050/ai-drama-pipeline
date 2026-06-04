@@ -9,7 +9,7 @@ from web.routers.deps import (
     _cfg_path, _paths,
     _check_id, _submit_task,
     require_tool,
-    yaml_list, yaml_save, parse_entity, yaml_delete,
+    yaml_list, yaml_save, parse_entity, yaml_delete, yaml_batch_delete,
 )
 
 logger = logging.getLogger(__name__)
@@ -39,17 +39,7 @@ def delete_character(char_id: str) -> dict:
 
 @router.post("/characters/batch-delete")
 def batch_delete_characters(req: BatchDeleteRequest) -> dict:
-    deleted = []
-    errors = []
-    for char_id in req.ids:
-        try:
-            yaml_delete("characters", char_id, "角色")
-            deleted.append(char_id)
-        except HTTPException as e:
-            errors.append({"id": char_id, "error": e.detail})
-        except Exception as e:
-            errors.append({"id": char_id, "error": str(e)})
-    return {"status": "ok", "deleted": deleted, "errors": errors}
+    return yaml_batch_delete("characters", req.ids, "角色")
 
 
 @router.post("/characters/{char_id}/generate-portrait")
