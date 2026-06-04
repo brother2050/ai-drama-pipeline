@@ -7,9 +7,10 @@
 
 ## 🔴 高严重性
 
-### 1. shot_task 使用排队时的旧数据
+### 1. ~~shot_task 使用排队时的旧数据~~ ✅ 已修复
 - **类型**: 功能
-- **文件**: `pipeline/tasks/pipeline.py` — `_run_shot_steps`
+- **文件**: `pipeline/tasks/pipeline.py` — `_shot_task_inner`
+- **修复**: 在 `_shot_task_inner` 开始时从 DB 读取最新 shot 数据，覆盖 Celery 参数中的旧数据。
 - **问题**: `shot_task` 从 Celery 参数获取 `shot_data`，但用户可能在任务排队期间修改了分镜，导致任务使用过时数据。
 - **影响**: 所有异步管线任务
 - **修复**: 在 `_prepare` 中强制从 DB 读取最新 shot，忽略传入参数；或在 `shot_task` 开始时从 DB 重新读取。

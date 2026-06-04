@@ -649,6 +649,11 @@ class WorkflowBuilder:
         Args:
             _no_auto_gen: 内部标志，禁止自动触发 ensure_portrait（防止递归）
         """
+        # 实例级缓存：同一 WorkflowBuilder 内避免并发重复查找/生成
+        cache_key = f"{char_id}:{outfit}"
+        if cache_key in self._refs_cache:
+            return self._refs_cache[cache_key]
+
         from engines.portrait import ensure_portrait
 
         char_dir = self._paths.character_asset_dir(char_id)
@@ -661,11 +666,15 @@ class WorkflowBuilder:
                 for ext in ("*.png", "*.jpg", "*.jpeg"):
                     refs.extend(str(p) for p in outfit_dir.glob(ext))
             if refs:
-                return sorted(refs)
+                result = sorted(refs)
+                self._refs_cache[cache_key] = result
+                return result
 
             # outfit 目录为空，尝试触发 ensure_portrait（auto_outfit 会补充 outfit 图）
             if _no_auto_gen:
-                return sorted(refs)
+                result = sorted(refs)
+                self._refs_cache[cache_key] = result
+                return result
             portrait = ensure_portrait(char_id, self.config,
                                        self._get_container(),
                                        force=self.force)
@@ -674,7 +683,9 @@ class WorkflowBuilder:
                 for ext in ("*.png", "*.jpg", "*.jpeg"):
                     refs.extend(str(p) for p in outfit_dir.glob(ext))
             if refs:
-                return sorted(refs)
+                result = sorted(refs)
+                self._refs_cache[cache_key] = result
+                return result
 
         # 2. 回退到角色根目录（重置 refs，避免 outfit 残留污染）
         refs = []
@@ -682,15 +693,20 @@ class WorkflowBuilder:
             for ext in ("*.png", "*.jpg", "*.jpeg"):
                 refs.extend(str(p) for p in char_dir.glob(ext))
         if refs:
-            return sorted(refs)
+            result = sorted(refs)
+            self._refs_cache[cache_key] = result
+            return result
 
         # 3. 尝试自动定妆照（主图也不存在时）
         if _no_auto_gen:
-            return sorted(refs)
+            result = sorted(refs)
+            self._refs_cache[cache_key] = result
+            return result
         portrait = ensure_portrait(char_id, self.config,
                                    self._get_container(),
                                    force=self.force)
         if portrait:
+            self._refs_cache[cache_key] = [portrait]
             return [portrait]
 
         # 4. 从全局主体库查找
@@ -700,4 +716,6 @@ class WorkflowBuilder:
             for ext in ("*.png", "*.jpg", "*.jpeg"):
                 refs.extend(str(p) for p in shared_dir.glob(ext))
 
-        return sorted(refs)
+        result = sorted(refs)
+        self._refs_cache[cache_key] = result
+        return result
