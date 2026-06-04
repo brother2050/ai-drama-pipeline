@@ -264,9 +264,27 @@ def _generate_batch(prompts: list[str], durations: list[int]) -> list[np.ndarray
     batch_ids = torch.stack(input_ids_list).to(_model.device)
     batch_mask = torch.stack(attention_mask_list).to(_model.device)
 
-    with torch.no_grad():
-        audio = _model.generate(input_ids=batch_ids, attention_mask=batch_mask,
-                                max_new_tokens=max_tokens)
+    try:
+        with torch.no_grad():
+            audio = _model.generate(input_ids=batch_ids, attention_mask=batch_mask,
+                                    max_new_tokens=max_tokens)
+    except Exception as e:
+        # batch generate 失败（量化模型兼容性问题），回退逐段串行
+        logger.warning(f"batch generate 失败: {e}，回退逐段串行")
+        results = []
+        for i, (prompt, target_frames, duration) in enumerate(zip(prompts, target_frames_list, durations)):
+            if _is_quantized:
+                mt = min(int(duration * 1.5 * (_samplerate // 256)), 3000)
+            else:
+                mt = min(int(duration * 2 * (_samplerate // 256)), 3000)
+            inp = _processor(text=[prompt], return_tensors="pt").to(_model.device)
+            with torch.no_grad():
+                aud = _model.generate(**inp, max_new_tokens=mt)
+            arr = aud[0, 0].cpu().numpy()
+            arr = arr.astype(np.float32) if arr.dtype == np.float16 else arr
+            results.append(arr[:target_frames])
+            logger.info(f"  段 {i+1}/{len(prompts)}: {duration}s 完成")
+        return results
 
     results = []
     for i, target_frames in enumerate(target_frames_list):
