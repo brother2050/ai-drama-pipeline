@@ -58,7 +58,7 @@ def _ensure_deps():
     """启动前检查"""
     _load_env()
     from infra.network import port_ok, redis_port
-    if not _ensure_redis(port_ok, redis_port):
+    if not _ensure_redis():
         sys.exit(1)
     if not _ensure_postgres():
         sys.exit(1)
@@ -66,7 +66,7 @@ def _ensure_deps():
     init_globals()
 
 
-def _ensure_redis(port_ok, redis_port) -> bool:
+def _ensure_redis() -> bool:
     import shutil
     import subprocess
     import time

@@ -51,23 +51,26 @@
 
 ## 🟡 中严重性
 
-### 6. batch_translate_to_english 空批次崩溃
+### 6. ~~batch_translate_to_english 空批次崩溃~~ ✅ 已有修复
 - **类型**: 功能
 - **文件**: `engines/prompt.py` — `_merge_translate_results`
+- **状态**: 代码已处理 `batch_data is None` 情况，使用估算的 batch_len 跳过失败批次。
 - **问题**: `batch_data` 为 None 时，`len(batch_data)` 抛出 TypeError。
 - **影响**: 批量翻译中某批次完全失败时崩溃
 - **修复**: 添加 None 检查，从 `batch_result` 额外记录每批大小。
 
-### 7. _apply_preset resolution 格式校验缺失
+### 7. ~~_apply_preset resolution 格式校验缺失~~ ✅ 已有修复
 - **类型**: 逻辑
 - **文件**: `pipeline/tasks/pipeline.py` — `_apply_preset`
+- **状态**: 代码已添加 `if not isinstance(base_res, (list, tuple)) or len(base_res) != 2: return config_path` 校验。
 - **问题**: `base_res` 可能是 `[1024]`（单元素列表），`base_res[1]` 会 IndexError。
 - **影响**: preset=high 且 generation.resolution 配置不完整时崩溃
 - **修复**: 添加 `if not isinstance(base_res, list) or len(base_res) != 2: return config_path`
 
-### 8. project_scope 非线程安全
+### 8. ~~project_scope 非线程安全~~ ✅ 已有修复
 - **类型**: 逻辑
 - **文件**: `infra/database/_db.py` — `project_scope`
+- **状态**: 代码已使用 `threading.local()` 实现 per-thread 项目上下文，问题已解决。
 - **问题**: 全局 `_project_cache` 在多线程环境下被并发修改。线程 A 设置为 "project_a"，线程 B 立即覆盖为 "project_b"，导致 A 的 DB 操作写入错误项目。
 - **影响**: 多线程并发项目切换时 DB 写入错误项目
 - **修复**: 使用 `threading.local()` 存储每个线程的 project 上下文。
@@ -75,20 +78,28 @@
 ### 9. _reset_proj_cache 直接修改其他模块全局变量
 - **类型**: 功能
 - **文件**: `web/routers/deps.py` — `_reset_proj_cache`
+- **状态**: 已知设计债务，当前不影响功能。建议未来改为信号/事件机制。
 - **问题**: 直接 import 并修改 `pipeline.tasks.helpers._ctx_cache`，可能触发意外的模块导入副作用。
 - **影响**: 项目切换时的脆弱性
 - **修复**: 使用信号/事件机制或版本号检查。
 
-### 10. 五视图右侧视图使用左侧 prompt
+### 10. ~~五视图右侧视图使用左侧 prompt~~ ✅ 已有修复
 - **类型**: 逻辑
-- **文件**: `engines/portrait.py` — `_generate_five_views` / `get_view_appearance`
+- **文件**: `engines/portrait.py` — `_generate_view`
+- **状态**: 代码已优先使用 `build_view_prompt(base_en, body_features, p.view_key)` 直接传入正确的 view_key，不走 `get_view_appearance` 的 shot_type 推断。
 - **问题**: `_FIVE_VIEWS` 中 `right_side` 的 `shot_type` 是 "侧面特写"，`get_view_appearance` 中 "侧面" 映射到 `left_side`，导致右侧视图使用了左侧 prompt。
 - **影响**: 五视图生成，右侧视图与左侧视图 prompt 相同
 - **修复**: 在 `_generate_view` 中直接使用 `build_view_prompt(base_en, body_features, p.view_key)` 而不是 `get_view_appearance`。
 
-### 11. 参考图上传失败不阻止工作流
+### 11. ~~参考图上传失败不阻止工作流~~ ✅ 已修复
 - **类型**: 功能
 - **文件**: `pipeline/tasks/steps.py` — `_upload_reference_images`
+- **修复**: 角色参考图上传失败改为硬错误（raise RuntimeError），场景图上传失败仍为软警告。
+
+### 12. ~~Container.reload 锁内耗时操作~~ ✅ 已有修复
+- **类型**: 逻辑
+- **文件**: `api/registry.py` — `Container.reload`
+- **状态**: 代码已将 shutdown + create 移到锁外执行，锁内仅做比较和实例替换。
 - **问题**: 上传失败只记录 warning，不阻止工作流执行。ComfyUI 使用不存在的文件名可能报错或生成质量差。
 - **影响**: 首帧生成质量
 - **修复**: 上传失败时抛出异常或返回错误状态。
@@ -100,16 +111,18 @@
 - **影响**: 配置热重载时的服务中断
 - **修复**: 将 shutdown + create 移到锁外执行。
 
-### 13. append_storyboard episode=0 逻辑错误
+### 13. ~~append_storyboard episode=0 逻辑错误~~ ✅ 已有修复
 - **类型**: 逻辑
 - **文件**: `engines/storyboard.py` — `append_storyboard`
+- **状态**: 代码已改为 `episode if episode is not None else ...`，正确处理 episode=0。
 - **问题**: `episode = episode or int(...)` 中，episode=0 是 falsy，会回退到 shot 中的 episode。
 - **影响**: 追加分镜时 episode=0 行为不符合预期
 - **修复**: 改为 `episode = episode if episode is not None else int(...)`
 
-### 14. save_storyboard episode 类型不一致
+### 14. ~~save_storyboard episode 类型不一致~~ ✅ 已修复
 - **类型**: 功能
 - **文件**: `web/routers/storyboard.py` — `save_storyboard`
+- **修复**: `shot["episode"] = str(episode)` 改为 `shot["episode"] = episode`，保持 int 类型。
 - **问题**: `shot["episode"] = str(episode)` 将 int 转为 str，但 DB schema 中 episode 是 INTEGER。
 - **影响**: 类型混淆的潜在风险
 - **修复**: 统一 episode 类型为 int。
@@ -160,10 +173,8 @@
 - **问题**: 检查结果只记录 warning，不阻止工作流。
 - **修复**: 将结果返回给调用方。
 
-### 22. _ensure_redis 参数被忽略
-- **类型**: 代码
-- **文件**: `cli/__init__.py`
-- **问题**: 函数参数 `port_ok` 和 `redis_port` 被忽略，内部重新 import。
+### 22. ~~_ensure_redis 参数被忽略~~ ✅ 已有修复
+- **状态**: 函数已改为无参数版本，直接内部 import。
 - **修复**: 删除参数或删除内部 import。
 
 ### 23. init_schema 使用 split(";") 分割 SQL

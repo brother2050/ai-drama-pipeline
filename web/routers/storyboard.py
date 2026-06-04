@@ -133,7 +133,7 @@ def save_storyboard(episode: int, req: StoryboardSaveRequest) -> dict:
     _check_episode(episode)
     shots = [s.model_dump() for s in req.shots]
     for shot in shots:
-        shot["episode"] = str(episode)
+        shot["episode"] = episode
     from engines.storyboard import save_storyboard
     save_storyboard(shots, episode)
 

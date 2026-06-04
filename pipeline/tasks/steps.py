@@ -146,14 +146,22 @@ def _upload_reference_images(wf: dict, shot: dict, wb, comfyui, paths) -> dict:
 
     with ThreadPoolExecutor(max_workers=min(len(upload_map), 4)) as pool:
         futures = {pool.submit(_upload_one, nid, fp): nid for nid, fp in upload_map.items()}
+        failed_char_refs = []
         for future in as_completed(futures):
             node_id, remote_name, err = future.result()
             if err:
-                logger.warning(f"参考图上传失败 [{node_id}]: {err}")
+                # 角色参考图上传失败是硬错误（影响一致性），场景图是软警告
+                if node_id in _char_node_set:
+                    failed_char_refs.append(f"[{node_id}] {err}")
+                    logger.error(f"角色参考图上传失败 [{node_id}]: {err}")
+                else:
+                    logger.warning(f"场景图上传失败 [{node_id}]: {err}")
             elif node_id in wf and remote_name:
                 cls = wf[node_id].get("class_type", "")
                 if cls in ("LoadImage", "LoadImageFromPath", "ImageLoad"):
                     wf[node_id]["inputs"]["image"] = remote_name
+        if failed_char_refs:
+            raise RuntimeError(f"角色参考图上传失败（{len(failed_char_refs)} 个）: {'; '.join(failed_char_refs)}")
     return wf
 
 

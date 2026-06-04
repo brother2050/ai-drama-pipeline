@@ -41,11 +41,22 @@ def create_app() -> FastAPI:
 async def _lifespan(app: FastAPI):
     logger.info("🎬 AI 短剧工作台 v2 已启动")
     yield
+    # 清理资源
+    try:
+        from web.routers.system_tools import _tool_executor
+        _tool_executor.shutdown(wait=False)
+    except Exception:
+        pass
     try:
         from infra.database.pool import get_pool
         get_pool().close()
     except Exception:
         logger.debug("数据库连接池关闭")
+    try:
+        from infra.globals import shutdown_globals
+        shutdown_globals()
+    except Exception:
+        pass
     logger.info("🎬 工作台已关闭")
 
 

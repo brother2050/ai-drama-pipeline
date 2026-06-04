@@ -27,9 +27,8 @@ def register_system_commands(cli):
         """启动 Web 工作台"""
         from cli import _load_env
         _load_env()
-        from infra.network import port_ok, redis_port
         from cli import _ensure_redis
-        if not _ensure_redis(port_ok, redis_port):
+        if not _ensure_redis():
             sys.exit(1)
         from infra.globals import init_globals, shutdown_globals
         init_globals()
@@ -46,9 +45,8 @@ def register_system_commands(cli):
         """启动 Celery Worker（处理异步任务）"""
         from cli import _load_env
         _load_env()
-        from infra.network import port_ok, redis_port
         from cli import _ensure_redis
-        if not _ensure_redis(port_ok, redis_port):
+        if not _ensure_redis():
             sys.exit(1)
 
         celery = shutil.which("celery")
@@ -69,7 +67,6 @@ def register_system_commands(cli):
         """检查所有服务状态"""
         from cli import _load_env
         _load_env()
-        from infra.network import port_ok, redis_port
 
         table = Table(title="🎬 服务状态", show_lines=True)
         table.add_column("服务", style="cyan")
@@ -77,6 +74,7 @@ def register_system_commands(cli):
         table.add_column("端口/地址", justify="center")
         table.add_column("说明")
 
+        from infra.network import port_ok, redis_port
         redis = port_ok(redis_port())
         table.add_row("Redis", "[green]✅[/green]" if redis else "[red]❌ 必选[/red]",
                        str(redis_port()), "任务队列（必选）")
@@ -124,7 +122,6 @@ def register_system_commands(cli):
         """显示环境信息"""
         import platform
         from infra.gpu import get_generation_config
-        from infra.network import port_ok, redis_port
         gen = get_generation_config()
         from cli import _load_env
         _load_env()
@@ -137,6 +134,7 @@ def register_system_commands(cli):
             console.print(f"[cyan]生成参数:[/cyan] {res} / steps={steps}")
         else:
             console.print("[cyan]生成参数:[/cyan] 使用各后端 models_registry.yaml 中的原生默认值")
+        from infra.network import port_ok, redis_port
         console.print(f"[cyan]Redis:[/cyan]  {'✅ 运行中' if port_ok(redis_port()) else '❌ 未运行'}")
         pg_dsn = os.environ.get("AI_DRAMA_DB_DSN", "")
         if pg_dsn:
