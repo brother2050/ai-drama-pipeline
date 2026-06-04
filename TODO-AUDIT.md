@@ -39,9 +39,10 @@
 - **影响**: 高并发场景下的性能抖动
 - **修复**: 将耗时操作移到锁外执行，只在更新 `self._data` 时加锁（copy-on-write）。
 
-### 5. _get_character_refs 并发无缓存
+### 5. ~~_get_character_refs 并发无缓存~~ ✅ 已修复
 - **类型**: 逻辑
 - **文件**: `engines/workflow_builder.py` — `_get_character_refs`
+- **修复**: 添加实例级 `_refs_cache` 字典。同一 WorkflowBuilder 内对相同 `char_id:outfit` 的重复查找直接返回缓存结果，避免并发场景下重复触发 ensure_portrait。
 - **问题**: 两个并发 shot 处理同一角色时，都触发 `_get_character_refs` → `ensure_portrait`，第二个会因 `_generating` 锁跳过返回空，导致缺少参考图。
 - **影响**: 并发处理多镜头时部分镜头缺少角色一致性参考图
 - **修复**: 在 `_get_character_refs` 中添加实例级缓存，或在 `shot_task` 开始时预先确保定妆照。
