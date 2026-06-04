@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+import logging
 import os
 import sys
 import time
@@ -19,6 +20,7 @@ import click
 from rich.console import Console
 
 console = Console()
+logger = logging.getLogger(__name__)
 
 from infra.config import get_root as _get_root
 
