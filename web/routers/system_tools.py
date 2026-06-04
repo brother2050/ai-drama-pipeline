@@ -484,22 +484,24 @@ def _find_shot_for_api(episode: int, shot_id: str) -> dict | None:
 # ── 单步执行（4 个步骤共用同一模式）──
 
 _STEP_TASKS = {
-    "tts": "step_tts",
-    "first-frame": "step_first_frame",
-    "video": "step_video",
-    "lipsync": "step_lipsync",
+    "tts": ("step_tts", "🎤 TTS 语音合成"),
+    "first-frame": ("step_first_frame", "🖼️ 首帧生成"),
+    "video": ("step_video", "🎬 视频生成"),
+    "lipsync": ("step_lipsync", "👄 口型同步"),
 }
 
-def _make_step_handler(task_name: str):
+def _make_step_handler(task_name: str, summary: str):
     def handler(req: StepRequest):
         import pipeline.tasks as tasks
         task_fn = getattr(tasks, task_name)
         return _submit_task(task_fn, _cfg_path(), req.episode, req.shot_id, req.force)
     handler.__name__ = f"run_step_{task_name}"
+    handler.__doc__ = summary
     return handler
 
-for _step_path, _task_name in _STEP_TASKS.items():
-    router.add_api_route(f"/steps/{_step_path}", _make_step_handler(_task_name), methods=["POST"])
+for _step_path, (_task_name, _summary) in _STEP_TASKS.items():
+    router.add_api_route(f"/steps/{_step_path}", _make_step_handler(_task_name, _summary),
+                         methods=["POST"], summary=_summary)
 
 
 @router.post("/steps/shot")
