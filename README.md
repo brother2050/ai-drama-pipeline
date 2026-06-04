@@ -242,6 +242,8 @@ cp .env.example .env
 
 ### 6. 启动
 
+> ⚠ **需要打开两个终端窗口**，分别运行 Worker 和 Web 工作台。它们是独立进程，不能在同一终端同时运行。
+
 ```bash
 # 终端 1: 启动 Celery Worker（处理异步任务）
 drama worker
@@ -854,6 +856,24 @@ ai-drama-pipeline-v2/
     ├── pipeline.md               #   管线全流程架构详解
     └── script-import-design.md   #   剧本导入功能设计文档
 ```
+
+---
+
+## 🔧 常见问题排查
+
+| 问题 | 原因 | 解决方案 |
+|------|------|---------|
+| `Redis 未运行` | Redis 服务未启动 | `redis-server --daemonize yes` 或 `brew services start redis` |
+| `AI_DRAMA_DB_DSN 未配置` | 缺少 `.env` 文件 | `cp .env.example .env` 并填写 PostgreSQL 连接信息 |
+| `PostgreSQL 连接被拒绝` | PostgreSQL 未启动 | `sudo systemctl start postgresql` 或 `brew services start postgresql@16` |
+| `PostgreSQL 认证失败` | 用户名/密码不匹配 | 检查 `.env` 中的 `AI_DRAMA_DB_DSN`，确认用户和密码 |
+| `数据库不存在` | 未创建 ai_drama 数据库 | `sudo -u postgres psql -c "CREATE DATABASE ai_drama OWNER drama;"` |
+| `Celery Worker 未启动` | Worker 进程未运行 | 在另一个终端运行 `drama worker` |
+| `ComfyUI 不可达` | ComfyUI 未启动或地址错误 | 确认 ComfyUI 已启动：`curl http://127.0.0.1:8188/system_stats`。安装：[ComfyUI](https://github.com/comfyanonymous/ComfyUI) |
+| `MIMO_API_KEY 未设置` | 缺少 TTS API Key | 在 `.env` 中填写 `MIMO_API_KEY=`（免费获取：https://api.xiaomimimo.com） |
+| `LLM 未启用` | LLM 配置未开启 | 在项目配置中设置 `llm.enabled: true`，或在 Web 设置页开启 |
+| `角色缺定妆照` | 未生成角色形象图 | Web 工作台「👤 角色」→「🎨 AI 生成定妆照」，或运行 `drama portraits` |
+| `请先执行: drama prepare` | 生产前未翻译 | 运行 `drama prepare 1` 生成英文 prompt |
 
 ---
 

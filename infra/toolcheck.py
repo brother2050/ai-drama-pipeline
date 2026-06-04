@@ -158,7 +158,7 @@ def _hc_http(name: str, hc: dict, cfg: dict, backend: str, result_type: str) -> 
         return _result(False, backend, result_type, f"服务地址未配置 ({hc.get('config_key', '')})")
     headers = _resolve_auth(cfg, hc.get("api_key_from", ""))
     ok = _url_ok(url, hc.get("path", "/"), headers)
-    reason = "" if ok else f"服务不可达 ({url})"
+    reason = "" if ok else f"服务不可达 ({url})。请确认服务已启动。"
     return _result(ok, backend, result_type, reason)
 
 
@@ -262,7 +262,8 @@ def _check_consistency(name: str, cfg: dict, registry, method: dict) -> dict:
     headers = _resolve_auth(cfg, comfyui_key_from)
     comfyui_ok = _url_ok(comfyui_url, "/system_stats", headers=headers)
     if not comfyui_ok:
-        return _result(False, name, "gpu", "ComfyUI 不可达")
+        return _result(False, name, "gpu",
+                       f"ComfyUI 不可达 ({comfyui_url})。请确认 ComfyUI 已启动: https://github.com/comfyanonymous/ComfyUI")
 
     # 获取模型名
     model_name = ""
