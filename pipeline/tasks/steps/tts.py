@@ -40,6 +40,10 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
         logger.warning(f"[{shot_id}] 角色 {char_ids[0]} 不存在，使用默认声音")
     core_traits = (char_data.get("bible") or {}).get("core_traits", "")
     voice_config = {"core_traits": core_traits} if core_traits else {}
+    # 角色级 voice 参数覆盖（reference_audio/speaker/reference_id 等）
+    char_voice = char_data.get("voice")
+    if isinstance(char_voice, dict) and char_voice:
+        voice_config = {**voice_config, **char_voice}
     emotion = shot.get("emotion", "neutral")
     language = shot.get("language", "zh")
 
