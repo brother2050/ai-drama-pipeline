@@ -40,7 +40,6 @@ def _ai_storyboard_inner(self, config_path, episode, outline, duration, append):
 
     # 2. 生成引用的角色/场景
     char_ids, scene_ids = _extract_entity_ids(shots)
-    id_remap, warnings = {}, []
     if char_ids or scene_ids:
         self.update_state(state="PROGRESS", meta={"step": "ai_storyboard", "progress": 60,
                           "message": f"正在生成 {len(char_ids)} 个角色、{len(scene_ids)} 个场景..."})
@@ -616,7 +615,8 @@ def _ai_prepare_inner(self, config_path, episode, force, translate):
     # 1. 收集待翻译文本
     self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 10, "message": "扫描角色/场景/分镜..."})
     all_texts, text_meta = _collect_translation_texts(paths)
-    _collect_shot_texts(load_storyboard(episode), all_texts, text_meta)
+    shots = load_storyboard(episode)
+    _collect_shot_texts(shots, all_texts, text_meta)
 
     if not all_texts:
         return {"status": STATUS_DONE, "message": "无需翻译（所有字段已有英文版）",
@@ -632,7 +632,7 @@ def _ai_prepare_inner(self, config_path, episode, force, translate):
 
     # 3. 回写 + 视角 prompt + 角色圣经
     self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 80, "message": "正在保存..."})
-    translated, char_cache = _writeback_translations(text_meta, results, paths, episode, load_storyboard(episode))
+    translated, char_cache = _writeback_translations(text_meta, results, paths, episode, shots)
 
     self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 85, "message": "生成视角 prompt..."})
     translated["view_prompts"] = _generate_view_prompts(char_cache, llm, paths)

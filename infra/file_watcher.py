@@ -110,47 +110,45 @@ def start_file_watcher(
         if _watcher is not None:
             return _watcher
 
-    try:
-        from watchdog.observers import Observer
-        from watchdog.events import FileSystemEventHandler
-    except ImportError:
-        logger.warning("watchdog 库未安装，文件变化监控已禁用。安装: pip install watchdog")
-        return None
+        try:
+            from watchdog.observers import Observer
+            from watchdog.events import FileSystemEventHandler
+        except ImportError:
+            logger.warning("watchdog 库未安装，文件变化监控已禁用。安装: pip install watchdog")
+            return None
 
-    config_dir = Path(config_dir).resolve()
-    if not config_dir.exists():
-        logger.warning(f"配置目录不存在，跳过文件监控: {config_dir}")
-        return None
+        config_dir = Path(config_dir).resolve()
+        if not config_dir.exists():
+            logger.warning(f"配置目录不存在，跳过文件监控: {config_dir}")
+            return None
 
-    handler = _YAMLFileHandler(config_dir, on_change)
+        handler = _YAMLFileHandler(config_dir, on_change)
 
-    # 创建适配 watchdog 的事件处理器
-    class _Adapter(FileSystemEventHandler):
-        def on_created(self, event):
-            handler.on_created(event)
+        # 创建适配 watchdog 的事件处理器
+        class _Adapter(FileSystemEventHandler):
+            def on_created(self, event):
+                handler.on_created(event)
 
-        def on_modified(self, event):
-            handler.on_modified(event)
+            def on_modified(self, event):
+                handler.on_modified(event)
 
-        def on_deleted(self, event):
-            handler.on_deleted(event)
+            def on_deleted(self, event):
+                handler.on_deleted(event)
 
-    observer = Observer()
-    # 监控配置目录本身（project.yaml, system.yaml 等顶层配置文件，ARCH-05 修复）
-    observer.schedule(_Adapter(), str(config_dir), recursive=False)
-    logger.info(f"文件监控已启用: {config_dir}")
+        observer = Observer()
+        # 监控配置目录本身（project.yaml, system.yaml 等顶层配置文件，ARCH-05 修复）
+        observer.schedule(_Adapter(), str(config_dir), recursive=False)
+        logger.info(f"文件监控已启用: {config_dir}")
 
-    # 监控 characters/ 和 scenes/ 子目录
-    for subdir in ("characters", "scenes"):
-        watch_dir = config_dir / subdir
-        if watch_dir.exists():
-            observer.schedule(_Adapter(), str(watch_dir), recursive=False)
-            logger.info(f"文件监控已启用: {watch_dir}")
+        # 监控 characters/ 和 scenes/ 子目录
+        for subdir in ("characters", "scenes"):
+            watch_dir = config_dir / subdir
+            if watch_dir.exists():
+                observer.schedule(_Adapter(), str(watch_dir), recursive=False)
+                logger.info(f"文件监控已启用: {watch_dir}")
 
-    observer.daemon = True
-    observer.start()
-
-    with _lock:
+        observer.daemon = True
+        observer.start()
         _watcher = observer
 
     logger.info(f"文件系统监控已启动: {config_dir}")

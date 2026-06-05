@@ -353,7 +353,8 @@ def _get_project_stats() -> dict:
         episodes = [{"episode": r["episode"], "shot_count": r["shots"]} for r in rows]
         total = sum(r["shots"] for r in rows)
         return {"episodes": episodes, "total_shots": total}
-    except Exception:
+    except Exception as e:
+        logger.debug(f"获取项目统计失败: {e}")
         return {"episodes": [], "total_shots": 0}
 
 
@@ -366,7 +367,8 @@ def _get_episodes_summary() -> str:
             return ""
         cfg = load_config(str(paths.project_yaml))
         return cfg.get("project", {}).get("episodes_summary", "")
-    except Exception:
+    except Exception as e:
+        logger.debug(f"获取集概要失败: {e}")
         return ""
 
 
@@ -391,7 +393,8 @@ def _get_last_shot_info(episode: int = 1) -> str:
         if last.get("emotion"):
             parts.append(f"emotion: {last['emotion']}")
         return " | ".join(parts)
-    except Exception:
+    except Exception as e:
+        logger.debug(f"获取最后镜头信息失败: {e}")
         return ""
 
 

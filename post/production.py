@@ -79,7 +79,7 @@ def _add_subtitles(concat_out: Path, srt_path: Path, episode: int, out_dir: Path
 
 
 def _generate_and_mix_bgm(concat_out: Path, shots: list[dict], cfg: Config,
-                          episode: int, out_dir: Path) -> Path:
+                          episode: int, out_dir: Path, cont: object = None) -> Path:
     """自动生成配乐并混合，失败则跳过"""
     bgm_path = out_dir / "bgm.wav"
     if not bgm_path.exists():
@@ -88,7 +88,7 @@ def _generate_and_mix_bgm(concat_out: Path, shots: list[dict], cfg: Config,
             total_dur = sum(float(s.get("duration", 4)) for s in shots)
             emotions = [s.get("emotion", "neutral") for s in shots if s.get("emotion")]
             mood = max(set(emotions), key=emotions.count) if emotions else "neutral"
-            music_gen = MusicGenerator(config=dict(cfg.data))
+            music_gen = MusicGenerator(config=dict(cfg.data), container=cont)
             music_gen.generate(total_dur, str(bgm_path), mood=mood)
             logger.info(f"配乐自动生成: {bgm_path} (时长 {total_dur}s, 情绪 {mood})")
         except Exception as e:
@@ -191,7 +191,12 @@ def run_post(config_path: str, episode: int, vertical: bool = False, cfg=None) -
 
     # 字幕 → 配乐 → 横转竖 → 重命名
     concat_out = _add_subtitles(concat_out, srt_path, episode, out_dir)
-    concat_out = _generate_and_mix_bgm(concat_out, shots, cfg, episode, out_dir)
+    try:
+        from api.registry import Container
+        cont = Container(cfg.data)
+    except Exception:
+        cont = None
+    concat_out = _generate_and_mix_bgm(concat_out, shots, cfg, episode, out_dir, cont=cont)
     if vertical:
         concat_out = _to_vertical(concat_out, episode, out_dir)
     final_out = _rename_final(concat_out, episode, out_dir)

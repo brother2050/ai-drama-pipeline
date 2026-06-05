@@ -190,8 +190,7 @@ class ConsistencyChecker:
                 continue
             transition = (prev_emotion, curr_emotion)
             if transition not in ALLOWED_TRANSITIONS:
-                # 仅警告，不阻断
-                logger.debug(
+                errors.append(
                     f"镜头 {shots[i].get('shot_id', '?')}: 情绪跳变 "
                     f"({prev_emotion} → {curr_emotion})，建议添加过渡镜头"
                 )
