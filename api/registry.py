@@ -32,7 +32,6 @@ class BackendMeta:
     tags: list[str] = field(default_factory=list)
     test_handler: Callable[..., dict] | None = None  # 连接测试回调 (name, result, cfg) → dict
     deployment: str = "local"  # "local" / "cloud" — 本地模型优先策略使用
-    module: str = ""  # YAML 注册表中的 module 路径（用于变体名→API 后端映射）
 
 
 class ServiceRegistry:
@@ -238,10 +237,6 @@ class Container:
             normalized = name.replace("-", "_")
             if registry.get(service_type, name) or registry.get(service_type, normalized):
                 return name
-            # YAML 注册表中的变体名（如 cosmos/flux/sd15）→ 映射到底层 API 后端
-            api_name = self._map_to_api_backend(service_type, name)
-            if api_name:
-                return api_name
             logger.warning(
                 f"models.{cfg_key}='{name}' 不是已注册的 {service_type} API 后端，"
                 f"回退到自动选择。请检查配置是否正确。")
@@ -256,35 +251,6 @@ class Container:
         auto = registry.auto_select(service_type, self._config)
         logger.info(f"{service_type} 未显式配置，自动选择: {auto}")
         return auto
-
-    @staticmethod
-    def _map_to_api_backend(service_type: str, name: str) -> str | None:
-        """YAML 注册表中的变体名 → 底层 API 后端名
-
-        models_registry.yaml 的 image_backends/video_backends 定义了多个变体
-        （如 sd15/flux/cosmos/cosmos-video），它们共享同一个 API 后端模块
-        （如 comfyui/animatediff）。本函数从 YAML 读取 module 字段，
-        找到已注册的对应 API 后端名。
-
-        Returns:
-            API 后端名（如 "comfyui"），找不到返回 None
-        """
-        try:
-            from flow.model_registry import ModelRegistry
-            reg = ModelRegistry()
-            backend = reg.get_backend(service_type, name)
-            if not backend:
-                return None
-            module_path = backend.get("module", "")
-            if not module_path:
-                return None
-            # 遍历已注册的 API 后端，找到 module 匹配的
-            for meta in registry._backends.values():
-                if meta.service_type == service_type and meta.module == module_path:
-                    return meta.name
-        except Exception:
-            pass
-        return None
 
     def _backend_config(self, service_type: str, name: str) -> dict:
         models = self._config.get("models", {})
