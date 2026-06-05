@@ -204,6 +204,8 @@ const I18N = {
   'wb.gen_scene_images': { zh: '场景图', en: 'Scene Images' },
   'wb.prepare': { zh: '🔧 准备阶段', en: '🔧 Prepare' },
   'wb.prepare_hint': { zh: '批量翻译角色/场景/分镜（生产前运行一次）', en: 'Batch translate characters/scenes/storyboard (run once before produce)' },
+  'wb.bible': { zh: '📖 角色圣经', en: '📖 Bible' },
+  'wb.bible_hint': { zh: '为角色补全性格/说话风格/人际关系等（生产前运行一次）', en: 'Fill in character personality/speech/relationships (run once before produce)' },
   'wb.post_process': { zh: '后期合成', en: 'Post' },
   'wb.run_all': { zh: '一键全流程', en: 'Run All' },
   'wb.tools': { zh: '工具', en: 'Tools' },
