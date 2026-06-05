@@ -164,7 +164,7 @@ def _build_ip_adapter_nodes(wf: dict, ksampler: str, model_source: str,
     return wf
 
 
-def inject_ip_adapter_chain(builder: object, wf: dict, char_id: str, ref_images: list[str],
+def inject_ip_adapter_chain(wf: dict, char_id: str, ref_images: list[str],
                              weight: float = 0.45, ip_config: dict | None = None) -> dict:
     """链式注入第二个角色的 IP-Adapter（串联在已有 IP-Adapter 之后）"""
     wf = copy.deepcopy(wf)
@@ -177,7 +177,8 @@ def inject_ip_adapter_chain(builder: object, wf: dict, char_id: str, ref_images:
         return wf
 
     last_ip = ip_nodes[-1]
-    downstream_node, downstream_input = builder._find_downstream_consumer(wf, last_ip)
+    from engines.workflow_builder import WorkflowBuilder
+    downstream_node, downstream_input = WorkflowBuilder._find_downstream_consumer(wf, last_ip)
     if not downstream_node:
         return wf
 
@@ -284,7 +285,7 @@ def inject_pulid_flux(builder: object, wf: dict, char_ids: list[str],
         else:
             secondary_weight = max(0.3, weight * 0.7)
             wf = inject_pulid_flux_chain(
-                builder, wf, char_id, refs,
+                wf, char_id, refs,
                 weight=secondary_weight, pulid_config=pulid_config)
 
     return wf
@@ -323,7 +324,7 @@ def _inject_pulid_nodes(wf: dict, ksampler: str, model_source: str,
     return wf
 
 
-def inject_pulid_flux_chain(builder: object, wf: dict, char_id: str, ref_images: list[str],
+def inject_pulid_flux_chain(wf: dict, char_id: str, ref_images: list[str],
                              weight: float = 0.6, pulid_config: dict | None = None) -> dict:
     """链式注入第二个角色的 PuLID-Flux（串联在已有 PuLID 之后）"""
     wf = copy.deepcopy(wf)
@@ -336,7 +337,8 @@ def inject_pulid_flux_chain(builder: object, wf: dict, char_id: str, ref_images:
         return wf
 
     last_pulid = pulid_nodes[-1]
-    downstream_node, downstream_input = builder._find_downstream_consumer(wf, last_pulid)
+    from engines.workflow_builder import WorkflowBuilder
+    downstream_node, downstream_input = WorkflowBuilder._find_downstream_consumer(wf, last_pulid)
     if not downstream_node:
         return wf
 
