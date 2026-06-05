@@ -89,7 +89,7 @@ class TestBatchSizes:
 
         class FakeProcessor:
             def _execute_with_retry(self, batch, bp, pr):
-                return [f"ok_{i}" for i in range(len(batch))]
+                return [f"ok_{i}" for i in range(len(batch))], 0
             def _learn_from_last_error(self): pass
 
         batches = [["a", "b"], ["c"]]
@@ -97,16 +97,20 @@ class TestBatchSizes:
         assert result["batch_sizes"] == [2, 1]
         assert result["results"] == [["ok_0", "ok_1"], ["ok_0"]]
         assert result["failed_batches"] == 0
+        assert result["total_items"] == 3
+        assert result["retries"] == 0
+        assert result["elapsed"] >= 0
 
     def test_batch_sizes_with_failure(self):
         """失败批次: batch_sizes 仍记录正确大小"""
         from infra.batch_processor import _execute_batches
 
         class FailProcessor:
+            _max_retries = 2
             def _execute_with_retry(self, batch, bp, pr):
                 if batch == ["c"]:
                     raise RuntimeError("simulated")
-                return ["ok"]
+                return ["ok"], 0
             def _learn_from_last_error(self): pass
 
         batches = [["a", "b"], ["c"]]
@@ -114,6 +118,8 @@ class TestBatchSizes:
         assert result["batch_sizes"] == [2, 1]
         assert result["results"] == [["ok"], None]
         assert result["failed_batches"] == 1
+        assert result["total_items"] == 3
+        assert result["retries"] == 3  # max_retries+1 attempts for the failed batch
 
     def test_entities_flatten_with_batch_sizes(self):
         """_generate_entities 展平: 失败批次填 None 保持对齐"""
