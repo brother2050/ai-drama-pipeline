@@ -38,11 +38,20 @@ def run_staggered_sync(
     results: list[Any] = [None] * len(tasks)
     completed_count = 0
     lock = threading.Lock()
+    last_start = [0.0]  # 上一个任务的启动时间（可变容器，闭包共享）
+    start_lock = threading.Lock()
 
     def _run_one(idx: int):
         nonlocal completed_count
+        # 错开：等待距上一个任务启动后 stagger_ms
         if idx > 0:
-            time.sleep(idx * stagger_ms / 1000)
+            with start_lock:
+                now = time.monotonic()
+                wait = max(0, stagger_ms / 1000 - (now - last_start[0]))
+            if wait > 0:
+                time.sleep(wait)
+        with start_lock:
+            last_start[0] = time.monotonic()
         try:
             result = tasks[idx]()
             with lock:

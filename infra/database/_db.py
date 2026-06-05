@@ -122,10 +122,12 @@ def query(pool, dict_mode: bool = False, commit: bool = True):
             cur.execute("SELECT ...")
     """
     with pool.connection() as conn:
-        cur = dict_cursor(conn) if dict_mode else conn.cursor()
+        cur = None
         try:
+            cur = dict_cursor(conn) if dict_mode else conn.cursor()
             yield cur
             if commit:
                 conn.commit()
         finally:
-            cur.close()
+            if cur is not None:
+                cur.close()

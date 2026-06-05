@@ -38,6 +38,19 @@ T = TypeVar("T")
 
 __all__ = ["safe_run", "safe_map", "safe_task", "SafeExecutionError"]
 
+# 共享线程池（超时模式复用，避免反复创建销毁）
+_shared_pool: concurrent.futures.ThreadPoolExecutor | None = None
+_shared_pool_lock = threading.Lock()
+
+def _shared_executor() -> concurrent.futures.ThreadPoolExecutor:
+    """获取共享的单线程 executor（进程级复用）"""
+    global _shared_pool
+    if _shared_pool is None:
+        with _shared_pool_lock:
+            if _shared_pool is None:
+                _shared_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="safe_exec")
+    return _shared_pool
+
 
 class SafeExecutionError(Exception):
     """安全执行器包装的异常，保留原始异常链"""
@@ -105,7 +118,8 @@ def safe_run(
             cancel_event.clear()
         try:
             if timeout:
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as te:
+                # 复用线程池：所有重试共享同一个 executor，避免反复创建销毁
+                with _shared_executor() as te:
                     future = te.submit(fn, *args, **kwargs)
                     try:
                         return future.result(timeout=timeout)
