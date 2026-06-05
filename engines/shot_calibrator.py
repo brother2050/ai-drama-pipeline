@@ -168,8 +168,8 @@ def _enrich_stage(llm: object, shots: list[dict], system: str, label: str, requi
     for i, shot in enumerate(shots):
         sid = shot.get("shot_id", "")
         update = result_map.get(sid, {})
-        if not update and i < len(result) and isinstance(result[i], dict):
-            update = result[i]
+        if not update:
+            logger.debug(f"  {label}: shot_id={sid} 未匹配到 LLM 结果，保留原始数据")
         merged.append({**shot, **update})
 
     # 校验必填字段

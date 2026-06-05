@@ -176,13 +176,14 @@ def ensure_portrait(char_id: str, config: dict, container=None, force: bool = Fa
 
     # 重入保护（检查 + 标记必须在同一把锁内，避免间隙导致重复生成）
     import time
+    my_ts = time.time()
     with _generating_lock:
         if char_id in _generating:
             # TTL 检查：超时的残留条目自动清除
             if time.time() - _generating[char_id] < _GENERATING_TTL:
                 logger.warning(f"角色 '{char_id}' 定妆照正在生成中，跳过重入")
                 return ""
-        _generating[char_id] = time.time()
+        _generating[char_id] = my_ts
 
     logger.info(f"角色 '{char_id}' 缺少五视图，自动生成...")
     char_file = paths.character_yaml(char_id)
@@ -238,7 +239,9 @@ def ensure_portrait(char_id: str, config: dict, container=None, force: bool = Fa
         return ""
     finally:
         with _generating_lock:
-            _generating.pop(char_id, None)
+            # 只清除自己设置的条目，避免 TTL 竞态下误删其他线程的标记
+            if _generating.get(char_id) == my_ts:
+                _generating.pop(char_id, None)
 
 
 def _generate_single_outfit(comfyui, wb, char_id: str, outfit_key: str,

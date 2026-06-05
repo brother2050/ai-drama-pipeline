@@ -389,15 +389,20 @@ class WorkflowBuilder:
         if consistency == "auto":
             consistency = self.registry.get_consistency_default(img_backend) or "none"
 
-        # 分 LoRA 角色 vs 无 LoRA 角色
-        chars_with_lora, chars_without_lora = [], []
+        # 分 LoRA 角色 vs 无 LoRA 角色（统一用 dict 避免混合类型）
+        chars_with_lora: list[dict] = []  # {"cid": str, "lora_path": str}
+        chars_without_lora: list[str] = []
         for cid in char_ids:
             lora_path = _find_character_lora(self, cid)
-            (chars_with_lora if lora_path else chars_without_lora).append((cid, lora_path) if lora_path else cid)
+            if lora_path:
+                chars_with_lora.append({"cid": cid, "lora_path": lora_path})
+            else:
+                chars_without_lora.append(cid)
 
         # 注入 LoRA
         from infra.asset_tracker import comfyui_asset_name
-        for cid, lora_path in chars_with_lora:
+        for item in chars_with_lora:
+            cid, lora_path = item["cid"], item["lora_path"]
             strength = self.models.get("character_lora_strength", 0.7)
             name = comfyui_asset_name(self.project_dir, Path(lora_path).stem, Path(lora_path).name)
             wf = _inject_lora(wf, lora_path, strength=strength, lora_name=name)
