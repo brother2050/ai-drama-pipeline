@@ -49,7 +49,8 @@ def _ai_storyboard_inner(self, config_path, episode, outline, duration, append):
 
     # 3. 回写 + 保存
     if id_remap:
-        _remap_shot_ids(shots, id_remap)
+        from engines.entity_utils import remap_shot_ids
+        remap_shot_ids(shots, id_remap)
     self.update_state(state="PROGRESS", meta={"step": "ai_storyboard", "progress": 90, "message": "正在保存..."})
     (append_storyboard if append else save_storyboard)(shots, episode)
 
@@ -80,18 +81,40 @@ def _generate_entities_for_storyboard(llm, shots, char_ids, scene_ids, outline, 
     """生成角色+场景，返回 (id_remap, warnings, error_or_None)"""
     id_remap, warnings = {}, []
     if char_ids:
-        result = _generate_characters_for_storyboard(llm, shots, char_ids, outline, style, genre, paths)
+        result = _generate_entities_for_storyboard_core(
+            llm, shots, char_ids, outline, style, genre, paths, "character", "ch")
         if result.get("error"):
             return {}, [], result["error"]
         id_remap.update(result.get("id_remap", {}))
         warnings = result.get("warnings", [])
     if scene_ids:
-        result = _generate_scenes_for_storyboard(llm, shots, scene_ids, outline, style, genre, paths)
+        result = _generate_entities_for_storyboard_core(
+            llm, shots, scene_ids, outline, style, genre, paths, "scene", "sc")
         if result.get("error"):
             return {}, [], result["error"]
         id_remap.update(result.get("id_remap", {}))
         warnings.extend(result.get("warnings", []))
     return id_remap, warnings, None
+
+
+def _generate_entities_for_storyboard_core(llm, shots, entity_ids, outline, style, genre, paths, entity_key, prefix) -> dict:
+    """为分镜生成角色/场景配置（统一入口）
+
+    从分镜数据构建描述 → 调用 LLM 生成 → 保存到 YAML。
+    """
+    from engines.entity_utils import generate_and_save
+
+    sorted_ids = sorted(entity_ids)
+    descriptions = _build_entity_descriptions(shots, sorted_ids, outline, style, genre, entity_key)
+    out_dir = paths.characters_dir if entity_key == "character" else paths.scenes_dir
+
+    result = generate_and_save(
+        llm, descriptions, entity_key, out_dir, prefix, expected_ids=sorted_ids)
+
+    if result.get("status") == "error":
+        return {"error": result["reason"]}
+    return {"id_remap": result.get("id_remap", {}), "warnings": result.get("warnings", []),
+            "generated": result.get("entities", [])}
 
 
 def _extract_entity_ids(shots: list[dict]) -> tuple[set[str], set[str]]:
@@ -106,24 +129,25 @@ def _extract_entity_ids(shots: list[dict]) -> tuple[set[str], set[str]]:
     return char_ids, scene_ids
 
 
-def _generate_characters_for_storyboard(llm, shots, char_ids, outline, style, genre, paths) -> dict:
-    """为分镜生成角色配置"""
-    from engines.llm_generator import generate_characters
+def _build_entity_descriptions(shots, sorted_ids, outline, style, genre, entity_key):
+    """从分镜数据构建角色/场景描述列表"""
     from engines.shot_utils import parse_char_ids
-    from infra.config import save_yaml
 
-    char_dir = paths.characters_dir
-    char_dir.mkdir(parents=True, exist_ok=True)
-    sorted_ids = sorted(char_ids)
+    descriptions = []
+    for eid in sorted_ids:
+        if entity_key == "character":
+            entity_shots = [s for s in shots if eid in parse_char_ids(s)]
+        else:
+            entity_shots = [s for s in shots if (s.get("scene_id") or "").strip() == eid]
 
-    char_descriptions = []
-    for cid in sorted_ids:
-        char_shots = [s for s in shots if cid in parse_char_ids(s)]
-        actions = [s.get("action", "") for s in char_shots[:5]]
-        dialogues = [s.get("dialogue", "") for s in char_shots[:5] if s.get("dialogue") and s.get("dialogue") != "......"]
+        actions = [s.get("action", "") for s in entity_shots[:5]]
+        dialogues = [s.get("dialogue", "") for s in entity_shots[:5]
+                     if s.get("dialogue") and s.get("dialogue") != "......"]
+
+        label = "角色" if entity_key == "character" else "场景"
         parts = [
-            f"根据以下信息生成角色「{cid}」的配置。",
-            f"角色ID: {cid}（必须原样填入 id 字段，不可修改）",
+            f"根据以下信息生成{label}「{eid}」的配置。",
+            f"{'角色' if entity_key == 'character' else '场景'}ID: {eid}（必须原样填入 id 字段，不可修改）",
             f"剧情大纲: {outline}",
         ]
         if style or genre:
@@ -133,192 +157,72 @@ def _generate_characters_for_storyboard(llm, shots, char_ids, outline, style, ge
             if genre:
                 ctx.append(f"题材类型: {genre}")
             parts.append(f"创作方向: {'，'.join(ctx)}")
-        parts.append("该角色在分镜中的表现:")
-        if actions:
-            for idx, a in enumerate(actions, 1):
-                parts.append(f"  镜头{idx}: {a}")
-        if dialogues:
-            parts.append(f"台词: {' / '.join(dialogues)}")
-        parts.append(f"\n【重要】此角色的 id 必须为「{cid}」，且 name 必须是与其他角色不同的独立名字，不能与其他角色重名。")
-        char_descriptions.append("\n".join(parts))
 
-    try:
-        from infra.config import load_existing_entities
-        existing = load_existing_entities(char_dir, "character")
-        new_chars = generate_characters(llm, char_descriptions, expected_ids=sorted_ids,
-                                        existing_characters=existing)
-    except RuntimeError as e:
-        return {"error": str(e)}
-    except Exception as e:
-        return {"error": f"角色生成异常: {e}"}
+        if entity_key == "character":
+            parts.append("该角色在分镜中的表现:")
+            if actions:
+                for idx, a in enumerate(actions, 1):
+                    parts.append(f"  镜头{idx}: {a}")
+            if dialogues:
+                parts.append(f"台词: {' / '.join(dialogues)}")
+            parts.append(f"\n【重要】此角色的 id 必须为「{eid}」，且 name 必须是与其他角色不同的独立名字，不能与其他角色重名。")
+        else:
+            parts.append("该场景在分镜中的画面:")
+            if actions:
+                for idx, a in enumerate(actions, 1):
+                    parts.append(f"  镜头{idx}: {a}")
 
-    return _save_entities(new_chars, sorted_ids, "ch", char_dir, "character", save_yaml)
+        descriptions.append("\n".join(parts))
+    return descriptions
 
 
-def _generate_scenes_for_storyboard(llm, shots, scene_ids, outline, style, genre, paths) -> dict:
-    """为分镜生成场景配置"""
-    from engines.llm_generator import generate_scenes
-    from infra.config import save_yaml
-
-    scene_dir = paths.scenes_dir
-    scene_dir.mkdir(parents=True, exist_ok=True)
-    sorted_ids = sorted(scene_ids)
-
-    scene_descriptions = []
-    for sid in sorted_ids:
-        scene_shots = [s for s in shots if (s.get("scene_id") or "").strip() == sid]
-        actions = [s.get("action", "") for s in scene_shots[:5]]
-        parts = ["根据以下信息生成一个场景配置。", f"剧情大纲: {outline}"]
-        if style or genre:
-            ctx = []
-            if style:
-                ctx.append(f"视觉风格: {style}")
-            if genre:
-                ctx.append(f"题材类型: {genre}")
-            parts.append(f"创作方向: {'，'.join(ctx)}")
-        parts.append("该场景在分镜中的画面:")
-        if actions:
-            for idx, a in enumerate(actions, 1):
-                parts.append(f"  镜头{idx}: {a}")
-        scene_descriptions.append("\n".join(parts))
-
-    try:
-        from infra.config import load_existing_entities
-        existing = load_existing_entities(scene_dir, "scene")
-        new_entities = generate_scenes(llm, scene_descriptions, existing_scenes=existing)
-    except RuntimeError as e:
-        return {"error": str(e)}
-    except Exception as e:
-        return {"error": f"场景生成异常: {e}"}
-
-    return _save_entities(new_entities, sorted_ids, "sc", scene_dir, "scene", save_yaml)
-
-
-def _save_entities(new_entities, sorted_ids, prefix, out_dir, entity_key, save_yaml_fn) -> dict:
-    """通用实体保存：去重同名 → 生成 hash ID → 写 YAML + DB"""
-    name_to_first: dict[str, str] = {}
-    for i, entity in enumerate(new_entities):
-        if entity is None:
-            continue
-        old_id = sorted_ids[i]
-        name = entity.get("name", "").strip() or old_id
-        if name in name_to_first:
-            logger.warning(f"  ⚠ {entity_key}名重复: '{name}'（{old_id} 与 {name_to_first[name]}），合并")
-            continue
-        name_to_first[name] = old_id
-
-    id_remap = {}
-    warnings = []
-    generated = []
-
-    for i, entity in enumerate(new_entities):
-        if entity is None:
-            warnings.append(f"{entity_key} {sorted_ids[i]} 生成失败，已跳过")
-            continue
-        old_id = sorted_ids[i]
-        name = entity.get("name", "").strip() or old_id
-
-        if name_to_first.get(name) != old_id:
-            first_old_id = name_to_first[name]
-            if first_old_id in id_remap:
-                id_remap[old_id] = id_remap[first_old_id]
-                logger.info(f"  🔗 合并: {old_id} → {id_remap[first_old_id]}（同名 '{name}'）")
-            continue
-
-        new_id = _unique_hash_id(prefix, name, id_remap)
-        entity["id"] = new_id
-        entity["name"] = name
-        id_remap[old_id] = new_id
-
-        path = out_dir / f"{new_id}.yaml"
-        save_yaml_fn(path, {entity_key: entity})
-        generated.append(new_id)
-        logger.info(f"  ✅ {entity_key}: {name} ({old_id} → {new_id})")
-
-    return {"id_remap": id_remap, "warnings": warnings, "generated": generated}
-
-
-def _remap_shot_ids(shots: list[dict], id_remap: dict) -> None:
-    """回写分镜中的旧 ID 为新 hash ID"""
-    for shot in shots:
-        chars = shot.get("characters", "")
-        if chars:
-            parts = [c.strip() for c in chars.split("+")]
-            parts = [id_remap.get(c, c) for c in parts]
-            shot["characters"] = "+".join(parts)
-        scene_id = shot.get("scene_id", "")
-        if scene_id in id_remap:
-            shot["scene_id"] = id_remap[scene_id]
+def _save_and_remap(entities, prefix, out_dir, entity_key, shots=None):
+    """统一的实体保存 + 分镜回写（消除重复调用）"""
+    from engines.entity_utils import save_entities, remap_shot_ids
+    result = save_entities(entities, prefix, out_dir, entity_key)
+    if shots and result.get("id_remap"):
+        remap_shot_ids(shots, result["id_remap"])
+    return result
 
 
 @app.task(bind=True, name="pipeline_ai_characters", soft_time_limit=300)
 def ai_characters_task(self, config_path: str, descriptions: list[str]) -> dict:
     """AI 生成角色（异步）"""
     with _project_scope_from_config(config_path):
-        from engines.llm_generator import generate_characters
-        from infra.config import save_yaml
+        from engines.entity_utils import generate_and_save
 
         self.update_state(state="PROGRESS", meta={"step": "ai_characters", "progress": 20, "message": "AI 正在生成角色..."})
-
         cfg, cont = _init_ctx(config_path)
         try:
             llm = cont.get("llm")
         except Exception as e:
             return {"status": STATUS_ERROR, "reason": f"LLM 初始化失败: {e}"}
 
-        try:
-            from infra.config import load_existing_entities
-            existing = load_existing_entities(cfg.paths.characters_dir, "character")
-            chars = generate_characters(llm, descriptions, existing_characters=existing)
-        except RuntimeError as e:
-            return {"status": STATUS_ERROR, "reason": str(e)}
-        except Exception as e:
-            return {"status": STATUS_ERROR, "reason": f"生成失败: {e}"}
-
-        if not chars:
-            return {"status": STATUS_ERROR, "reason": "LLM 未能生成有效角色"}
-
-        paths = _paths(config_path)
-        result = _save_entities(chars, [c.get("id", f"ch_{i}") for i, c in enumerate(chars)],
-                                "ch", paths.characters_dir, "character", save_yaml)
-        if result.get("error"):
-            return {"status": STATUS_ERROR, "reason": result["error"]}
-        return {"status": STATUS_DONE, "count": len(result["generated"]), "characters": chars}
+        result = generate_and_save(
+            llm, descriptions, "character", cfg.paths.characters_dir, "ch")
+        if result.get("status") == "error":
+            return {"status": STATUS_ERROR, "reason": result["reason"]}
+        return {"status": STATUS_DONE, "count": result["count"], "characters": result["entities"]}
 
 
 @app.task(bind=True, name="pipeline_ai_scenes", soft_time_limit=300)
 def ai_scenes_task(self, config_path: str, descriptions: list[str]) -> dict:
     """AI 生成场景（异步）"""
     with _project_scope_from_config(config_path):
-        from engines.llm_generator import generate_scenes
-        from infra.config import save_yaml
+        from engines.entity_utils import generate_and_save
 
         self.update_state(state="PROGRESS", meta={"step": "ai_scenes", "progress": 20, "message": "AI 正在生成场景..."})
-
         cfg, cont = _init_ctx(config_path)
         try:
             llm = cont.get("llm")
         except Exception as e:
             return {"status": STATUS_ERROR, "reason": f"LLM 初始化失败: {e}"}
 
-        try:
-            from infra.config import load_existing_entities
-            existing = load_existing_entities(cfg.paths.scenes_dir, "scene")
-            scene_list = generate_scenes(llm, descriptions, existing_scenes=existing)
-        except RuntimeError as e:
-            return {"status": STATUS_ERROR, "reason": str(e)}
-        except Exception as e:
-            return {"status": STATUS_ERROR, "reason": f"生成失败: {e}"}
-
-        if not scene_list:
-            return {"status": STATUS_ERROR, "reason": "LLM 未能生成有效场景"}
-
-        paths = _paths(config_path)
-        result = _save_entities(scene_list, [s.get("id", f"sc_{i}") for i, s in enumerate(scene_list)],
-                                "sc", paths.scenes_dir, "scene", save_yaml)
-        if result.get("error"):
-            return {"status": STATUS_ERROR, "reason": result["error"]}
-        return {"status": STATUS_DONE, "count": len(result["generated"]), "scenes": scene_list}
+        result = generate_and_save(
+            llm, descriptions, "scene", cfg.paths.scenes_dir, "sc")
+        if result.get("status") == "error":
+            return {"status": STATUS_ERROR, "reason": result["reason"]}
+        return {"status": STATUS_DONE, "count": result["count"], "scenes": result["entities"]}
 
 
 # ══════════════════════════════════════════════════════════

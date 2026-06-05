@@ -40,25 +40,17 @@ def _load_characters_and_scenes(cfg_file: str):
 
 def _save_entities(entities: list[dict], entity_key: str, entity_dir: Path) -> int:
     """保存生成的实体到 YAML 文件，返回成功数"""
-    from infra.config import save_yaml
-    entity_dir.mkdir(parents=True, exist_ok=True)
-    seen_ids = set()
-    saved = 0
-    for entity in entities:
-        eid = entity.get("id", "unknown")
-        if eid in seen_ids:
-            console.print(f"[yellow]⚠ 跳过重复 id: {eid}[/yellow]")
-            continue
-        seen_ids.add(eid)
-        # 角色数据规范化
-        if entity_key == "character":
-            from infra.models import normalize_character
-            entity = normalize_character(entity)
-        path = entity_dir / f"{eid}.yaml"
-        save_yaml(path, {entity_key: entity})
-        console.print(f"  ✅ {entity.get('name', '?')} ({eid}) → {path.name}")
-        saved += 1
-    return saved
+    from engines.entity_utils import save_entities
+    prefix = "ch" if entity_key == "character" else "sc"
+    result = save_entities(entities, prefix, entity_dir, entity_key)
+    for new_id in result["generated"]:
+        entity = next((e for e in entities if e.get("id") == new_id), None)
+        if entity:
+            console.print(f"  ✅ {entity.get('name', '?')} ({new_id}) → {new_id}.yaml")
+    if result["warnings"]:
+        for w in result["warnings"]:
+            console.print(f"  [yellow]⚠ {w}[/yellow]")
+    return len(result["generated"])
 
 
 def _cmd_storyboard(episode, outline, text, duration, config_path, append):
@@ -190,8 +182,10 @@ def _cmd_bible(config_path, outline):
 
 
 def _cmd_all(episode, outline, duration, config_path):
-    """🚀 一键生成：大纲 → 角色 + 场景 + 分镜"""
+    """🚀 一键生成：大纲 → 分镜 → 角色 + 场景"""
     from cli import _get_llm, _print_shots_preview
+    from engines.entity_utils import generate_and_save
+
     p = Path(outline)
     if not p.exists():
         console.print(f"[red]❌ 文件不存在: {outline}[/red]")
@@ -199,36 +193,113 @@ def _cmd_all(episode, outline, duration, config_path):
 
     llm, cfg, cfg_file = _get_llm(config_path)
     outline_text = p.read_text(encoding="utf-8")
+    paths, characters, scenes = _load_characters_and_scenes(cfg_file)
+    style = cfg.get("project", {}).get("style", "")
+    genre = cfg.get("project", {}).get("genre", "")
 
     console.print(f"\n[bold cyan]━━━ AI 全量生成 第{episode}集 ━━━[/bold cyan]\n")
 
-    from engines.llm_generator import generate_storyboard, StoryboardGenParams
-    paths, characters, scenes = _load_characters_and_scenes(cfg_file)
-
+    # 1. 生成分镜
     console.print("[bold][1/3] 生成分镜表...[/bold]")
-    style = cfg.get("project", {}).get("style", "")
-    genre = cfg.get("project", {}).get("genre", "")
+    from engines.llm_generator import generate_storyboard, StoryboardGenParams
     try:
         shots = generate_storyboard(llm, StoryboardGenParams(
             outline=outline_text, characters=characters, scenes=scenes,
-            episode=episode, target_duration=duration, style=style, genre=genre,
-        ))
+            episode=episode, target_duration=duration, style=style, genre=genre))
     except RuntimeError as e:
         console.print(f"[red]❌ 分镜生成失败: {e}[/red]")
         sys.exit(1)
 
-    if shots:
-        from engines.storyboard import save_storyboard
-        save_storyboard(shots, episode)
-        console.print(f"  ✅ {len(shots)} 个镜头")
-    else:
-        console.print("  ⚠ 分镜生成失败")
+    if not shots:
+        console.print("[red]❌ 分镜生成失败[/red]")
+        sys.exit(1)
 
-    console.print("\n[bold green]✅ 全量生成完成！[/bold green]")
-    if shots:
-        total_sec = sum(int(s.get("duration", 4)) for s in shots)
-        console.print(f"  分镜: {len(shots)} 镜头, {total_sec}秒")
-        _print_shots_preview(shots)
+    from engines.storyboard import save_storyboard
+    save_storyboard(shots, episode)
+    console.print(f"  ✅ {len(shots)} 个镜头")
+
+    # 2. 生成引用的角色
+    from engines.shot_utils import parse_char_ids
+    char_ids = set()
+    scene_ids = set()
+    for shot in shots:
+        char_ids.update(parse_char_ids(shot))
+        sid = (shot.get("scene_id") or "").strip()
+        if sid:
+            scene_ids.add(sid)
+
+    if char_ids:
+        console.print(f"\n[bold][2/3] 生成 {len(char_ids)} 个角色...[/bold]")
+        char_descs = _build_entity_descriptions_from_shots(shots, sorted(char_ids), outline_text, style, genre, "character")
+        result = generate_and_save(llm, char_descs, "character", paths.characters_dir, "ch", expected_ids=sorted(char_ids))
+        if result.get("status") == "done":
+            for e in result["entities"]:
+                console.print(f"  ✅ {e.get('name', '?')} ({e.get('id', '?')})")
+            if result.get("id_remap"):
+                from engines.entity_utils import remap_shot_ids
+                remap_shot_ids(shots, result["id_remap"])
+                from engines.storyboard import save_storyboard
+                save_storyboard(shots, episode)
+        else:
+            console.print(f"  [yellow]⚠ 角色生成失败: {result.get('reason', '')}[/yellow]")
+
+    if scene_ids:
+        console.print(f"\n[bold][2b/3] 生成 {len(scene_ids)} 个场景...[/bold]")
+        scene_descs = _build_entity_descriptions_from_shots(shots, sorted(scene_ids), outline_text, style, genre, "scene")
+        result = generate_and_save(llm, scene_descs, "scene", paths.scenes_dir, "sc", expected_ids=sorted(scene_ids))
+        if result.get("status") == "done":
+            for e in result["entities"]:
+                console.print(f"  ✅ {e.get('name', '?')} ({e.get('id', '?')})")
+        else:
+            console.print(f"  [yellow]⚠ 场景生成失败: {result.get('reason', '')}[/yellow]")
+
+    # 3. 完成
+    total_sec = sum(int(s.get("duration", 4)) for s in shots)
+    console.print(f"\n[bold green]✅ 全量生成完成！[/bold green]")
+    console.print(f"  分镜: {len(shots)} 镜头, {total_sec}秒")
+    _print_shots_preview(shots)
+
+
+def _build_entity_descriptions_from_shots(shots, sorted_ids, outline, style, genre, entity_key):
+    """从分镜构建角色/场景描述（CLI 全量生成用）"""
+    from engines.shot_utils import parse_char_ids
+    descriptions = []
+    for eid in sorted_ids:
+        if entity_key == "character":
+            entity_shots = [s for s in shots if eid in parse_char_ids(s)]
+        else:
+            entity_shots = [s for s in shots if (s.get("scene_id") or "").strip() == eid]
+        actions = [s.get("action", "") for s in entity_shots[:5]]
+        dialogues = [s.get("dialogue", "") for s in entity_shots[:5]
+                     if s.get("dialogue") and s.get("dialogue") != "......"]
+        label = "角色" if entity_key == "character" else "场景"
+        parts = [
+            f"根据以下信息生成{label}「{eid}」的配置。",
+            f"{'角色' if entity_key == 'character' else '场景'}ID: {eid}（必须原样填入 id 字段，不可修改）",
+            f"剧情大纲: {outline}",
+        ]
+        if style or genre:
+            ctx = []
+            if style:
+                ctx.append(f"视觉风格: {style}")
+            if genre:
+                ctx.append(f"题材类型: {genre}")
+            parts.append(f"创作方向: {'，'.join(ctx)}")
+        if entity_key == "character":
+            parts.append("该角色在分镜中的表现:")
+            if actions:
+                for idx, a in enumerate(actions, 1):
+                    parts.append(f"  镜头{idx}: {a}")
+            if dialogues:
+                parts.append(f"台词: {' / '.join(dialogues)}")
+            parts.append(f"\n【重要】此角色的 id 必须为「{eid}」，且 name 必须是与其他角色不同的独立名字，不能与其他角色重名。")
+        else:
+            parts.append("该场景在分镜中的画面:")
+            if actions:
+                for idx, a in enumerate(actions, 1):
+                    parts.append(f"  镜头{idx}: {a}")
+        descriptions.append("\n".join(parts))
+    return descriptions
 
 
 def register_generate_commands(cli):
