@@ -165,9 +165,9 @@ def train_lora_task(self, config_path: str, char_id: str, *,
 #  剧本 JSON 导入
 # ══════════════════════════════════════════════════════════
 
-def _import_json_append(builder, plan, project_dir, translation) -> dict:
+def _import_json_append(builder, plan, project_dir, translation, root) -> dict:
     """追加模式导入"""
-    result = builder.append(plan, _ROOT, project_dir=project_dir)
+    result = builder.append(plan, root, project_dir=project_dir)
     logger.info(f"追加导入完成: {result}")
     return {
         "status": STATUS_DONE, "mode": "append",
@@ -183,14 +183,14 @@ def _import_json_append(builder, plan, project_dir, translation) -> dict:
     }
 
 
-def _import_json_full(builder, plan, project_dir, translation) -> dict:
+def _import_json_full(builder, plan, project_dir, translation, root) -> dict:
     """全量模式导入（项目已存在时自动切换追加）"""
     try:
-        project_dir = builder.build(plan, _ROOT)
+        project_dir = builder.build(plan, root)
     except ValueError as e:
         if "已存在" in str(e) and project_dir and project_dir.exists():
             logger.info(f"项目已存在，自动切换到追加模式: {project_dir}")
-            return _import_json_append(builder, plan, project_dir, translation)
+            return _import_json_append(builder, plan, project_dir, translation, root)
         raise
     logger.info(f"导入完成: {project_dir} ({len(plan.characters)} 角色, {len(plan.scenes)} 场景, {len(plan.shots)} 镜头)")
     return {
@@ -238,8 +238,8 @@ def import_json_task(self, plan_data: dict) -> dict:
         self.update_state(state="PROGRESS", meta={"step": "build", "progress": 50, "message": "构建项目..."})
 
         if plan.append:
-            return _import_json_append(builder, plan, project_dir, translation)
-        return _import_json_full(builder, plan, project_dir, translation)
+            return _import_json_append(builder, plan, project_dir, translation, _ROOT)
+        return _import_json_full(builder, plan, project_dir, translation, _ROOT)
 
     except Exception as e:
         from pydantic import ValidationError

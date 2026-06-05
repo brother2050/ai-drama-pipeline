@@ -144,7 +144,7 @@ def _run_serial(self, config_path, episode, shots, force, progress_base, progres
             "progress": int(progress_base + i / total * progress_range), "current": i + 1, "total": total,
             "message": f"[{i+1}/{total}] 镜头 {shot_id}"})
         try:
-            result = shot_task.apply(args=[config_path, episode, shot], kwargs={"force": force}).get(timeout=1800)
+            result = shot_task.apply_async(args=[config_path, episode, shot], kwargs={"force": force}).get(timeout=1800)
             results.append(result)
             if result.get("errors"):
                 failed_indices.append(i)
@@ -166,7 +166,7 @@ def _run_concurrent(self, config_path, episode, shots, force, progress_base, pro
             self.update_state(state="PROGRESS", meta={"step": "shot", "shot_id": shot_id,
                 "progress": int(progress_base + i / total * progress_range), "current": i + 1, "total": total,
                 "message": f"[{i+1}/{total}] 镜头 {shot_id}"})
-            return shot_task.apply(args=[config_path, episode, shot], kwargs={"force": force}).get(timeout=1800)
+            return shot_task.apply_async(args=[config_path, episode, shot], kwargs={"force": force}).get(timeout=1800)
         return _run
 
     tasks = [_make_task(i, shot) for i, shot in enumerate(shots)]
@@ -202,7 +202,7 @@ def _retry_failed(self, config_path, episode, shots, results, failed_indices, pr
             "progress": int(progress_base + (total + len(failed_indices)) / total * progress_range),
             "message": f"重试镜头 {shot_id}..."})
         try:
-            result = shot_task.apply(args=[config_path, episode, shot], kwargs={"force": True}).get(timeout=1800)
+            result = shot_task.apply_async(args=[config_path, episode, shot], kwargs={"force": True}).get(timeout=1800)
             results[i] = result
             logger.info(f"  镜头 {shot_id} 重试完成: done={result.get('done', [])}, errors={result.get('errors', [])}")
         except Exception as e:
