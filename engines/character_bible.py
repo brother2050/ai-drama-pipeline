@@ -173,9 +173,6 @@ class CharacterBible:
 #  LLM 生成角色圣经
 # ══════════════════════════════════════════════════════════
 
-BIBLE_GENERATION_SYSTEM = get_compiler().get("bible_generation_system")
-
-
 def generate_bible(llm, character: dict, outline: str = "", other_chars: list[dict] = None) -> dict:
     """用 LLM 生成角色圣经
 
@@ -189,6 +186,8 @@ def generate_bible(llm, character: dict, outline: str = "", other_chars: list[di
         角色圣经 dict
     """
     from infra.json_parse import parse_llm_json
+
+    system = get_compiler().get("bible_generation_system")
 
     parts = [f"角色名: {character.get('name', '?')}"]
     parts.append(f"外貌: {character.get('appearance', '')}")
@@ -210,7 +209,7 @@ def generate_bible(llm, character: dict, outline: str = "", other_chars: list[di
     prompt = "\n".join(parts)
 
     try:
-        raw = llm.chat(prompt, system=BIBLE_GENERATION_SYSTEM, max_tokens=1024)
+        raw = llm.chat(prompt, system=system, max_tokens=1024)
         result = parse_llm_json(raw)
         if result and isinstance(result, dict):
             return result
