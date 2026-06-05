@@ -175,12 +175,17 @@ def _enrich_stage(llm: object, shots: list[dict], system: str, label: str, requi
     if not result or not isinstance(result, list):
         return None
 
-    # 按 shot_id 合并（shot_id 匹配失败时回退到按索引匹配）
+    # 按 shot_id 合并（规范化为三位数格式，防止 LLM 返回 "1" 而原始是 "001"）
     result_map = {}
     for item in result:
         if isinstance(item, dict):
             sid = item.get("shot_id", "")
             if sid:
+                # 统一为三位数格式
+                try:
+                    sid = f"{int(sid):03d}"
+                except (ValueError, TypeError):
+                    pass
                 result_map[sid] = item
 
     merged = []
