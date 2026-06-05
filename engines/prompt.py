@@ -341,6 +341,8 @@ def batch_translate_to_english(texts: list[str], llm: object = None) -> list[str
         build_prompts=lambda batch: {"system": system_prompt, "user": "\n".join(f"{i+1}. {t}" for i, (_, t) in enumerate(batch))},
         parse_result=lambda raw, batch: _parse_numbered_lines(raw),
         estimate_item_tokens=lambda item: estimate_tokens(item[1]),
+        # 中→英翻译输出通常比输入长（中文紧凑，英文冗长）
+        estimate_item_output_tokens=lambda item: int(estimate_tokens(item[1]) * 1.5),
     )
 
     _merge_translate_results(results, batch_items, batch_result, llm)
