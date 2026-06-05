@@ -8,7 +8,6 @@
 
 | # | 文件 | 描述 |
 |---|------|------|
-| 61 | `infra/database/schema.py` | shots 表无 `updated_at` 列，无法追踪修改时间 |
 | 62 | `infra/database/pool.py` | 连接归还不检查实际可用性（DB 可能已重启） |
 | 73 | `api/backends/lipsync/musetalk.py` | 文件字段名硬编码，不同部署版本可能不兼容 |
 | 82 | `api/backends/training/ai_toolkit.py` | 从日志提取 safetensors 路径可能匹配到中间 checkpoint |
@@ -17,9 +16,7 @@
 
 | # | 文件 | 描述 |
 |---|------|------|
-| 102 | `engines/workflow_builder.py` | `_apply_gpu` 每次构建 `_sampler_types` 集合 |
 | 104 | `engines/workflow_inject.py` | suffix 用 `random.randint` 理论可能碰撞 |
-| 113 | `pipeline/tasks/helpers.py` | `_db_record_step` 静默吞异常，建议 `logger.warning` |
 | 131 | `web/routers/deps.py` | `_safe_path` URL 解码可能破坏含 `%` 的文件名 |
 
 ---
@@ -49,6 +46,9 @@
 | P1 #66 | `api/__init__.py` | `c5bca82` — 注册表失败时重置 _loaded |
 | P1 #74 | `api/backends/image/comfyui.py` | `c5bca82` — _extract_error 拆分 JSON 解析 |
 | — | `engines/llm_generator.py` | `24793fe` — 已有实体上下文注入 |
+| 61 | `infra/database/schema.py` | `9789cce` — shots 表添加 updated_at 列 |
+| 102 | `engines/workflow_builder.py` | `7b2bee6` — sampler_types 构建提到 load_workflows |
+| 113 | `pipeline/tasks/helpers.py` | `eb10f12` — _db_record_step 异常日志提升为 warning |
 
 ### 验证为非问题（审查中确认）
 
