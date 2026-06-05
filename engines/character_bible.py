@@ -71,11 +71,12 @@ class CharacterBible:
     def get_tags(self, char_id: str) -> str:
         """获取英文圣经 tag 摘要（逗号分隔，注入 ComfyUI prompt）
 
-        优先读 bible_en（英文），回退到 bible（中文）。
+        合并 bible + bible_en：en 覆盖 zh，未翻译字段回退中文。
         """
-        en = self.load_en(char_id)
         zh = self.load(char_id)
-        source = en if en else zh
+        en = self.load_en(char_id)
+        # 合并：中文打底，英文覆盖已翻译字段
+        source = {**zh, **en} if en else zh
         if not source:
             return ""
 
