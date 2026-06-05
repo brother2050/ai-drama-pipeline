@@ -692,6 +692,9 @@ async function editChar(id) {
       const data = { voice: _collectVoiceConfig('ec'), outfits: _collectOutfits() };
       // bible: 只在有内容时更新 core_traits
       if (coreTraits) data.bible = { core_traits: coreTraits };
+      // lora_trigger: 持久化到 YAML
+      const trigger = $val('train-trigger');
+      if (trigger) data.lora_trigger = trigger;
       return data;
     },
     extraHtml: (item) => `<div class="edit-field"><button class="btn btn-ai btn-sm" onclick="generatePortrait('${esc(id)}')" id="gen-portrait-btn">🎨 AI 生成定妆照</button><span id="gen-portrait-status" class="dim" style="font-size:.8rem;margin-left:.5rem"></span></div>` + _outfitFieldsHtml(id, item.outfits || {}) + _ttsVoiceFieldsHtml('ec', item.voice || {}) + _loraTrainHtml(id, item),

@@ -37,7 +37,7 @@ def _tpl(key: str) -> str:
 _BODY_FEATURE_KEYWORDS = {
     "scar", "tattoo", "birthmark", "burn", "freckle", "mole",
     "bruise", "wound", "prosthetic", "amputee", "blind", "deaf",
-    "bandage", "stitch", "piercing", "mark",
+    "bandage", "stitch", "piercing",
 }
 
 
