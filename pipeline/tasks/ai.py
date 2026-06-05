@@ -287,16 +287,27 @@ def _serialize_list_items(items: list) -> str:
     return "\n".join(f"{i+1}. {v}" for i, v in enumerate(items) if v)
 
 
-def _deserialize_numbered(raw: str, keys: list | None = None) -> dict | list:
-    """将编号文本反序列化为 dict 或 list"""
+def _deserialize_numbered(raw: str, keys: list | None = None, originals: dict | None = None) -> dict | list:
+    """将编号文本反序列化为 dict 或 list
+
+    Args:
+        raw: LLM 返回的编号文本
+        keys: dict 的 key 列表（None 则返回 list）
+        originals: 原始值 dict（key→原文），LLM 未翻译的 key 保留原文
+    """
     import re
+    from itertools import zip_longest
     lines = []
     for line in raw.strip().splitlines():
         m = re.match(r"^\d+\s*[.)]\s*(.+)", line.strip())
         if m:
             lines.append(m.group(1).strip())
     if keys is not None:
-        return dict(zip(keys, lines[:len(keys)]))
+        result = {}
+        for k, v in zip_longest(keys, lines, fillvalue=""):
+            if k:
+                result[k] = v or (originals or {}).get(k, "")
+        return result
     return lines
 
 
@@ -468,7 +479,7 @@ def _load_entity_cache(text_meta, results, entity_type, yaml_fn, entity_key) -> 
             entity = _ensure(eid).setdefault(entity_key, {})
             orig = entity.get("bible", {}).get(src_field, {})
             orig_keys = list(orig.keys()) if isinstance(orig, dict) else None
-            entity.setdefault("bible_en", {})[tgt_field] = _deserialize_numbered(results[i], orig_keys)
+            entity.setdefault("bible_en", {})[tgt_field] = _deserialize_numbered(results[i], orig_keys, originals=orig if isinstance(orig, dict) else None)
 
         elif etype == f"{entity_type}.bible_list":
             _ensure(eid).setdefault(entity_key, {}).setdefault("bible_en", {})[tgt_field] = _deserialize_numbered(results[i])
