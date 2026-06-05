@@ -109,6 +109,7 @@ def _extract_entity_ids(shots: list[dict]) -> tuple[set[str], set[str]]:
 def _generate_characters_for_storyboard(llm, shots, char_ids, outline, style, genre, paths) -> dict:
     """为分镜生成角色配置"""
     from engines.llm_generator import generate_characters
+    from engines.shot_utils import parse_char_ids
     from infra.config import save_yaml
 
     char_dir = paths.characters_dir
