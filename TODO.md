@@ -133,7 +133,7 @@
 | 18 | `pipeline/tasks/pipeline.py` | _run_concurrent 异常捕获 | `dcf70f2` |
 | 19 | `web/routers/system_tools.py` | 健康检查单个超时 vs 整体超时区分 | `dcf70f2` |
 | 20 | `web/routers/imports.py` | Seko download_dir 路径遍历改为 _safe_path | `eb759c4` |
-| 21 | `infra/watchdog.py` | HealthCache.get_or_check_full 异常缓存 | `eb759c4` |
+| 21 | `infra/monitor.py` | HealthCache.get_or_check_full 异常缓存 | `eb759c4` |
 | 22 | `pipeline/tasks/media_tasks.py` | music_task 构造函数移入 try 块 | `eb759c4` |
 | 23 | `engines/prompt_compiler.py` | 空角色+空动作+有情绪时不再生成无主语句子 | `eb759c4` |
 | 24 | `web/routers/assets.py` | 上传大小显示改用浮点 | `eb759c4` |
