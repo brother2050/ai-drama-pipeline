@@ -153,7 +153,7 @@ def list_projects(console):
 
         # 统计角色数
         chars_dir = dp.characters_dir
-        char_count = len([f for f in chars_dir.glob("*.yaml")]) if chars_dir.exists() else 0
+        char_count = len(list(chars_dir.glob("*.yaml"))) if chars_dir.exists() else 0
 
         # 统计分镜数
         sb_count = 0
@@ -262,9 +262,9 @@ def show_current(root: Path, console):
 
     # 显示项目文件统计
     chars_dir = dp.characters_dir
-    char_count = len([f for f in chars_dir.glob("*.yaml")]) if chars_dir.exists() else 0
+    char_count = len(list(chars_dir.glob("*.yaml"))) if chars_dir.exists() else 0
     scenes_dir = dp.scenes_dir
-    scene_count = len([f for f in scenes_dir.glob("*.yaml")]) if scenes_dir.exists() else 0
+    scene_count = len(list(scenes_dir.glob("*.yaml"))) if scenes_dir.exists() else 0
     sb_count = 0
     try:
         from infra.database.pool import get_pool
