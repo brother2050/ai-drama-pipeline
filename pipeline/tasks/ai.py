@@ -129,62 +129,6 @@ def _extract_entity_ids(shots: list[dict]) -> tuple[set[str], set[str]]:
     return char_ids, scene_ids
 
 
-def _build_entity_descriptions(shots, sorted_ids, outline, style, genre, entity_key):
-    """从分镜数据构建角色/场景描述列表"""
-    from engines.shot_utils import parse_char_ids
-
-    descriptions = []
-    for eid in sorted_ids:
-        if entity_key == "character":
-            entity_shots = [s for s in shots if eid in parse_char_ids(s)]
-        else:
-            entity_shots = [s for s in shots if (s.get("scene_id") or "").strip() == eid]
-
-        actions = [s.get("action", "") for s in entity_shots[:5]]
-        dialogues = [s.get("dialogue", "") for s in entity_shots[:5]
-                     if s.get("dialogue") and s.get("dialogue") != "......"]
-
-        label = "角色" if entity_key == "character" else "场景"
-        parts = [
-            f"根据以下信息生成{label}「{eid}」的配置。",
-            f"{'角色' if entity_key == 'character' else '场景'}ID: {eid}（必须原样填入 id 字段，不可修改）",
-            f"剧情大纲: {outline}",
-        ]
-        if style or genre:
-            ctx = []
-            if style:
-                ctx.append(f"视觉风格: {style}")
-            if genre:
-                ctx.append(f"题材类型: {genre}")
-            parts.append(f"创作方向: {'，'.join(ctx)}")
-
-        if entity_key == "character":
-            parts.append("该角色在分镜中的表现:")
-            if actions:
-                for idx, a in enumerate(actions, 1):
-                    parts.append(f"  镜头{idx}: {a}")
-            if dialogues:
-                parts.append(f"台词: {' / '.join(dialogues)}")
-            parts.append(f"\n【重要】此角色的 id 必须为「{eid}」，且 name 必须是与其他角色不同的独立名字，不能与其他角色重名。")
-        else:
-            parts.append("该场景在分镜中的画面:")
-            if actions:
-                for idx, a in enumerate(actions, 1):
-                    parts.append(f"  镜头{idx}: {a}")
-
-        descriptions.append("\n".join(parts))
-    return descriptions
-
-
-def _save_and_remap(entities, prefix, out_dir, entity_key, shots=None):
-    """统一的实体保存 + 分镜回写（消除重复调用）"""
-    from engines.entity_utils import save_entities, remap_shot_ids
-    result = save_entities(entities, prefix, out_dir, entity_key)
-    if shots and result.get("id_remap"):
-        remap_shot_ids(shots, result["id_remap"])
-    return result
-
-
 @app.task(bind=True, name="pipeline_ai_characters", soft_time_limit=300)
 def ai_characters_task(self, config_path: str, descriptions: list[str]) -> dict:
     """AI 生成角色（异步）"""
@@ -326,7 +270,8 @@ def ai_prepare_task(self, config_path: str, episode: int,
                     force: bool = False, translate: bool = True) -> dict:
     """准备阶段 — 批量预翻译角色/场景/分镜的中→英文本
 
-    运行完毕后，drama produce/preview/all 可完全不依赖 LLM 全速运行。
+    纯翻译步骤：角色圣经生成已移至 Web 工作台「📝 分镜表」→「🤖 AI 生成角色圣经」。
+    运行完毕后，生产管线可完全不依赖 LLM 全速运行。
     """
     with _project_scope_from_config(config_path):
         return _ai_prepare_inner(self, config_path, episode, force, translate)
@@ -443,7 +388,7 @@ def _collect_translation_texts(paths, force: bool = False) -> tuple[list[str], l
     return all_texts, text_meta
 
 
-def _writeback_translations(text_meta, results, paths, episode, shots) -> dict:
+def _writeback_translations(text_meta, results, paths, episode, shots) -> tuple[dict, dict]:
     """回写翻译结果到 YAML + DB，返回统计"""
     from infra.config import save_yaml
     translated = {"characters": 0, "scenes": 0, "shots": 0}
@@ -535,30 +480,6 @@ def _generate_view_prompts(char_cache, llm, paths) -> int:
         return 0
 
 
-def _generate_character_bibles(llm, paths) -> int:
-    """为所有角色生成角色圣经，返回成功数"""
-    from engines.character_bible import CharacterBible, generate_bible
-    from infra.config import load_yaml_entities
-
-    bible = CharacterBible(str(paths.root))
-    all_chars = load_yaml_entities(paths.characters_dir, "character")
-    generated = 0
-    for char in all_chars:
-        cid = char.get("id", "")
-        if not cid or bible.load(cid):
-            continue
-        try:
-            result = generate_bible(llm, char, other_chars=all_chars)
-            if result:
-                bible.save(cid, result)
-                generated += 1
-        except Exception as e:
-            logger.debug(f"角色圣经生成跳过 {cid}: {e}")
-    if generated:
-        logger.info(f"  ✅ 角色圣经生成完成: {generated} 个角色")
-    return generated
-
-
 def _collect_shot_texts(shots: list[dict], all_texts: list[str], text_meta: list, force: bool = False) -> None:
     """补充待翻译的分镜文本（action/dialogue）"""
     for shot in shots:
@@ -619,18 +540,12 @@ def _ai_prepare_inner(self, config_path, episode, force, translate):
     except Exception as e:
         return {"status": STATUS_ERROR, "reason": f"翻译失败: {e}"}
 
-    # 3. 回写 + 视角 prompt + 角色圣经
+    # 3. 回写 + 视角 prompt
     self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 80, "message": "正在保存..."})
     translated, char_cache = _writeback_translations(text_meta, results, paths, episode, shots)
 
-    self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 85, "message": "生成视角 prompt..."})
+    self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 90, "message": "生成视角 prompt..."})
     translated["view_prompts"] = _generate_view_prompts(char_cache, llm, paths)
-
-    try:
-        self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 90, "message": "生成角色圣经..."})
-        translated["bibles"] = _generate_character_bibles(llm, paths)
-    except Exception as e:
-        logger.debug(f"角色圣经生成跳过: {e}")
 
     msg = f"翻译完成: {translated['characters']} 角色, {translated['scenes']} 场景, {translated['shots']} 镜头"
     self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 100, "message": msg})

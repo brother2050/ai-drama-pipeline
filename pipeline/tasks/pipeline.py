@@ -16,7 +16,6 @@ from pipeline.tasks.helpers import (
 from pipeline.tasks.steps import (
     _run_tts, _run_first_frame, _run_video, _run_lipsync,
 )
-from pipeline.tasks.media_tasks import _run_post
 
 logger = logging.getLogger(__name__)
 @app.task(bind=True, name="pipeline_shot", soft_time_limit=1800)
@@ -278,6 +277,11 @@ def _apply_preset(config_path: str, preset: str) -> str:
 
 @app.task(bind=True, name="pipeline_produce", soft_time_limit=7200)
 def produce_task(self, config_path: str, episode: int, vertical: bool = False, force: bool = False) -> dict:
+    """镜头生产（TTS → 首帧 → 视频 → 口型同步）
+
+    注意：后期合成（拼接/字幕/配乐）由 pipeline_post 独立负责，
+    一键全流程会依次调用 produce → post，不要在此重复执行。
+    """
     # 绑定项目作用域
     project_name = Path(config_path).resolve().parent.parent.name
     from infra.database._db import project_scope
@@ -291,39 +295,16 @@ def produce_task(self, config_path: str, episode: int, vertical: bool = False, f
             logger.warning(
                 "⚠ 当前分镜表为默认示例数据（林夏/顾辰），"
                 "请确认是否需要替换为你自己的剧本。"
-                "如需替换，请使用 AI 生成或通过 Web 工作台编辑: "
-                "drama generate storyboard 1 --outline your_outline.txt"
+                "如需替换，请在 Web 工作台「📝 分镜表」→「🤖 AI 生成」中输入你的大纲。"
             )
 
         # ── 生产前自检：确保定妆照和场景图就绪 ──
         self.update_state(state="PROGRESS", meta={"step": "assets", "progress": 3, "message": "检查资产..."})
         _ensure_portraits_and_scenes(config_path, self, episode=episode)
 
-        results = _iterate_shots(self, config_path, episode, shots, progress_base=5, progress_range=85, force=force)
-        self.update_state(state="PROGRESS", meta={"step": "post", "progress": 90, "message": "后期合成..."})
-        try:
-            _run_post(config_path, episode, vertical)
-        except Exception as e:
-            logger.error(f"后期失败: {e}", exc_info=True)
+        results = _iterate_shots(self, config_path, episode, shots, progress_base=5, progress_range=90, force=force)
 
-        # ── 质量门禁：生产后检查 ──
-        quality_issues = []
-        try:
-            from engines.quality_gate import check_quality
-            proj_root = str(Path(config_path).resolve().parent.parent)
-            issues = check_quality("after_produce", proj_root, episode=episode)
-            if issues:
-                errors = [i for i in issues if i["severity"] == "error"]
-                warnings = [i for i in issues if i["severity"] == "warning"]
-                for w in warnings:
-                    logger.warning(f"⚠ 质量检查: {w['name']} — {w['message']}")
-                for e in errors:
-                    logger.error(f"❌ 质量检查: {e['name']} — {e['message']}")
-                quality_issues = issues
-        except Exception as e:
-            logger.debug(f"质量门禁跳过: {e}")
-
-        return {"status": STATUS_DONE, "episode": episode, "shots": results, "quality_issues": quality_issues}
+        return {"status": STATUS_DONE, "episode": episode, "shots": results}
 
 
 def _check_portrait_readiness(paths) -> tuple[list[str], list[str]]:
@@ -403,8 +384,7 @@ def _ensure_portraits_and_scenes(config_path: str, task_self=None, episode: int 
             f"请按以下步骤准备：\n"
             f"  1. 在 Web 工作台「🎬 生产管线」页面点击「🔧 准备阶段」（生成英文 prompt + 翻译）\n"
             f"  2. 在 Web 工作台「👤 角色」页面点击「🎨 AI 生成定妆照」\n"
-            f"  3. （可选）在 Web 工作台「🏔️ 场景」页面点击「🎨 AI 生成场景图」\n\n"
-            f"或使用 CLI：\n  drama prepare {episode}\n  drama portraits\n")
+            f"  3. （可选）在 Web 工作台「🏔️ 场景」页面点击「🎨 AI 生成场景图」\n")
         if task_self:
             task_self.update_state(state="PROGRESS", meta={"step": "preflight", "progress": 4, "message": msg})
         raise RuntimeError(msg)

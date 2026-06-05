@@ -136,7 +136,7 @@ def _handle_import_result(result) -> bool:
                 console.print("  翻译: [green]✅ 完整 — 可直接进入生产管线[/green]")
             else:
                 console.print(f"  翻译: [yellow]⚠ {translation['summary']}[/yellow]")
-                console.print("         运行 [bold]drama prepare[/bold] 补全后可进入生产管线")
+                console.print("         在 Web 工作台执行「🔧 准备阶段」补全后可进入生产管线")
         return True
     if isinstance(result, dict) and result.get("status") == STATUS_ERROR:
         console.print(f"\n[red]❌ {result.get('reason', '导入失败')}[/red]")
