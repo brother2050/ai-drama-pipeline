@@ -28,7 +28,7 @@ _INSERT_COLS = (
 )
 _UPSERT_SET = ", ".join(
     f"{c}=EXCLUDED.{c}" for c in _INSERT_COLS if c not in ("project", "episode", "shot_id")
-)
+) + ", updated_at=CURRENT_TIMESTAMP"
 
 
 def _values(project: str, episode: int, shot: dict) -> tuple:
