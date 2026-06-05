@@ -155,6 +155,11 @@ def _outfit_single_inner(self, config_path: str, char_id: str, outfit_key: str) 
 def outfits_batch_task(self, config_path: str, char_id: str) -> dict:
     """为单个角色的所有服装批量生成参考图"""
     _ensure_path()
+    with _project_scope_from_config(config_path):
+        return _outfits_batch_inner(self, config_path, char_id)
+
+
+def _outfits_batch_inner(self, config_path: str, char_id: str) -> dict:
     self.update_state(state="PROGRESS", meta={"step": "outfits", "progress": 5, "message": f"加载角色 {char_id}..."})
 
     paths = _paths(config_path)

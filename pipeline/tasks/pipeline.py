@@ -58,6 +58,8 @@ def _shot_task_inner(self, config_path: str, episode: int, shot_data: dict, shot
 
     ctx = {"cfg": cfg, "cont": cont, "shot": shot_data, "characters": characters, "scenes": scenes}
 
+    # 复制避免污染传入的共享 dict
+    shot_data = dict(shot_data)
     try:
         shot_data["duration"] = max(2, min(8, int(shot_data.get("duration", 4))))
     except (ValueError, TypeError):
