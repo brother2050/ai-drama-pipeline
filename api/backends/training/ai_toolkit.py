@@ -481,18 +481,22 @@ class AIToolkitTrainer:
                 output_pattern = re.compile(r"(output[/\\][\w/\\]*\.safetensors)")
                 # 回退：匹配包含 lora/final/save 关键词的路径
                 final_pattern = re.compile(r"([\w/\\]*(?:lora|final|save)[\w/\\]*\.safetensors)")
-                # 最后兜底：任意 .safetensors
+                # 最后兜底：任意 .safetensors（排除 checkpoint 中间产物）
                 any_pattern = re.compile(r"([\w/\\]+\.safetensors)")
 
                 for pattern in [output_pattern, final_pattern, any_pattern]:
                     for line in reversed(log.split("\n")):
                         match = pattern.search(line)
                         if match:
+                            path_str = match.group(1)
+                            # 跳过 checkpoint 中间产物
+                            if "checkpoint" in path_str.lower():
+                                continue
                             try:
-                                self._download_result(match.group(1), output_path)
+                                self._download_result(path_str, output_path)
                                 return output_path
                             except Exception as e:
-                                logger.warning(f"  下载 {match.group(1)} 失败: {e}")
+                                logger.warning(f"  下载 {path_str} 失败: {e}")
                                 continue
         except Exception as e:
             logger.debug(f"从作业日志获取输出路径失败: {e}")

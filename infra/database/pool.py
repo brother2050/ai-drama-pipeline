@@ -32,6 +32,18 @@ class PgPool:
         if getattr(conn, 'closed', False):
             self._put(conn, close=True)
             return self._pool.getconn()
+        # 检查连接是否真正可用（DB 可能已重启）
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+        except Exception:
+            logger.debug("连接不可用，回收重建")
+            try:
+                conn.close()
+            except Exception:
+                pass
+            self._put(conn, close=True)
+            return self._pool.getconn()
         return conn
 
     def _put(self, conn, close: bool = False):

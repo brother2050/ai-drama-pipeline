@@ -19,6 +19,10 @@ class MuseTalk:
         self._timeout = config.get("timeouts", {}).get("lipsync", 120)
         self._client = get_client(timeout=self._timeout)
         self._fast_client = get_client(timeout=3)
+        # 文件字段名（不同部署版本可能不同）
+        self._video_field = config.get("video_field", "video")
+        self._audio_field = config.get("audio_field", "audio")
+        self._result_type = config.get("result_type", "video")
 
     @property
     def name(self) -> str:
@@ -28,8 +32,9 @@ class MuseTalk:
         Path(output).parent.mkdir(parents=True, exist_ok=True)
         with open(video, "rb") as vf, open(audio, "rb") as af:
             r = self._client.post(f"{self._url}/process",
-                                  files={"video": (Path(video).name, vf), "audio": (Path(audio).name, af)},
-                                  data={"result_type": "video"})
+                                  files={self._video_field: (Path(video).name, vf),
+                                         self._audio_field: (Path(audio).name, af)},
+                                  data={"result_type": self._result_type})
         r.raise_for_status()
         with open(output, "wb") as f:
             f.write(r.content)

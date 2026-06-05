@@ -100,8 +100,15 @@ def _check_episode(ep: int) -> None:
 def _safe_path(base: Path, *parts: str) -> Path:
     """安全路径拼接 — resolve() + is_relative_to() 双重校验"""
     from urllib.parse import unquote
-    parts = [unquote(p, errors="ignore") for p in parts if p]
-    joined = "/".join(parts)
+    decoded = []
+    for p in parts:
+        if p:
+            # 仅在看起来像 URL 编码时才解码（含 %XX 模式）
+            if '%' in p and re.search(r'%[0-9a-fA-F]{2}', p):
+                decoded.append(unquote(p, errors="strict"))
+            else:
+                decoded.append(p)
+    joined = "/".join(decoded)
     if not joined:
         return base.resolve()
     resolved = (base / joined).resolve()
