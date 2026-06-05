@@ -90,6 +90,7 @@ class ConsistencyChecker:
 
     def _check_outfit_continuity(self, shots: list[dict]) -> list[str]:
         """检查服装连续性：同场景内相邻镜头服装不应突变"""
+        from engines.shot_utils import parse_char_ids
         errors = []
         for i in range(1, len(shots)):
             prev = shots[i - 1]
@@ -103,7 +104,6 @@ class ConsistencyChecker:
             # 同场景内服装变化 = 可能的问题
             if prev.get("scene_id") == curr.get("scene_id"):
                 # 检查是否有角色变化（不同角色可以穿不同衣服）
-                from engines.shot_utils import parse_char_ids
                 prev_chars = set(parse_char_ids(prev))
                 curr_chars = set(parse_char_ids(curr))
                 if prev_chars == curr_chars:
