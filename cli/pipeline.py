@@ -49,7 +49,7 @@ def register_pipeline_commands(cli):
     @click.option("--no-translate", is_flag=True, help="跳过翻译")
     @click.option("--local", is_flag=True, help="本地执行（不走 Celery）")
     def prepare(episode, config_path, force, no_translate, local):
-        """准备阶段 — 批量预翻译（生产前运行一次）"""
+        """准备阶段 — 批量预翻译（生产前运行一次，仅翻译，不含角色圣经生成）"""
         from cli import _ensure_deps, _resolve_config, _run_via_celery
         cfg = _resolve_config(config_path)
 
@@ -118,23 +118,18 @@ def register_pipeline_commands(cli):
     @config_option
     @click.option("--force", is_flag=True, help="强制覆盖已有文件")
     def run_all(episode, vertical, config_path, force):
-        """一键全流程（等价于依次运行 preview → produce → post）"""
+        """一键全流程（依次运行 prepare → produce → post）"""
         from cli import _ensure_deps, _resolve_config, _run_via_celery
         _ensure_deps()
         cfg = _resolve_config(config_path)
         console.print(f"\n[bold cyan]━━━ 全流程 第{episode}集 ━━━[/bold cyan]\n")
-        for i, (label, task_name) in enumerate([
-            ("预览", "pipeline_preview"),
-            ("生产", "pipeline_produce"),
-            ("后期", "pipeline_post"),
+        for i, (label, task_name, kwargs) in enumerate([
+            ("准备", "pipeline_prepare", {"force": force}),
+            ("生产", "pipeline_produce", {"vertical": vertical, "force": force}),
+            ("后期", "pipeline_post", {"vertical": vertical}),
         ], 1):
             console.print(f"[bold][{i}/3] {label}[/bold]")
-            if task_name == "pipeline_post":
-                ok = _run_via_celery(task_name, cfg, episode, vertical=vertical)
-            elif task_name == "pipeline_produce":
-                ok = _run_via_celery(task_name, cfg, episode, vertical=vertical, force=force)
-            else:
-                ok = _run_via_celery(task_name, cfg, episode, force=force)
+            ok = _run_via_celery(task_name, cfg, episode, **kwargs)
             if not ok:
                 console.print(f"\n[red]❌ 流程在「{label}」步骤失败，已终止[/red]")
                 sys.exit(1)

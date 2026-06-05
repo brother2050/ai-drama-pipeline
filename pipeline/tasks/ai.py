@@ -326,6 +326,7 @@ def ai_prepare_task(self, config_path: str, episode: int,
                     force: bool = False, translate: bool = True) -> dict:
     """准备阶段 — 批量预翻译角色/场景/分镜的中→英文本
 
+    纯翻译步骤：角色圣经生成已移至 `generate bible` 命令。
     运行完毕后，drama produce/preview/all 可完全不依赖 LLM 全速运行。
     """
     with _project_scope_from_config(config_path):
@@ -619,18 +620,12 @@ def _ai_prepare_inner(self, config_path, episode, force, translate):
     except Exception as e:
         return {"status": STATUS_ERROR, "reason": f"翻译失败: {e}"}
 
-    # 3. 回写 + 视角 prompt + 角色圣经
+    # 3. 回写 + 视角 prompt
     self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 80, "message": "正在保存..."})
     translated, char_cache = _writeback_translations(text_meta, results, paths, episode, shots)
 
-    self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 85, "message": "生成视角 prompt..."})
+    self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 90, "message": "生成视角 prompt..."})
     translated["view_prompts"] = _generate_view_prompts(char_cache, llm, paths)
-
-    try:
-        self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 90, "message": "生成角色圣经..."})
-        translated["bibles"] = _generate_character_bibles(llm, paths)
-    except Exception as e:
-        logger.debug(f"角色圣经生成跳过: {e}")
 
     msg = f"翻译完成: {translated['characters']} 角色, {translated['scenes']} 场景, {translated['shots']} 镜头"
     self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 100, "message": msg})
