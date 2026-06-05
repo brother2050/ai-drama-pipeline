@@ -55,6 +55,22 @@ def _extract_body_features(prompt_en: str) -> str:
     return ", ".join(features)
 
 
+# 性别标签检测
+_GENDER_TAGS = {"1boy", "1girl", "boy", "girl", "man", "woman", "male", "female"}
+_GENDER_INJECT = {"male": "1boy", "female": "1girl"}
+
+
+def _ensure_gender_tag(prompt_en: str, gender: str) -> str:
+    """确保 prompt 包含性别标签。已有则不加，缺失则从 gender 字段补。"""
+    if not gender:
+        return prompt_en
+    lower = prompt_en.lower()
+    if any(tag in lower for tag in _GENDER_TAGS):
+        return prompt_en
+    tag = _GENDER_INJECT.get(gender.lower(), "")
+    return f"{tag}, {prompt_en}" if tag else prompt_en
+
+
 def batch_generate_appearance_prompts(characters: list[dict], llm: object) -> dict[str, dict]:
     """批量生成角色模型友好 prompt — AdaptiveBatchProcessor 自适应分批
 
@@ -166,6 +182,9 @@ def get_view_appearance(char: dict, shot_type: str) -> str:
     base_en = char.get("appearance_prompt_en", "")
     if not base_en:
         return ""
+
+    # 确保 prompt 包含性别标签（1boy/1girl），LLM 翻译可能遗漏
+    base_en = _ensure_gender_tag(base_en, char.get("gender", ""))
 
     body_features = char.get("body_features", "")
     return build_view_prompt(base_en, body_features, view_key)
