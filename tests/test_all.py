@@ -310,10 +310,10 @@ def test_distributor_compat():
     from post.distributor import check_platform_compat, get_adapt_params
 
     result = check_platform_compat("/nonexistent.mp4", "douyin")
-    assert result["compatible"] == False
+    assert not result["compatible"]
 
     result = check_platform_compat("/tmp/test.mp4", "unknown_platform")
-    assert result["compatible"] == False
+    assert not result["compatible"]
 
     params = get_adapt_params("/tmp/test.mp4", "douyin")
     assert "ffmpeg_args" in params
@@ -460,8 +460,8 @@ def test_celery_app():
 
     assert app.main == "drama"
     assert "redis" in app.conf.broker_url
-    assert app.conf.task_track_started == True
-    assert app.conf.task_acks_late == True
+    assert app.conf.task_track_started
+    assert app.conf.task_acks_late
     assert app.conf.worker_prefetch_multiplier == 1
     print("✅ Celery 配置正常")
 

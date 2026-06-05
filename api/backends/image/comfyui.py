@@ -1,6 +1,10 @@
 """ComfyUI 图片/视频生成 — HTTP API"""
 from __future__ import annotations
-import logging, random, time, uuid, urllib.parse
+import logging
+import random
+import time
+import uuid
+import urllib.parse
 from pathlib import Path
 import httpx
 from api.registry import BackendMeta, registry

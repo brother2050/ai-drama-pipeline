@@ -230,8 +230,8 @@ def test_celery_app_config():
     from pipeline.celery_app import app
 
     assert app.main == "drama"
-    assert app.conf.task_track_started == True
-    assert app.conf.task_acks_late == True
+    assert app.conf.task_track_started
+    assert app.conf.task_acks_late
     assert app.conf.worker_prefetch_multiplier == 1
 
 

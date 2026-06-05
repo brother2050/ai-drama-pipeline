@@ -402,7 +402,8 @@ class TestDistributorStatus:
     def test_compatible_video_returns_done(self):
         """兼容视频返回 STATUS_DONE（不是 'ready'）"""
         from post.distributor import distribute
-        import tempfile, os
+        import tempfile
+        import os
         # 创建一个假视频文件
         with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
             f.write(b"\x00" * 100)
