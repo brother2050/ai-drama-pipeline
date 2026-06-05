@@ -112,12 +112,21 @@ class AdaptiveBatchProcessor:
             return {"results": [], "failed_batches": 0, "total_batches": 0}
 
         get_input = estimate_item_tokens or (lambda item: estimate_tokens(str(item)))
-        get_output = estimate_item_output_tokens or (lambda _: 300)
+        # output 默认值：取 300 和 input 估算的较大者，避免低估
+        if estimate_item_output_tokens:
+            get_output = estimate_item_output_tokens
+        else:
+            get_output = lambda item: max(300, get_input(item))
         sample = build_prompts([items[0]])
         system_tokens = estimate_tokens(sample.get("system", ""))
         batches = self._create_batches(items, get_input, get_output, system_tokens)
 
-        logger.info(f"自适应分批: {len(items)} 项 → {len(batches)} 批 ({[len(b) for b in batches]})")
+        total_input = sum(get_input(it) for it in items)
+        total_output = sum(get_output(it) for it in items)
+        logger.info(
+            f"自适应分批: {len(items)} 项 → {len(batches)} 批 ({[len(b) for b in batches]}), "
+            f"估算 input≈{total_input} output≈{total_output}, "
+            f"预算 input={self._input_budget} output={self._output_budget}")
         if on_progress:
             on_progress(0, len(batches), f"开始处理 {len(batches)} 批...")
 
@@ -133,6 +142,8 @@ class AdaptiveBatchProcessor:
 
         约束 1: system_tokens + sum(item_input) ≤ input_budget
         约束 2: sum(item_output) ≤ output_budget
+
+        单个超预算项独立成批（宁可超限也不丢弃，由重试机制兜底）。
         """
         batches: list[list[Any]] = []
         current: list[Any] = []
@@ -142,6 +153,17 @@ class AdaptiveBatchProcessor:
         for item in items:
             item_in = get_input(item)
             item_out = get_output(item)
+
+            # 单个超预算项：独立成批，不和别人混
+            if item_in > self._input_budget or item_out > self._output_budget:
+                if current:
+                    batches.append(current)
+                    current = []
+                    cur_input = system_tokens
+                    cur_output = 0
+                batches.append([item])
+                logger.warning(f"单个超预算项独立成批: input≈{item_in} output≈{item_out}")
+                continue
 
             exceed_input = cur_input + item_in > self._input_budget
             exceed_output = cur_output + item_out > self._output_budget
