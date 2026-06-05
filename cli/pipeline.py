@@ -73,16 +73,20 @@ def register_pipeline_commands(cli):
 
     @cli.command()
     @click.argument("episode", type=int)
-    @click.option("--vertical", is_flag=True, help="横转竖")
+    @click.option("--vertical", is_flag=True, help="横转竖（已废弃，请在 post 中使用）")
     @config_option
     @click.option("--force", is_flag=True, help="强制覆盖已有文件")
     def produce(episode, vertical, config_path, force):
-        """完整生产（通过 Celery 异步执行）"""
+        """镜头生产（TTS → 首帧 → 视频 → 口型同步）
+
+        仅负责单镜头的 4 步生产，后期合成（拼接/字幕/配乐）请用 drama post。
+        一键全流程请用 drama all。
+        """
         from cli import _ensure_deps, _resolve_config, _run_via_celery
         _ensure_deps()
         cfg = _resolve_config(config_path)
         console.print(f"\n[bold cyan]🎬 生产 第{episode}集[/bold cyan]\n")
-        if not _run_via_celery("pipeline_produce", cfg, episode, vertical=vertical, force=force):
+        if not _run_via_celery("pipeline_produce", cfg, episode, force=force):
             sys.exit(1)
 
     @cli.command()
@@ -124,8 +128,8 @@ def register_pipeline_commands(cli):
         cfg = _resolve_config(config_path)
         console.print(f"\n[bold cyan]━━━ 全流程 第{episode}集 ━━━[/bold cyan]\n")
         for i, (label, task_name, kwargs) in enumerate([
-            ("准备", "pipeline_prepare", {"force": force}),
-            ("生产", "pipeline_produce", {"vertical": vertical, "force": force}),
+            ("准备", "pipeline_ai_prepare", {"force": force}),
+            ("生产", "pipeline_produce", {"force": force}),
             ("后期", "pipeline_post", {"vertical": vertical}),
         ], 1):
             console.print(f"[bold][{i}/3] {label}[/bold]")

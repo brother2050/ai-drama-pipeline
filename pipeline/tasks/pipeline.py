@@ -16,7 +16,6 @@ from pipeline.tasks.helpers import (
 from pipeline.tasks.steps import (
     _run_tts, _run_first_frame, _run_video, _run_lipsync,
 )
-from pipeline.tasks.media_tasks import _run_post
 
 logger = logging.getLogger(__name__)
 @app.task(bind=True, name="pipeline_shot", soft_time_limit=1800)
