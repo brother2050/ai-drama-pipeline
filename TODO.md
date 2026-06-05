@@ -13,75 +13,20 @@
 
 ## 🟡 中优先级
 
-### 1. 并发错开逻辑数学错误
-**文件**: `infra/concurrency.py:40`
-**问题**: 任务按 `idx * stagger_ms` 等待，实际错开间隔是 stagger_ms 的整数倍而非固定的 stagger_ms。且线程池不保证按 idx 顺序启动，导致时序不可预测。
-**修复**: 改为基于上一个任务启动时间的固定间隔错开。
-
-### 2. cursor 创建失败时 NameError 掩盖原始异常
-**文件**: `infra/database/_db.py:91-100`
-**问题**: `dict_cursor(conn)` 若抛异常，`finally` 块中 `cur.close()` 引发 NameError，掩盖原始异常。连接不泄漏但调试体验差。
-**修复**: `cur = None` 初始化，`finally` 中 `if cur: cur.close()`。
-
-### 3. safe_executor 每次超时创建新线程池，超时后线程泄漏
-**文件**: `infra/safe_executor.py:95-102`
-**问题**: 每次重试创建新 `ThreadPoolExecutor`。超时后后台线程无法终止，重试又创建新线程，可能累积阻塞线程。
-**修复**: 复用线程池实例，或在超时后记录线程状态避免重复创建。
-
-### 4. 定妆照 TTL 重入保护竞态
-**文件**: `engines/portrait.py:226-233`
-**问题**: `_generating` 的 TTL 检查和 `finally: _generating.pop()` 之间存在竞态窗口。线程 A 的生成耗时恰好在 TTL 边界时，线程 B 可通过检查并启动并发生成。
-**修复**: TTL 检查 + 标记必须在同一把锁内原子完成。
-
-### 5. 混合类型列表：角色 LoRA 分类逻辑脆弱
-**文件**: `engines/workflow_builder.py:281-282` → `engines/workflow_inject.py:52-55`
-**问题**: `chars_with_lora` 存 `(cid, lora_path)` 元组，`chars_without_lora` 存 `cid` 字符串。后续 `set()` 操作恰好能工作但依赖巧合，重构易引入 bug。
-**修复**: 统一数据结构，如全部使用 dict。
-
-### 6. LLM 结果对齐 fallback 假设顺序一致
-**文件**: `engines/shot_calibrator.py:117-119`
-**问题**: `_enrich_stage` 按 shot_id 合并失败时 fallback 到 `result[i]` 按索引取值。LLM 返回顺序不可控，可能将错误数据合并到错误镜头。
-**修复**: 去掉按索引 fallback，shot_id 匹配失败时跳过该镜头。
-
-### 7. 健康检查异常误判
-**文件**: `web/routers/system_tools.py:98`
-**问题**: `as_completed` 的 `except TimeoutError` 在 Python 3.11+ 中行为不同，可能将连接拒绝等真实不可用误判为"检测超时"。
-**修复**: 区分超时异常和连接异常，分别处理。
-
-### 8. Seko 下载目录路径遍历预检不足
+### 1. Seko 下载目录路径遍历预检不足
 **文件**: `web/routers/imports.py:80`
 **问题**: `download_dir` 仅检查 `..`，未处理 `....//` 或 URL 编码变体。下游 `download_elements_images` 若不做路径校验，存在写入任意目录风险。
 **修复**: 使用 `_safe_path` 统一校验 download_dir。
 
-### 9. 测试 ROOT 路径错误
-**文件**: `tests/test_import_standalone.py:6`, `tests/test_import_e2e_standalone.py:6`
-**问题**: `ROOT = Path(__file__).resolve().parent` 指向 `tests/` 而非项目根目录。直接运行 `python tests/test_xxx.py` 会因模块找不到而失败。
-**修复**: 改为 `parent.parent`。
-
-### 10. 缺少后期处理单元测试
+### 2. 缺少后期处理单元测试
 **文件**: `tests/` 目录
 **问题**: `post/production.py`（拼接流程）、`post/vertical.py`（裁剪逻辑）没有单元测试。
 **修复**: 添加 post/ 模块的单元测试。
 
-### 11. 缺少追加导入模式测试
+### 3. 缺少追加导入模式测试
 **文件**: `tests/` 目录
 **问题**: `ProjectBuilder.append()` 没有端到端测试。`test_import_standalone.py` 仅测 Schema 校验。
 **修复**: 添加 append 模式的端到端测试。
-
-### 12. 项目删除时 DB 清理部分失败仍删目录
-**文件**: `scripts/project_mgr.py:160-180`
-**问题**: `_cleanup_project_db` 异常被 catch 后，`shutil.rmtree` 仍执行，导致孤立 DB 记录。
-**修复**: DB 清理失败时中止删除，或记录警告后清理 DB 残留。
-
-### 13. `_run_concurrent` 异常未捕获导致整个批次失败
-**文件**: `pipeline/tasks/pipeline.py` (`_run_concurrent`)
-**问题**: `run_staggered_sync` 若抛异常，整个集级任务以 unhandled exception 失败，已成功镜头的结果丢失。
-**修复**: 包裹 try/except，返回包含部分结果的 error dict。
-
-### 14. `post_task` 中 `_run_post` 嵌套 project_scope 可能不可重入
-**文件**: `pipeline/tasks/media_tasks.py:29-38`
-**问题**: `_run_post` 自己创建 `project_scope`，从 `run_all_task` 调用时外层已有 scope。若不可重入，内层可能覆盖外层项目名。
-**修复**: 验证 `project_scope` 可重入性，或改为传递项目名参数。
 
 ---
 
@@ -223,3 +168,12 @@
 | 8 | `engines/workflow.py` + `workflow_inject.py` | `_resolve_model_source` 重复逻辑 | `49aa2a9` |
 | 9 | `web/schemas/__init__.py` | `ChatEditRequest.message` 缺 max_length | `49aa2a9` |
 | 10 | `api/registry.py` | YAML 变体名误报 warning（降为 debug） | `8be5d0a` |
+| 11 | `infra/concurrency.py` | 并发错开按 idx 累乘改为固定间隔 | `e708740` |
+| 12 | `infra/database/_db.py` | cursor 创建失败 NameError | `e708740` |
+| 13 | `infra/safe_executor.py` | 超时线程池改为进程级复用 | `e708740` |
+| 14 | `engines/portrait.py` | TTL 竞态：finally 只清除自己的标记 | `f174f99` |
+| 15 | `engines/workflow_builder.py` | LoRA 分类混合类型改为统一 dict | `f174f99` |
+| 16 | `engines/shot_calibrator.py` | LLM 对齐去掉按索引 fallback | `f174f99` |
+| 17 | `tests/test_import*.py` | ROOT 路径 parent → parent.parent | `dcf70f2` |
+| 18 | `pipeline/tasks/pipeline.py` | _run_concurrent 异常捕获 | `dcf70f2` |
+| 19 | `web/routers/system_tools.py` | 健康检查单个超时 vs 整体超时区分 | `dcf70f2` |
