@@ -73,11 +73,14 @@ def _shot_task_inner(self, config_path: str, episode: int, shot_data: dict, shot
 
 
 def _preload_shot_data(cfg):
-    """预加载角色和场景数据"""
+    """预加载角色和场景数据（不加载分镜 — 分镜由调用方从 DB 新鲜读取）"""
     try:
-        from engines.shot_manager import ShotManager
-        sm = ShotManager(str(cfg.paths.config_dir))
-        return sm.characters, sm.scenes
+        from infra.config import load_yaml_entities
+        paths = cfg.paths
+        characters = {c["id"]: c for c in load_yaml_entities(paths.characters_dir, "character")}
+        scenes = {s["id"]: s for s in load_yaml_entities(paths.scenes_dir, "scene")}
+        logger.info(f"预加载: {len(characters)} 角色, {len(scenes)} 场景")
+        return characters, scenes
     except Exception as e:
         logger.warning(f"预加载角色/场景数据失败（后续步骤可能受影响）: {e}")
         return None, None

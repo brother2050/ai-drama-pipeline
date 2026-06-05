@@ -149,13 +149,16 @@ def _resolve_shot_context(shot: dict, cfg, characters: dict | None, scenes: dict
 
 
 def _ensure_char_scene_data(cfg, characters, scenes):
-    """确保角色/场景数据已加载"""
+    """确保角色/场景数据已加载（不经过 ShotManager，避免加载不必要的 shots）"""
     if characters is not None and scenes is not None:
         return characters, scenes
-    from engines.shot_manager import ShotManager
-    sm = ShotManager(str(cfg.paths.config_dir))
-    return characters if characters is not None else sm.characters, \
-           scenes if scenes is not None else sm.scenes
+    from infra.config import load_yaml_entities
+    paths = cfg.paths
+    if characters is None:
+        characters = {c["id"]: c for c in load_yaml_entities(paths.characters_dir, "character")}
+    if scenes is None:
+        scenes = {s["id"]: s for s in load_yaml_entities(paths.scenes_dir, "scene")}
+    return characters, scenes
 
 
 def _auto_match_outfit(shot, char_ids, characters):

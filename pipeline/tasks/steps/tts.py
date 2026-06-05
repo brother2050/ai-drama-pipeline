@@ -28,11 +28,13 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
     if characters:
         char_data = characters.get(char_ids[0], {}) if char_ids else {}
     else:
-        from engines.shot_manager import ShotManager
-        if not hasattr(tts_core, "_sm") or tts_core._sm_dir != str(cfg.paths.config_dir):
-            tts_core._sm = ShotManager(str(cfg.paths.config_dir))
-            tts_core._sm_dir = str(cfg.paths.config_dir)
-        char_data = tts_core._sm.get_character(char_ids[0]) if char_ids else {}
+        # 缓存角色数据（同一 Worker 进程内复用，避免每次 TTS 都重新加载 YAML）
+        config_dir = str(cfg.paths.config_dir)
+        if not hasattr(tts_core, "_chars") or tts_core._chars_dir != config_dir:
+            from infra.config import load_yaml_entities
+            tts_core._chars = {c["id"]: c for c in load_yaml_entities(cfg.paths.characters_dir, "character")}
+            tts_core._chars_dir = config_dir
+        char_data = tts_core._chars.get(char_ids[0], {}) if char_ids else {}
 
     if char_ids and not char_data:
         logger.warning(f"[{shot_id}] 角色 {char_ids[0]} 不存在，使用默认声音")
