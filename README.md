@@ -423,10 +423,13 @@ pulid_flux:
 ### 三阶段架构（推荐工作流）
 
 ```
-阶段1: drama prepare 1     ← LLM 密集，运行一次
-  ├─ 批量翻译角色/场景/分镜 → 写入 YAML *_en 字段
-  ├─ 定妆照 → Web 工作台「📸 定妆照」单独执行
-  └─ 场景图 → Web 工作台「🏔️ 场景图」单独执行
+阶段0: drama generate all 1 -o outline.txt  ← LLM 生成内容（可选，已有素材可跳过）
+  ├─ 从大纲生成分镜表
+  ├─ 自动生成引用的角色/场景配置
+  └─ 生成角色圣经（drama generate bible）
+
+阶段1: drama prepare 1     ← LLM 密集，运行一次（仅翻译）
+  └─ 批量翻译角色/场景/分镜 → 写入 YAML *_en 字段
 
 阶段2: drama produce 1     ← 纯 GPU/本地，零 LLM 调用，全速
   ├─ TTS → 首帧 → 视频 → 口型同步
@@ -434,6 +437,10 @@ pulid_flux:
 
 阶段3: drama post 1        ← 纯本地
   └─ 拼接 → 字幕 → 配乐 → 横转竖
+
+资产准备（独立操作，按需执行）:
+  ├─ 定妆照 → Web 工作台「📸 定妆照」或 drama portraits
+  └─ 场景图 → Web 工作台「🏔️ 场景图」
 ```
 
 **收益**: prepare 跑完后，produce 完全不依赖 LLM，10 个镜头从 30-40 次 LLM 调用降为 0 次。
@@ -459,11 +466,11 @@ drama generate scenes -d "现代简约客厅，落地窗暖光" -d "繁华商业
 drama generate all 1 -o outline.txt                  # 一键全量生成
 
 # 管线（通过 Celery 异步执行）
-drama preview 1 draft                  # 快速预览（draft/standard/high）
-drama produce 1                        # 完整生产
-drama post 1 --vertical                # 后期合成 + 横转竖
-drama all 1                            # 一键全流程（preview → produce → post）
 drama prepare 1                        # 准备阶段（批量翻译）
+drama produce 1                        # 镜头生产（TTS → 首帧 → 视频 → 口型同步）
+drama post 1 --vertical                # 后期合成 + 横转竖
+drama all 1                            # 一键全流程（prepare → produce → post）
+drama preview 1 draft                  # 快速预览（draft/standard/high）
 drama portraits                        # 生成定妆照
 
 # 项目管理
