@@ -728,7 +728,6 @@ ai-drama-pipeline-v2/
 │   ├── prompt_compiler.py        #   Mustache 风格模板编译器（从 prompt_templates.yaml 加载）
 │   ├── llm_generator.py          #   LLM 内容生成（分镜/角色/场景）
 │   ├── shot_calibrator.py        #   多阶段分镜校准（3 阶段：骨架→描述→Prompt）
-│   ├── shot_manager.py           #   镜头管理器（角色/场景数据加载）
 │   ├── shot_utils.py             #   镜头工具（后处理、文本清理）
 │   ├── workflow_builder.py       #   ComfyUI 工作流构建（首帧/视频）
 │   ├── workflow.py               #   工作流节点查找/参数注入
@@ -742,8 +741,12 @@ ai-drama-pipeline-v2/
 ├── pipeline/                     # Celery 异步任务
 │   ├── celery_app.py             #   Celery 配置 + 统一错误格式 + Worker 启动钩子
 │   └── tasks/                    #   任务定义（按职责拆分）
-│       ├── pipeline.py           #     管线编排（shot_task / preview / produce / post）
-│       ├── steps.py              #     单镜头步骤核心函数 + Celery step 任务
+│       ├── pipeline.py           #     管线编排（shot_task / produce / post / run_all）
+│       ├── steps/                #     单镜头步骤模块
+│       │   ├── tts.py            #       TTS 语音合成
+│       │   ├── frame.py          #       首帧生成
+│       │   ├── video.py          #       视频生成
+│       │   └── lipsync.py        #       口型同步
 │       ├── ai.py                 #     AI 生成（分镜/角色/场景/准备/对话编辑）
 │       ├── portrait_tasks.py     #     定妆照 / 场景图生成任务
 │       ├── media_tasks.py        #     后期 / TTS / 配乐 / 字幕任务
@@ -754,10 +757,8 @@ ai-drama-pipeline-v2/
 ├── post/                         # 后期处理
 │   ├── production.py             #   后期合成流水线（拼接→字幕→配乐→横转竖）
 │   ├── subtitle.py               #   SRT 字幕生成
-│   ├── effects.py                #   调色/滤镜
 │   ├── music.py                  #   配乐生成（FFmpeg 模板）
-│   ├── vertical.py               #   横转竖（含人脸检测定位）
-│   └── distributor.py            #   多平台分发 + 兼容性检查
+│   └── vertical.py               #   横转竖（含人脸检测定位）
 │
 ├── flow/                         # 编排层
 │   ├── episode.py                #   集级状态管理
