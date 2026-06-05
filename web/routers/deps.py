@@ -3,64 +3,42 @@ from __future__ import annotations
 
 import logging
 import re
-import time
 from pathlib import Path
 
 from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
-from infra.config import get_root as _get_root, load_yaml_full, ProjectPaths
+from infra.config import get_root as _get_root, load_yaml_full
 
 ROOT = _get_root()
 
-# 配置缓存（TTL 5 秒，避免每个 API 请求都重新加载 YAML）
-_cfg_cache: dict = {"data": None, "path": None, "ts": 0}
-_merged_cache: dict = {"data": None, "path": None, "ts": 0}
-_CFG_TTL = 5.0
+# ── 配置访问（单例 Config，mtime 变化时自动重载）──
+
+_cfg_path_cache: str | None = None
+_cfg_instance = None
 
 
-def _cfg() -> dict:
-    """获取项目级配置（不含 system.yaml 合并）。
-
-    用途：读取 project.yaml 中的项目名、风格等项目专属字段。
-    与 _merged_cfg() 的区别：_merged_cfg() 会合并 system.yaml 的全局配置。
-    """
-    path = _cfg_path()
-    now = time.monotonic()
-    if _cfg_cache["data"] is not None and _cfg_cache["path"] == path and now - _cfg_cache["ts"] < _CFG_TTL:
-        return _cfg_cache["data"]
+def _get_config():
+    """获取缓存的 Config 实例（mtime 变化时自动重载）"""
+    global _cfg_instance
     from infra.config import Config
-    data = Config(path).data
-    data.pop("_project_dir", None)
-    _cfg_cache.update(data=data, path=path, ts=now)
-    return data
+    path = _cfg_path()
+    if _cfg_instance is None or _cfg_instance.path != path:
+        _cfg_instance = Config(path)
+    else:
+        _cfg_instance._check_reload()
+    return _cfg_instance
 
 
 def _merged_cfg() -> dict:
-    """获取合并后的完整配置（system.yaml + project.yaml + 注册表默认值）。
-
-    用途：读取 ComfyUI URL、LLM 配置、TTS 后端等系统级+项目级合并后的最终值。
-    大多数场景应使用此函数，而非 _cfg()。
-    """
-    path = _cfg_path()
-    now = time.monotonic()
-    if _merged_cache["data"] is not None and _merged_cache["path"] == path and now - _merged_cache["ts"] < _CFG_TTL:
-        return _merged_cache["data"]
-    from infra.config import Config
-    data = Config(path).data
-    _merged_cache.update(data=data, path=path, ts=now)
-    return data
+    """获取合并后的完整配置（system.yaml + project.yaml + 注册表默认值）"""
+    return _get_config().data
 
 
 def _merged_cfg_public() -> dict:
     """获取合并配置的公开版本（移除 _project_dir 等内部字段）"""
-    cfg = _merged_cfg()
-    return {k: v for k, v in cfg.items() if not k.startswith("_")}
-
-
-_paths_cache: ProjectPaths | None = None
-_cfg_path_cache: str | None = None
+    return {k: v for k, v in _merged_cfg().items() if not k.startswith("_")}
 
 
 def _cfg_path() -> str:
@@ -73,12 +51,9 @@ def _cfg_path() -> str:
     return _cfg_path_cache
 
 
-def _paths() -> "ProjectPaths":
-    global _paths_cache
-    p = _proj()
-    if _paths_cache is None or _paths_cache.root != p:
-        _paths_cache = ProjectPaths(p)
-    return _paths_cache
+def _paths():
+    """获取统一路径管理对象（复用 Config 缓存）"""
+    return _get_config().paths
 
 
 def _proj() -> Path:
@@ -121,7 +96,6 @@ def _check_episode(ep: int) -> None:
 
 def _safe_path(base: Path, *parts: str) -> Path:
     """安全路径拼接 — resolve() + is_relative_to() 双重校验"""
-    # 仅解码路径遍历相关的编码（%2F → /），不改动其他 %XX
     from urllib.parse import unquote
     parts = [unquote(p, errors="ignore") for p in parts if p]
     joined = "/".join(parts)
@@ -140,7 +114,7 @@ def _check_tool(name: str, cfg: dict) -> dict:
 
 
 def require_tool(name: str, cfg: dict | None = None) -> dict:
-    """检测工具可用性，不可用时抛 HTTPException（消除各路由重复的 check+raise 模式）"""
+    """检测工具可用性，不可用时抛 HTTPException"""
     if cfg is None:
         cfg = _merged_cfg()
     result = _check_tool(name, cfg)
@@ -151,16 +125,13 @@ def require_tool(name: str, cfg: dict | None = None) -> dict:
 
 def _reset_proj_cache():
     """重置项目目录缓存（项目切换/删除后调用）"""
-    global _cfg_path_cache, _paths_cache
+    global _cfg_path_cache, _cfg_instance
     _cfg_path_cache = None
-    _paths_cache = None
-    _cfg_cache["data"] = None
-    _merged_cache["data"] = None
+    _cfg_instance = None
     from infra.database._db import _reset_project_cache
     _reset_project_cache()
     from infra.config import invalidate_config_cache
     invalidate_config_cache()
-    # 同时清除 Celery 任务的 Config+Container 缓存
     try:
         from pipeline.tasks.helpers import invalidate_ctx_cache
         invalidate_ctx_cache()
@@ -188,12 +159,7 @@ def yaml_list(yaml_dir: str, entity_key: str) -> list[dict]:
 
 
 def yaml_save(yaml_dir: str, entity_key: str, entity_id: str, data: dict) -> None:
-    """通用 YAML 实体保存（YAML 为唯一数据源）
-
-    - 保留整个文件结构（顶层字段不丢失）
-    - 始终写出正确结构 {entity_key: {…}}
-    - 角色数据自动规范化（outfits 格式、bible 补全等）
-    """
+    """通用 YAML 实体保存（YAML 为唯一数据源）"""
     d = _paths().config_entity_dir(yaml_dir)
     d.mkdir(parents=True, exist_ok=True)
     path = d / f"{entity_id}.yaml"
@@ -207,7 +173,6 @@ def yaml_save(yaml_dir: str, entity_key: str, entity_id: str, data: dict) -> Non
             existing = file_data.get(entity_key, {})
             if not isinstance(existing, dict):
                 existing = {}
-            # 剔除嵌套的 entity_key（防止旧数据残留）
             if entity_key in existing:
                 logger.warning(f"YAML {path.name} 中 {entity_key} 段内有嵌套的 '{entity_key}' key，已剔除")
                 existing.pop(entity_key, None)
@@ -215,11 +180,9 @@ def yaml_save(yaml_dir: str, entity_key: str, entity_id: str, data: dict) -> Non
             file_data = {}
             existing = {}
     merged = {**existing, **data, "id": entity_id}
-    # 角色数据规范化
     if entity_key == "character":
         from infra.models import normalize_character
         merged = normalize_character(merged)
-    # 始终写出正确结构：{entity_key: {…}}
     out = {k: v for k, v in file_data.items() if k != entity_key}
     out[entity_key] = merged
     from infra.config import save_yaml
@@ -246,7 +209,7 @@ def yaml_delete(yaml_dir: str, entity_id: str, label: str) -> None:
 
 
 def yaml_batch_delete(yaml_dir: str, entity_ids: list[str], label: str) -> dict:
-    """通用 YAML 批量删除（消除 characters/scenes 重复的 batch_delete 逻辑）"""
+    """通用 YAML 批量删除"""
     deleted, errors = [], []
     for eid in entity_ids:
         try:
