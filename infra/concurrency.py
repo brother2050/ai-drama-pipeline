@@ -81,32 +81,3 @@ def _run_single(task: Callable, on_progress) -> list:
         if on_progress:
             on_progress(1, 1, "失败")
         return [None]
-
-
-class StaggeredExecutor:
-    """可复用的错开并发执行器
-
-    适合在管线中多次调用，保持并发配置一致。
-
-    用法:
-        executor = StaggeredExecutor(max_concurrent=2, stagger_ms=3000)
-        results1 = executor.run(tasks_batch1)
-        results2 = executor.run(tasks_batch2)
-    """
-
-    def __init__(self, max_concurrent: int = 2, stagger_ms: float = 3000):
-        self.max_concurrent = max_concurrent
-        self.stagger_ms = stagger_ms
-
-    def run(
-        self,
-        tasks: list[Callable[[], Any]],
-        on_progress: Callable[[int, int, str], None] | None = None,
-    ) -> list[Any]:
-        """执行任务列表"""
-        return run_staggered_sync(
-            tasks, self.max_concurrent, self.stagger_ms, on_progress)
-
-    def __repr__(self) -> str:
-        return (f"StaggeredExecutor(max_concurrent={self.max_concurrent}, "
-                f"stagger_ms={self.stagger_ms})")

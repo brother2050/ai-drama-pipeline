@@ -183,7 +183,7 @@ def ai_chat_edit_task(self, config_path: str, episode: int, message: str, curren
 def _ai_chat_edit_inner(self, config_path, episode, message, current_shots):
     """对话式编辑核心逻辑（在 project_scope 内执行）"""
     self.update_state(state="PROGRESS", meta={"step": "chat_edit", "progress": 10, "message": "正在初始化 LLM..."})
-    cfg, cont = _init_ctx(config_path)
+    _, cont = _init_ctx(config_path)
     try:
         llm = cont.get("llm")
     except Exception as e:
@@ -393,24 +393,42 @@ def _writeback_translations(text_meta, results, paths, episode, shots) -> tuple[
     from infra.config import save_yaml
     translated = {"characters": 0, "scenes": 0, "shots": 0}
 
+    # 过滤空翻译结果（避免空字符串覆盖原始数据）
+    filtered_meta = []
+    filtered_results = []
+    skipped = 0
+    for i, meta in enumerate(text_meta):
+        if i < len(results) and results[i]:
+            filtered_meta.append(meta)
+            filtered_results.append(results[i])
+        else:
+            skipped += 1
+    if skipped:
+        logger.warning(f"跳过 {skipped} 条空翻译（保留原始值）")
+
     # 角色（含 outfit 子字段）
-    char_cache = _load_entity_cache(text_meta, results, "character", paths.character_yaml, "character")
+    char_cache = _load_entity_cache(filtered_meta, filtered_results, "character", paths.character_yaml, "character")
     for cid, data in char_cache.items():
         save_yaml(paths.character_yaml(cid), data)
         translated["characters"] += 1
 
     # 场景
-    scene_cache = _load_entity_cache(text_meta, results, "scene", paths.scene_yaml, "scene")
+    scene_cache = _load_entity_cache(filtered_meta, filtered_results, "scene", paths.scene_yaml, "scene")
     for sid, data in scene_cache.items():
         save_yaml(paths.scene_yaml(sid), data)
         translated["scenes"] += 1
 
     # 分镜
     shot_updates: dict[str, dict] = {}
-    for i, (entity_type, entity_id, _, en_field) in enumerate(text_meta):
+    for i, (entity_type, entity_id, _, en_field) in enumerate(filtered_meta):
         if entity_type == "shot":
-            shot_updates.setdefault(entity_id, {})[en_field] = results[i]
-    updated_shots = sum(1 for s in shots if s.get("shot_id") in shot_updates and not s.update(shot_updates[s["shot_id"]]))
+            shot_updates.setdefault(entity_id, {})[en_field] = filtered_results[i]
+    updated_shots = 0
+    for s in shots:
+        sid = s.get("shot_id")
+        if sid in shot_updates:
+            s.update(shot_updates[sid])
+            updated_shots += 1
     if updated_shots:
         from engines.storyboard import save_storyboard
         save_storyboard(shots, episode)

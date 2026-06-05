@@ -23,7 +23,7 @@ class StoryboardGenParams:
 logger = logging.getLogger(__name__)
 
 __all__ = ["StoryboardGenParams", "generate_storyboard", "generate_characters", "generate_scenes",
-           "expand_outline", "generate_storyboard_multistage"]
+           "expand_outline"]
 
 
 # ══════════════════════════════════════════════════════════
@@ -209,25 +209,6 @@ def expand_outline(llm: object, outline: str) -> str:
     except Exception as e:
         logger.error(f"大纲扩写失败: {e}", exc_info=True)
         return outline
-
-
-# ══════════════════════════════════════════════════════════
-#  多阶段分镜生成
-# ══════════════════════════════════════════════════════════
-
-def generate_storyboard_multistage(llm: object, params: StoryboardGenParams) -> list[dict]:
-    """多阶段分镜生成（推荐）
-
-    将一次 LLM 调用拆分为 3 个聚焦阶段，每阶段独立重试，
-    降低 token 压力，提升输出质量。
-    如果多阶段失败，自动回退到单次生成。
-    """
-    try:
-        from engines.shot_calibrator import calibrate_storyboard
-        return calibrate_storyboard(llm, params=params)
-    except Exception as e:
-        logger.warning(f"多阶段生成失败，回退到单次生成: {e}")
-        return generate_storyboard(llm, params=params)
 
 
 # ══════════════════════════════════════════════════════════

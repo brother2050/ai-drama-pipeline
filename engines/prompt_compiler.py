@@ -145,21 +145,14 @@ class PromptCompiler:
         """
         result = template
 
-        # ${variable} 语法
-        def _replace_dollar(m):
+        # 变量替换（${variable} 和 {{variable}} 语法共用）
+        def _replace_var(m):
             key = m.group(1).strip()
             val = variables.get(key, "")
             return str(val) if val is not None else ""
 
-        result = re.sub(r'\$\{(\w+)\}', _replace_dollar, result)
-
-        # {{variable}} 语法
-        def _replace_mustache(m):
-            key = m.group(1).strip()
-            val = variables.get(key, "")
-            return str(val) if val is not None else ""
-
-        result = re.sub(r'\{\{(\w+)\}\}', _replace_mustache, result)
+        result = re.sub(r'\$\{(\w+)\}', _replace_var, result)
+        result = re.sub(r'\{\{(\w+)\}\}', _replace_var, result)
 
         # 清理空值产生的多余标点
         result = self._clean_empty_values(result)

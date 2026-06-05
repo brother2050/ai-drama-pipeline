@@ -168,9 +168,3 @@ def stop_file_watcher():
             logger.debug(f"文件监控停止异常: {e}")
         _watcher = None
         logger.info("文件系统监控已停止")
-
-
-def get_file_watcher():
-    """获取当前的文件监控 Observer（或 None）"""
-    with _lock:
-        return _watcher

@@ -119,7 +119,7 @@ def train_lora_task(self, config_path: str, char_id: str, *,
         _db_mark_running(0, char_id, "train_lora")
 
     self.update_state(state="PROGRESS", meta={"step": "train_lora", "progress": 5, "message": f"准备训练 {char_id} 的 LoRA..."})
-    cfg, cont = _init_ctx(config_path)
+    _, cont = _init_ctx(config_path)
     paths = _paths(config_path)
 
     existing_lora, err = _validate_lora_training(paths, char_id, force)

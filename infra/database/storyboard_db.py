@@ -12,7 +12,7 @@ from infra.database._db import query, row_to_dict, safe_float, _get_project
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["get_episode_shots", "get_all_episodes", "get_episodes_summary", "get_all_shots", "save_episode_shots", "upsert_shot", "delete_episode", "delete_shot", "batch_delete_shots", "export_to_csv"]
+__all__ = ["get_episode_shots", "get_all_episodes", "get_episodes_summary", "get_all_shots", "save_episode_shots", "upsert_shot", "delete_episode", "batch_delete_shots", "export_to_csv"]
 
 STORYBOARD_FIELDNAMES = [
     "episode", "shot_id", "scene_id", "characters", "action", "dialogue",
@@ -149,13 +149,6 @@ def delete_episode(pool, episode: int) -> int:
     with query(pool) as cur:
         cur.execute("DELETE FROM shots WHERE project = %s AND episode = %s", (project, episode))
         return cur.rowcount
-
-
-def delete_shot(pool, episode: int, shot_id: str):
-    """删除单个镜头"""
-    project = _get_project()
-    with query(pool) as cur:
-        cur.execute("DELETE FROM shots WHERE project = %s AND episode = %s AND shot_id = %s", (project, episode, shot_id))
 
 
 def batch_delete_shots(pool, episode: int, shot_ids: list[str]) -> int:

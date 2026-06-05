@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from infra.database._db import query, row_to_dict, _get_project
 
-__all__ = ["check", "mark", "unmark", "list_assets", "delete_by_project"]
+__all__ = ["check", "mark", "unmark", "delete_by_project"]
 
 
 def check(pool, server_url: str, asset_type: str, filename: str, project: str | None = None) -> bool:
@@ -42,25 +42,6 @@ def unmark(pool, server_url: str, asset_type: str, filename: str, project: str |
             "WHERE project = %s AND server_url = %s AND asset_type = %s AND filename = %s",
             (project, server_url, asset_type, filename),
         )
-
-
-def list_assets(pool, server_url: str | None = None, project: str | None = None) -> list[dict]:
-    """列出项目的全部/指定服务器的资产"""
-    project = project or _get_project()
-    with query(pool, dict_mode=True, commit=False) as cur:
-        if server_url:
-            cur.execute(
-                "SELECT asset_type, filename FROM comfyui_assets "
-                "WHERE project = %s AND server_url = %s ORDER BY asset_type, filename",
-                (project, server_url),
-            )
-        else:
-            cur.execute(
-                "SELECT asset_type, filename FROM comfyui_assets "
-                "WHERE project = %s ORDER BY asset_type, filename",
-                (project,),
-            )
-        return [row_to_dict(r) for r in cur.fetchall()]
 
 
 def delete_by_project(pool, project: str | None = None):

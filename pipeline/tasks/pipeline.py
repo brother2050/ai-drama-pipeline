@@ -33,13 +33,10 @@ def shot_task(self, config_path: str, episode: int, shot_data: dict, force: bool
 
 def _shot_task_inner(self, config_path: str, episode: int, shot_data: dict, shot_id: str, force: bool) -> dict:
     """shot_task 核心逻辑（在 project_scope 内执行）"""
-    _ensure_path()
-    from infra.config import Config
-    from api.registry import Container
+    from pipeline.tasks.helpers import _build_ctx
     from infra.database.pool import get_pool
     from infra.database.storyboard_db import get_episode_shots
-    cfg = Config(config_path)
-    cont = Container(cfg.data)
+    cfg, cont = _build_ctx(config_path)
 
     characters, scenes = _preload_shot_data(cfg)
 
