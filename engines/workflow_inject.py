@@ -20,6 +20,7 @@ from pathlib import Path
 
 from engines.workflow import (
     find_character_load_image_nodes, find_first_node, find_nodes_by_class,
+    resolve_model_source,
 )
 
 logger = logging.getLogger(__name__)
@@ -234,24 +235,9 @@ def inject_ip_adapter_chain(wf: dict, char_id: str, ref_images: list[str],
 #  PuLID-Flux 注入（Flux DiT 架构专用）
 # ══════════════════════════════════════════════════════════
 
-def _resolve_model_source(wf: dict, ksampler: str) -> str:
-    """追踪 KSampler.model 的实际来源节点 ID。
-
-    KSampler.model 可能已被 LoRA 等中间节点改写，直接找 UNETLoader
-    会绕过 LoRA。本函数沿当前连线回溯，返回真正连接到 KSampler 的节点。
-
-    Args:
-        wf: ComfyUI 工作流 dict
-        ksampler: KSampler 节点 ID
-
-    Returns:
-        模型来源节点 ID（如 lora_xxx 或 UNETLoader），找不到返回 UNETLoader/CheckpointLoader
-    """
-    model_ref = wf[ksampler].get("inputs", {}).get("model")
-    if isinstance(model_ref, list) and len(model_ref) == 2:
-        return model_ref[0]
-    return (find_first_node(wf, "UNETLoader")
-            or find_first_node(wf, "CheckpointLoaderSimple"))
+def _resolve_model_source(wf: dict, ksampler: str) -> str | None:
+    """兼容包装：委托给 workflow.resolve_model_source"""
+    return resolve_model_source(wf, ksampler)
 
 
 def inject_pulid_flux(builder: object, wf: dict, char_ids: list[str],
@@ -465,11 +451,7 @@ def inject_lora(wf: dict, lora_path: str, strength: float = 0.7,
         return wf
 
     # 追踪当前 KSampler 的实际 model/clip 来源（可能是前一个 LoRA 的输出）
-    model_ref = wf[ksampler].get("inputs", {}).get("model")
-    if isinstance(model_ref, list) and len(model_ref) == 2:
-        model_source = model_ref[0]
-    else:
-        model_source = _resolve_model_source(wf, ksampler)
+    model_source = resolve_model_source(wf, ksampler)
     if not model_source:
         logger.warning("未找到模型加载节点，无法注入 LoRA")
         return wf

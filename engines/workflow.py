@@ -7,9 +7,29 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "find_first_node", "find_nodes_by_class", "find_load_image_nodes",
     "find_character_load_image_nodes", "find_lora_nodes",
-    "set_clip_text_prompts",
-    "resolve_node_aliases",
+    "set_clip_text_prompts", "resolve_node_aliases",
+    "resolve_model_source",
 ]
+
+
+def resolve_model_source(wf: dict, ksampler: str) -> str | None:
+    """追踪 KSampler.model 的实际来源节点 ID。
+
+    KSampler.model 可能已被 LoRA 等中间节点改写，直接找 UNETLoader
+    会绕过 LoRA。本函数沿当前连线回溯，返回真正连接到 KSampler 的节点。
+
+    Args:
+        wf: ComfyUI 工作流 dict
+        ksampler: KSampler 节点 ID
+
+    Returns:
+        模型来源节点 ID（如 lora_xxx 或 UNETLoader），找不到返回兜底值
+    """
+    model_ref = wf.get(ksampler, {}).get("inputs", {}).get("model")
+    if isinstance(model_ref, list) and len(model_ref) == 2:
+        return model_ref[0]
+    return (find_first_node(wf, "UNETLoader")
+            or find_first_node(wf, "CheckpointLoaderSimple"))
 
 
 def resolve_node_aliases(workflow: dict, available_nodes: set[str]) -> dict:

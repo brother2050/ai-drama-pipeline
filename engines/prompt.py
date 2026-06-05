@@ -5,6 +5,7 @@ import re
 from dataclasses import dataclass, field
 
 from infra.constants import is_ascii_only
+from infra.batch_processor import estimate_tokens as _estimate_tokens
 
 logger = logging.getLogger(__name__)
 
@@ -271,13 +272,6 @@ def build_prompt(params: PromptBuildParams) -> str:
         result = _truncate_tag_prompt(result, max_tokens=75)
 
     return result
-
-
-def _estimate_tokens(text: str) -> int:
-    """保守估算 token 数：CJK 字符约 1 token/字，英文约 1 token/4 字符"""
-    cjk = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
-    other = len(text) - cjk
-    return max(1, int(cjk + other / 4))
 
 
 def _truncate_tag_prompt(prompt: str, max_tokens: int = 75) -> str:

@@ -223,8 +223,8 @@ class SceneGenRequest(BaseModel):
 class ChatEditRequest(BaseModel):
     """AI 对话编辑请求"""
     episode: int = Field(1, ge=1, description="集数")
-    message: str = Field(..., min_length=1, description="编辑指令")
-    shots: list[dict] = Field(default_factory=list, description="当前分镜表")
+    message: str = Field(..., min_length=1, max_length=10000, description="编辑指令")
+    shots: list[dict] = Field(default_factory=list, max_length=500, description="当前分镜表")
 
 
 # ── Seko 影视策划案 ──

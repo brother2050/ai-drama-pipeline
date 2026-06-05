@@ -163,21 +163,17 @@ class PromptCompiler:
         return result.strip()
 
     def _clean_empty_values(self, text: str) -> str:
-        """清理空值替换后产生的多余标点（循环直到无变化）"""
-        prev = None
-        while prev != text:
-            prev = text
-            # ", ," → ","
-            text = re.sub(r',\s*,', ',', text)
-            # "  " → " "
-            text = re.sub(r'  +', ' ', text)
-            # 行首/行尾的逗号和空格
+        """清理空值替换后产生的多余标点（最多 3 轮收敛）"""
+        for _ in range(3):
+            old = text
+            text = re.sub(r',\s*,', ',', text)          # ", ," → ","
+            text = re.sub(r'  +', ' ', text)            # "  " → " "
             text = re.sub(r'^\s*[,.\s]+', '', text, flags=re.MULTILINE)
             text = re.sub(r'[,.\s]+\s*$', '', text, flags=re.MULTILINE)
-            # ", ." → "."
-            text = re.sub(r',\s*\.', '.', text)
-            # ". ," → "."
-            text = re.sub(r'\.\s*,', '.', text)
+            text = re.sub(r',\s*\.', '.', text)         # ", ." → "."
+            text = re.sub(r'\.\s*,', '.', text)         # ". ," → "."
+            if text == old:
+                break
         return text
 
     # ══════════════════════════════════════════════════════════
