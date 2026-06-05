@@ -201,15 +201,15 @@ def _ai_bible_inner(self, config_path: str) -> dict:
     cfg, cont = _init_ctx(config_path)
     paths = cfg.paths
 
-    try:
-        llm = cont.get("llm")
-    except Exception as e:
-        return {"status": STATUS_ERROR, "reason": f"LLM 初始化失败: {e}"}
-
     chars = load_yaml_entities(paths.characters_dir, "character")
     incomplete = [c for c in chars if _bible_is_incomplete(c.get("bible", {}))]
     if not incomplete:
         return {"status": STATUS_DONE, "message": "所有角色圣经已完整", "count": 0}
+
+    try:
+        llm = cont.get("llm")
+    except Exception as e:
+        return {"status": STATUS_ERROR, "reason": f"LLM 初始化失败: {e}"}
 
     self.update_state(state="PROGRESS", meta={"step": "bible", "progress": 10,
                       "message": f"正在为 {len(incomplete)} 个角色生成圣经..."})
