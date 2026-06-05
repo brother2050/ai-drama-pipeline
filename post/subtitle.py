@@ -30,7 +30,7 @@ def generate_srt(shots: list[dict], output: str, *,
     for i, shot in enumerate(shots):
         duration = _safe_duration(shot)
         start = current_time
-        current_time += max(0, duration - transition_duration) if i > 0 and transition_duration > 0 else duration
+        current_time += max(0.5, duration - transition_duration) if i > 0 and transition_duration > 0 else duration
 
         subtitle_text = _build_subtitle_text(shot, bilingual)
         if not subtitle_text:

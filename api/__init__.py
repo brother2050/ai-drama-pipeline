@@ -38,7 +38,8 @@ def _ensure_registered():
         try:
             reg = ModelRegistry()
         except Exception as e:
-            logger.warning(f"加载模型注册表失败: {e}")
+            logger.error(f"加载模型注册表失败: {e}")
+            _loaded = False  # 允许重试
             return
 
         for _service_type, module_path, _priority in reg.get_backend_modules():

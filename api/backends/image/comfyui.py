@@ -161,13 +161,17 @@ def _extract_error(r) -> str:
     """从 ComfyUI 错误响应中提取详细信息"""
     try:
         err_body = r.json()
-        detail = err_body.get("error", {}).get("message", "") if isinstance(err_body.get("error"), dict) else str(err_body.get("error", ""))
+    except Exception:
+        return r.text[:500]
+    try:
+        err = err_body.get("error")
+        detail = err.get("message", "") if isinstance(err, dict) else str(err or "")
         node_errors = err_body.get("node_errors", {})
         if node_errors:
             detail += f" | node_errors: {node_errors}"
         return detail or r.text[:500]
     except Exception:
-        return r.text[:500]
+        return str(err_body)[:500]
 
 
 def _f(config): return ComfyUI(config)
