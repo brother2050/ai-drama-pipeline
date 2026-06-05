@@ -186,7 +186,8 @@ def test_tool(name: str):
 
     try:
         from api.registry import registry as _svc_reg
-        from api import _ensure_registered; _ensure_registered()
+        from api import _ensure_registered
+        _ensure_registered()
         handler = _svc_reg.find_test_handler(name)
         if handler:
             return handler(name, result, cfg)
