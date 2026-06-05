@@ -117,7 +117,8 @@ def _outfit_single_inner(self, config_path: str, char_id: str, outfit_key: str) 
     if not char_yaml.exists():
         return {"status": STATUS_ERROR, "reason": f"角色 {char_id} 不存在"}
 
-    char = load_yaml_full(char_yaml).get("character", {})
+    from infra.config import load_character
+    char = load_character(paths, char_id)
     outfit_desc_en, err = _validate_outfit(char, char_id, outfit_key)
     if err:
         return {"status": STATUS_ERROR, "reason": err}
