@@ -96,10 +96,14 @@ def generate_characters(llm: object, descriptions: list[str], expected_ids: list
                         existing_characters: list[dict] | None = None) -> list[dict]:
     """从描述生成角色配置 — 全部成功或抛异常"""
     from infra.models import normalize_character
+    from engines.prompt import _extract_body_features
     results = _generate_entities(llm, descriptions, expected_ids, _tpl("character_system"), "角色",
                                  existing_entities=existing_characters, max_tokens=1024)
     for char in results:
         normalize_character(char)
+        # 兜底：LLM 未返回 body_features 时从 appearance_prompt_en 提取
+        if not char.get("body_features") and char.get("appearance_prompt_en"):
+            char["body_features"] = _extract_body_features(char["appearance_prompt_en"])
     return results
 
 
