@@ -17,7 +17,7 @@ import logging
 
 from infra.constants import STATUS_DONE, STATUS_ERROR
 from pipeline.tasks.helpers import (
-    _shot_dir, _db_record_step, _prepare, PrepareParams,
+    _db_record_step, _prepare, PrepareParams,
 )
 
 # ── re-export 核心逻辑（向后兼容）──
@@ -48,7 +48,7 @@ def _run_tts(config_path: str, episode: int, shot_id: str, *,
         step="tts", tool="tts", force=force, cfg=cfg, cont=cont, shot=shot))
     if err:
         return err
-    return tts_core(shot_id, shot, cfg, cont, _shot_dir(config_path, episode, shot_id),
+    return tts_core(shot_id, shot, cfg, cont, cfg.paths.shot_dir(episode, shot_id),
                     force=force, characters=characters)
 
 
@@ -64,7 +64,7 @@ def _run_first_frame(config_path: str, episode: int, shot_id: str, *,
         return err
     return first_frame_core(FirstFrameParams(
         shot_id=shot_id, shot=shot, cfg=cfg, cont=cont,
-        out_dir=_shot_dir(config_path, episode, shot_id),
+        out_dir=cfg.paths.shot_dir(episode, shot_id),
         force=force, characters=characters, scenes=scenes))
 
 
@@ -76,7 +76,7 @@ def _run_video(config_path: str, episode: int, shot_id: str, *,
         step="video", tool="comfyui", need_shot=True, force=force, cfg=cfg, cont=cont, shot=shot))
     if err:
         return err
-    return video_core(shot_id, cfg, cont, _shot_dir(config_path, episode, shot_id),
+    return video_core(shot_id, cfg, cont, cfg.paths.shot_dir(episode, shot_id),
                       shot=shot, force=force)
 
 
@@ -88,7 +88,7 @@ def _run_lipsync(config_path: str, episode: int, shot_id: str, *,
         step="lipsync", tool="lipsync", need_shot=False, force=force, cfg=cfg, cont=cont))
     if err:
         return err
-    return lipsync_core(shot_id, cont, _shot_dir(config_path, episode, shot_id), force=force)
+    return lipsync_core(shot_id, cont, cfg.paths.shot_dir(episode, shot_id), force=force)
 
 
 # ══════════════════════════════════════════════════════════
