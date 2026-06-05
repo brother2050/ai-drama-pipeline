@@ -125,10 +125,17 @@ class WorkflowBuilder:
 
         # 应用 GPU 适配
         gpu_cfg = get_gpu_config(config=self.config)
+        # 预构建采样器节点集合（一次构建，两次复用）
+        sampler_types = {"KSampler", "KSamplerAdvanced", "BasicScheduler"}
+        for svc in ("image", "video"):
+            for bname in self.registry.list_backend_names(svc):
+                sn = self.registry.get_sampler_node(bname) if svc == "image" else self.registry.get_video_sampler_node(bname)
+                if sn:
+                    sampler_types.add(sn)
         if self.first_frame_wf:
-            self._apply_gpu(self.first_frame_wf, "first_frame", gpu_cfg)
+            self._apply_gpu(self.first_frame_wf, "first_frame", gpu_cfg, sampler_types)
         if self.video_wf:
-            self._apply_gpu(self.video_wf, "video", gpu_cfg)
+            self._apply_gpu(self.video_wf, "video", gpu_cfg, sampler_types)
 
     def _load_wf(self, name: str) -> dict:
         path = os.path.join(self.wf_dir, name)
@@ -144,7 +151,7 @@ class WorkflowBuilder:
         logger.debug(f"工作流不存在: {path} (也检查了 {root_wf})")
         return {}
 
-    def _apply_gpu(self, wf: dict, stage: str, gpu_cfg: dict) -> None:
+    def _apply_gpu(self, wf: dict, stage: str, gpu_cfg: dict, sampler_types: set[str]) -> None:
         """应用生成参数到工作流（比例自动计算分辨率 + 步数可选覆盖）
 
         用户配置 generation.aspect_ratio（如 "16:9", "9:16", "1:1"），
@@ -157,33 +164,21 @@ class WorkflowBuilder:
         aspect_ratio = gpu_cfg.get("aspect_ratio")
         image_steps = gpu_cfg.get("image_steps")
 
-        # 预构建采样器节点集合（避免在循环内重复查询注册表）
-        sampler_types = {"KSampler", "KSamplerAdvanced", "BasicScheduler"}
-        for svc in ("image", "video"):
-            for bname in self.registry.list_backend_names(svc):
-                sn = self.registry.get_sampler_node(bname) if svc == "image" else self.registry.get_video_sampler_node(bname)
-                if sn:
-                    sampler_types.add(sn)
+        _RESIZE_NODES = {
+            "EmptyLatentImage": (1024, 576),
+            "EmptySD3LatentImage": (1024, 576),
+            "ImageScale": (768, 768),
+        }
 
         for nid, node in wf.items():
             ct = node.get("class_type", "")
             inp = node.get("inputs", {})
 
-            # 分辨率 → EmptyLatentImage（text2img）或 ImageScale（img2img）
-            if ct in ("EmptyLatentImage", "EmptySD3LatentImage"):
-                native_w = inp.get("width", 1024)
-                native_h = inp.get("height", 576)
-                if resolution and len(resolution) == 2:
-                    inp["width"] = resolution[0]
-                    inp["height"] = resolution[1]
-                elif aspect_ratio:
-                    target_w, target_h = self._calc_resolution(native_w, native_h, aspect_ratio)
-                    inp["width"] = target_w
-                    inp["height"] = target_h
-
-            if ct == "ImageScale":
-                native_w = inp.get("width", 768)
-                native_h = inp.get("height", 768)
+            # 分辨率 → EmptyLatentImage / ImageScale
+            defaults = _RESIZE_NODES.get(ct)
+            if defaults:
+                native_w = inp.get("width", defaults[0])
+                native_h = inp.get("height", defaults[1])
                 if resolution and len(resolution) == 2:
                     inp["width"] = resolution[0]
                     inp["height"] = resolution[1]
