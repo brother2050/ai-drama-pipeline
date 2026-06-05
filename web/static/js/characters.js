@@ -273,13 +273,11 @@ function newChar() {
       titleKey: 'char.title', reload: loadCharacters,
       buildExtra() {
         const coreTraits = $val('nc-personality') || '';
-        return {
-          voice: _collectVoiceConfig('nc'),
-          outfits: $val('nc-outfits') ? { default: { description: $val('nc-outfits'), reference_images: [] } } : null,
-          bible: { core_traits: coreTraits, core_traits_en: '', speech_patterns: '', speech_patterns_en: '',
-                   relationships: {}, relationships_en: {}, emotional_range: {}, emotional_range_en: {},
-                   body_language: {}, body_language_en: {}, habits: [], habits_en: [], taboos: [], taboos_en: [] },
-        };
+        const data = { voice: _collectVoiceConfig('nc') };
+        if ($val('nc-outfits')) data.outfits = { default: { description: $val('nc-outfits'), reference_images: [] } };
+        // bible: 只在用户填写了性格时才创建
+        if (coreTraits) data.bible = { core_traits: coreTraits };
+        return data;
       },
       extraHtml: _ttsVoiceFieldsHtml('nc'),
       fields: [
@@ -691,12 +689,10 @@ async function editChar(id) {
     deleteFn: deleteCharWithRef,
     buildExtra() {
       const coreTraits = $val('ec-personality') || '';
-      const existingBible = item.bible || {};
-      return {
-        voice: _collectVoiceConfig('ec'),
-        outfits: _collectOutfits(),
-        bible: { ...existingBible, core_traits: coreTraits },
-      };
+      const data = { voice: _collectVoiceConfig('ec'), outfits: _collectOutfits() };
+      // bible: 只在有内容时更新 core_traits
+      if (coreTraits) data.bible = { core_traits: coreTraits };
+      return data;
     },
     extraHtml: (item) => `<div class="edit-field"><button class="btn btn-ai btn-sm" onclick="generatePortrait('${esc(id)}')" id="gen-portrait-btn">🎨 AI 生成定妆照</button><span id="gen-portrait-status" class="dim" style="font-size:.8rem;margin-left:.5rem"></span></div>` + _outfitFieldsHtml(id, item.outfits || {}) + _ttsVoiceFieldsHtml('ec', item.voice || {}) + _loraTrainHtml(id, item),
     fields: [

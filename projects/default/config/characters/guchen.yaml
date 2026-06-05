@@ -13,16 +13,9 @@ character:
       reference_images: []
   bible:
     core_traits: "沉稳可靠，行动派，对林夏有好感但不善表达"
-    core_traits_en: ""
     speech_patterns: ""
-    speech_patterns_en: ""
     relationships: {}
-    relationships_en: {}
     emotional_range: {}
-    emotional_range_en: {}
     body_language: {}
-    body_language_en: {}
     habits: []
-    habits_en: []
     taboos: []
-    taboos_en: []

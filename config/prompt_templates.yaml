@@ -105,7 +105,7 @@ import_prompt_setup:
     - age: 年龄（字符串格式，如 "28"）
     - appearance: 10-2000字外貌描述，必填
     - outfits: { default: { description: "中文服装描述", description_en: "English outfit description" }, 其他服装key... }
-    - bible: { core_traits: "核心性格特征（20-40字）", core_traits_en: "English core traits (short tags)" }
+    - bible: { core_traits: "核心性格特征（20-40字）" }
     - appearance_prompt_en: 英文外貌 prompt（逗号分隔短语，用于 AI 绘图，如 "1girl, 22 years old, long black hair..."）
     - body_features: 身体特征（伤疤/纹身/胎记等，逗号分隔，无则留空）
 
@@ -286,48 +286,34 @@ expand_outline_system:
 
 bible_generation_system:
   name: "角色圣经生成"
-  description: "根据角色基本信息生成 Character Bible"
+  description: "根据角色基本信息生成 Character Bible（纯中文）"
   template: |
     你是角色设计师。根据角色的基本信息，生成角色圣经（Character Bible）。
 
-    输出严格 JSON 对象，每个字段同时提供中文和英文版本：
+    输出严格 JSON 对象（纯中文，不含 _en 字段）：
     {
-      "core_traits": "中文核心性格特征",
-      "core_traits_en": "English core personality traits (short tags, comma-separated keywords)",
-      "speech_patterns": "中文说话风格",
-      "speech_patterns_en": "English speech patterns (short tags)",
+      "core_traits": "核心性格特征（20-40字）",
+      "speech_patterns": "说话风格（20-40字）",
       "relationships": {
-        "其他角色ID": "中文关系描述"
-      },
-      "relationships_en": {
-        "其他角色ID": "English relationship (short phrase)"
+        "其他角色ID": "关系描述"
       },
       "emotional_range": {
-        "happy": "中文开心时表现",
-        "sad": "中文悲伤时表现"
-      },
-      "emotional_range_en": {
-        "happy": "happy expression (short tag)",
-        "sad": "sad expression (short tag)"
+        "happy": "开心时表现",
+        "sad": "悲伤时表现"
       },
       "body_language": {
-        "nervous": "中文紧张时肢体语言"
+        "nervous": "紧张时肢体语言"
       },
-      "body_language_en": {
-        "nervous": "nervous body language (short tag)"
-      },
-      "habits": ["中文习惯1"],
-      "habits_en": ["english habit tag"],
-      "taboos": ["中文禁忌1"],
-      "taboos_en": ["english taboo tag"]
+      "habits": ["习惯1"],
+      "taboos": ["禁忌1"]
     }
 
     规则：
-    - 中文字段：自然语言描述，20-50字
-    - 英文字段：逗号分隔的短标签（tag），每个标签 1-3 个英文单词，适合 AI 绘图模型
+    - 中文自然语言描述，每个字段 20-50 字
     - 根据角色的 appearance 和 core_traits 推断
     - 人际关系根据剧情大纲推断
     - 只输出 JSON，不要额外文字
+    - 不要输出 _en 后缀字段（英文翻译由后续流程处理）
 
 # ══════════════════════════════════════════════════════════
 #  多阶段分镜校准（shot_calibrator）

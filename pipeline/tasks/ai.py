@@ -228,7 +228,6 @@ def _ai_bible_inner(self, config_path: str) -> dict:
             existing_bible = char.get("bible", {}) or {}
             merged = {**existing_bible, **bible}
             merged.setdefault("core_traits", existing_bible.get("core_traits", ""))
-            merged.setdefault("core_traits_en", existing_bible.get("core_traits_en", ""))
             char["bible"] = merged
 
             fpath = paths.character_yaml(cid)
@@ -384,37 +383,37 @@ def _deserialize_numbered(raw: str, keys: list | None = None) -> dict | list:
 
 def _collect_bible_texts(char: dict, cid: str, all_texts: list[str],
                          text_meta: list[tuple[str, str, str, str]], force: bool = False) -> None:
-    """收集角色 bible 段的待翻译文本"""
+    """收集角色 bible 段的待翻译文本（中文 → bible_en）"""
     bible = char.get("bible", {})
     if not isinstance(bible, dict):
         return
+    bible_en = char.get("bible_en", {})
+    if not isinstance(bible_en, dict):
+        bible_en = {}
 
     # 简单字符串字段
-    for field, en_field in [("core_traits", "core_traits_en"),
-                            ("speech_patterns", "speech_patterns_en")]:
-        if bible.get(field) and (force or not bible.get(en_field)):
+    for field in ("core_traits", "speech_patterns"):
+        if bible.get(field) and (force or not bible_en.get(field)):
             all_texts.append(bible[field])
-            text_meta.append(("character.bible", cid, field, en_field))
+            text_meta.append(("character.bible", cid, field, field))
 
     # dict 字段（值需要翻译）
-    for field, en_field in [("relationships", "relationships_en"),
-                            ("emotional_range", "emotional_range_en"),
-                            ("body_language", "body_language_en")]:
+    for field in ("relationships", "emotional_range", "body_language"):
         data = bible.get(field, {})
-        if isinstance(data, dict) and data and (force or not bible.get(en_field)):
+        if isinstance(data, dict) and data and (force or not bible_en.get(field)):
             serialized = _serialize_dict_values(data)
             if serialized:
                 all_texts.append(serialized)
-                text_meta.append(("character.bible_dict", cid, field, en_field))
+                text_meta.append(("character.bible_dict", cid, field, field))
 
     # list 字段
-    for field, en_field in [("habits", "habits_en"), ("taboos", "taboos_en")]:
+    for field in ("habits", "taboos"):
         items = bible.get(field, [])
-        if isinstance(items, list) and items and (force or not bible.get(en_field)):
+        if isinstance(items, list) and items and (force or not bible_en.get(field)):
             serialized = _serialize_list_items(items)
             if serialized:
                 all_texts.append(serialized)
-                text_meta.append(("character.bible_list", cid, field, en_field))
+                text_meta.append(("character.bible_list", cid, field, field))
 
 
 def _collect_translation_texts(paths, force: bool = False) -> tuple[list[str], list[tuple[str, str, str, str]]]:
@@ -502,7 +501,10 @@ def _writeback_translations(text_meta, results, paths, episode, shots) -> tuple[
 
 
 def _load_entity_cache(text_meta, results, entity_type, yaml_fn, entity_key) -> dict[str, dict]:
-    """从 text_meta 加载实体 YAML 到缓存，处理 outfit/bible 子字段"""
+    """从 text_meta 加载实体 YAML 到缓存，处理 outfit/bible/bible_en 字段
+
+    bible 翻译写入 bible_en（独立区域），不混入 bible。
+    """
     from infra.config import load_yaml_full
     cache: dict[str, dict] = {}
 
@@ -512,26 +514,27 @@ def _load_entity_cache(text_meta, results, entity_type, yaml_fn, entity_key) -> 
             cache[eid] = load_yaml_full(fpath) if fpath.exists() else {entity_key: {"id": eid}}
         return cache[eid]
 
-    for i, (etype, eid, _, en_field) in enumerate(text_meta):
+    for i, (etype, eid, src_field, tgt_field) in enumerate(text_meta):
         if etype == entity_type:
-            _ensure(eid).setdefault(entity_key, {})[en_field] = results[i]
+            _ensure(eid).setdefault(entity_key, {})[tgt_field] = results[i]
 
         elif etype == f"{entity_type}.outfits":
             cid, okey = eid.split(".", 1)
-            _ensure(cid).setdefault(entity_key, {}).setdefault("outfits", {}).setdefault(okey, {})[en_field] = results[i]
+            _ensure(cid).setdefault(entity_key, {}).setdefault("outfits", {}).setdefault(okey, {})[tgt_field] = results[i]
 
         elif etype == f"{entity_type}.bible":
-            _ensure(eid).setdefault(entity_key, {}).setdefault("bible", {})[en_field] = results[i]
+            # 翻译写入 bible_en（不是 bible）
+            _ensure(eid).setdefault(entity_key, {}).setdefault("bible_en", {})[tgt_field] = results[i]
 
         elif etype == f"{entity_type}.bible_dict":
-            bible = _ensure(eid).setdefault(entity_key, {}).setdefault("bible", {})
-            orig = bible.get(en_field.removesuffix("_en"), {})
+            # 从 bible 读原始 key 列表，翻译写入 bible_en
+            entity = _ensure(eid).setdefault(entity_key, {})
+            orig = entity.get("bible", {}).get(src_field, {})
             orig_keys = list(orig.keys()) if isinstance(orig, dict) else None
-            bible[en_field] = _deserialize_numbered(results[i], orig_keys)
+            entity.setdefault("bible_en", {})[tgt_field] = _deserialize_numbered(results[i], orig_keys)
 
         elif etype == f"{entity_type}.bible_list":
-            bible = _ensure(eid).setdefault(entity_key, {}).setdefault("bible", {})
-            bible[en_field] = _deserialize_numbered(results[i])
+            _ensure(eid).setdefault(entity_key, {}).setdefault("bible_en", {})[tgt_field] = _deserialize_numbered(results[i])
 
     return cache
 

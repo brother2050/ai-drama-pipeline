@@ -290,37 +290,46 @@ class ImportValidator:
 
 # ── 角色数据规范化 ──────────────────────────────────────
 
-_BIBLE_STR_FIELDS = ("core_traits", "core_traits_en", "speech_patterns", "speech_patterns_en")
-_BIBLE_DICT_FIELDS = ("relationships", "relationships_en", "emotional_range",
-                      "emotional_range_en", "body_language", "body_language_en")
-_BIBLE_LIST_FIELDS = ("habits", "habits_en", "taboos", "taboos_en")
+# bible 字段定义（中文原始数据，无 _en 后缀）
+_BIBLE_STR_FIELDS = ("core_traits", "speech_patterns")
+_BIBLE_DICT_FIELDS = ("relationships", "emotional_range", "body_language")
+_BIBLE_LIST_FIELDS = ("habits", "taboos")
+
+
+def _normalize_bible_section(section: dict) -> dict:
+    """规范化 bible 或 bible_en 的字段结构（就地修改）"""
+    for f in _BIBLE_STR_FIELDS:
+        section.setdefault(f, "")
+    for f in _BIBLE_DICT_FIELDS:
+        if not isinstance(section.get(f), dict):
+            section[f] = {}
+    for f in _BIBLE_LIST_FIELDS:
+        if not isinstance(section.get(f), list):
+            section[f] = []
+    return section
 
 
 def normalize_character(char: dict) -> dict:
     """规范化角色数据 — 补全缺失字段，统一格式
 
-    新项目专用，不做旧数据迁移。
+    bible/bible_en 按需存在：不存在时不创建空壳。
     """
     char = dict(char)
 
     # 深拷贝嵌套结构
-    for key in ("outfits", "bible"):
+    for key in ("outfits", "bible", "bible_en"):
         if isinstance(char.get(key), dict):
             char[key] = copy.deepcopy(char[key])
 
-    # bible: 确保存在且有全部字段
+    # bible: 只在存在时规范化（不强制创建）
     bible = char.get("bible")
-    if not isinstance(bible, dict):
-        char["bible"] = {}
-        bible = char["bible"]
-    for f in _BIBLE_STR_FIELDS:
-        bible.setdefault(f, "")
-    for f in _BIBLE_DICT_FIELDS:
-        if not isinstance(bible.get(f), dict):
-            bible[f] = {}
-    for f in _BIBLE_LIST_FIELDS:
-        if not isinstance(bible.get(f), list):
-            bible[f] = []
+    if isinstance(bible, dict):
+        _normalize_bible_section(bible)
+
+    # bible_en: 只在存在时规范化（不强制创建）
+    bible_en = char.get("bible_en")
+    if isinstance(bible_en, dict):
+        _normalize_bible_section(bible_en)
 
     # 顶级字段
     char.setdefault("appearance_prompt_en", "")

@@ -446,19 +446,34 @@ class TestNormalizeCharacter:
     """验证 normalize_character 角色数据规范化"""
 
     def test_bible_default(self):
-        """bible 为 None 时自动创建空结构"""
+        """bible 为 None 时不创建空壳（按需生成）"""
         from infra.models import normalize_character
         char = {"id": "test", "bible": None}
         result = normalize_character(char)
+        # bible 为 None 时不再强制初始化
+        assert "bible" not in result or not result.get("bible")
+
+    def test_bible_normalize_existing(self):
+        """bible 存在时规范化已有字段"""
+        from infra.models import normalize_character
+        char = {"id": "test", "bible": {"core_traits": "聪明"}}
+        result = normalize_character(char)
         bible = result["bible"]
-        assert bible["core_traits"] == ""
-        assert bible["core_traits_en"] == ""
+        assert bible["core_traits"] == "聪明"
         assert bible["speech_patterns"] == ""
         assert isinstance(bible["relationships"], dict)
         assert isinstance(bible["emotional_range"], dict)
         assert isinstance(bible["body_language"], dict)
         assert isinstance(bible["habits"], list)
         assert isinstance(bible["taboos"], list)
+
+    def test_bible_en_normalize(self):
+        """bible_en 存在时规范化"""
+        from infra.models import normalize_character
+        char = {"id": "test", "bible_en": {"core_traits": "smart"}}
+        result = normalize_character(char)
+        assert result["bible_en"]["core_traits"] == "smart"
+        assert result["bible_en"]["speech_patterns"] == ""
 
     def test_outfits_ensure_default(self):
         """outfits 无 default 时自动添加"""

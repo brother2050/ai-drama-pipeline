@@ -16,16 +16,9 @@ character:
       reference_images: []
   bible:
     core_traits: "温柔但坚强，容易害羞，对顾辰有好感"
-    core_traits_en: ""
     speech_patterns: ""
-    speech_patterns_en: ""
     relationships: {}
-    relationships_en: {}
     emotional_range: {}
-    emotional_range_en: {}
     body_language: {}
-    body_language_en: {}
     habits: []
-    habits_en: []
     taboos: []
-    taboos_en: []

@@ -1,11 +1,13 @@
 """角色圣经系统 — 跨镜头/跨集的角色一致性保障
 
-为每个角色建立结构化的"圣经"，确保行为/台词/情绪在不同镜头中保持一致。
+bible 拆分为两个独立区域：
+  - bible:    中文原始数据（用户/AI 生成）
+  - bible_en: 英文翻译 prompt（prepare 阶段 AI 翻译）
 
 用法:
     bible = CharacterBible(project_dir)
-    context = bible.get_context("linxia")
-    # → "核心性格: 温柔但坚强。说话风格: 语速较慢，常用'嗯...'开头。..."
+    context = bible.get_context("linxia")   # 中文，注入 LLM prompt
+    tags = bible.get_tags("linxia")         # 英文，注入 ComfyUI prompt
 """
 from __future__ import annotations
 
@@ -18,22 +20,22 @@ logger = logging.getLogger(__name__)
 __all__ = ["CharacterBible"]
 
 
-def _append_simple(bible: dict, key: str, label: str, parts: list[str]) -> None:
-    val = bible.get(key, "")
+def _append_simple(data: dict, key: str, label: str, parts: list[str]) -> None:
+    val = data.get(key, "")
     if val:
         parts.append(f"{label}: {val}")
 
 
-def _append_map(bible: dict, key: str, label: str, fmt: str, parts: list[str]) -> None:
-    data = bible.get(key, {})
-    if data:
-        items = [fmt.format(key=k, val=v) for k, v in data.items() if v]
-        if items:
-            parts.append(f"{label}: " + "；".join(items))
+def _append_map(data: dict, key: str, label: str, fmt: str, parts: list[str]) -> None:
+    items = data.get(key, {})
+    if items:
+        texts = [fmt.format(key=k, val=v) for k, v in items.items() if v]
+        if texts:
+            parts.append(f"{label}: " + "；".join(texts))
 
 
-def _append_list(bible: dict, key: str, label: str, parts: list[str]) -> None:
-    items = bible.get(key, [])
+def _append_list(data: dict, key: str, label: str, parts: list[str]) -> None:
+    items = data.get(key, [])
     if items:
         parts.append(f"{label}: " + "、".join(items))
 
@@ -41,16 +43,17 @@ def _append_list(bible: dict, key: str, label: str, parts: list[str]) -> None:
 class CharacterBible:
     """角色圣经管理器
 
-    从角色 YAML 的 bible 段读取结构化角色信息，
-    生成可注入 LLM prompt 的上下文文本。
+    bible（中文）和 bible_en（英文）独立读取，
+    分别用于 LLM prompt 和 ComfyUI prompt 注入。
     """
 
     def __init__(self, project_dir: str):
         self._project_dir = project_dir
-        self._cache: dict[str, dict] = {}
+        self._cache: dict[str, dict] = {}       # bible（中文）
+        self._cache_en: dict[str, dict] = {}     # bible_en（英文）
 
     def get_context(self, char_id: str) -> str:
-        """获取角色圣经上下文（可注入 LLM prompt）"""
+        """获取中文圣经上下文（注入 LLM prompt）"""
         bible = self.load(char_id)
         if not bible:
             return ""
@@ -65,12 +68,48 @@ class CharacterBible:
         _append_list(bible, "taboos", "禁忌", parts)
         return "。".join(parts) + "。" if parts else ""
 
-    def load(self, char_id: str) -> dict:
-        """加载角色圣经数据
+    def get_tags(self, char_id: str) -> str:
+        """获取英文圣经 tag 摘要（逗号分隔，注入 ComfyUI prompt）
 
-        Returns:
-            bible 段 dict，不存在返回空 dict
+        优先读 bible_en（英文），回退到 bible（中文）。
         """
+        en = self.load_en(char_id)
+        zh = self.load(char_id)
+        source = en if en else zh
+        if not source:
+            return ""
+
+        tags: list[str] = []
+
+        core = source.get("core_traits", "")
+        if core:
+            tags.append(core)
+
+        speech = source.get("speech_patterns", "")
+        if speech:
+            tags.append(speech)
+
+        rels = source.get("relationships", {})
+        for rid, desc in rels.items():
+            if desc:
+                tags.append(desc)
+
+        emo = source.get("emotional_range", {})
+        for key in list(emo.keys())[:2]:
+            desc = emo.get(key, "")
+            if desc:
+                tags.append(desc)
+
+        body = source.get("body_language", {})
+        for key in list(body.keys())[:1]:
+            desc = body.get(key, "")
+            if desc:
+                tags.append(desc)
+
+        return ", ".join(tags) if tags else ""
+
+    def load(self, char_id: str) -> dict:
+        """加载中文圣经数据，不存在返回空 dict"""
         if char_id in self._cache:
             return self._cache[char_id]
 
@@ -81,13 +120,20 @@ class CharacterBible:
         self._cache[char_id] = bible
         return bible
 
-    def save(self, char_id: str, bible: dict) -> None:
-        """保存角色圣经数据
+    def load_en(self, char_id: str) -> dict:
+        """加载英文圣经数据，不存在返回空 dict"""
+        if char_id in self._cache_en:
+            return self._cache_en[char_id]
 
-        Args:
-            char_id: 角色 ID
-            bible: 角色圣经数据
-        """
+        from infra.config import load_character, ProjectPaths
+        paths = ProjectPaths(self._project_dir)
+        char = load_character(paths, char_id)
+        bible_en = char.get("bible_en", {})
+        self._cache_en[char_id] = bible_en
+        return bible_en
+
+    def save(self, char_id: str, bible: dict) -> None:
+        """保存中文圣经数据"""
         from infra.config import ProjectPaths, load_yaml_full, save_yaml
         paths = ProjectPaths(self._project_dir)
         char_file = paths.character_yaml(char_id)
@@ -104,77 +150,38 @@ class CharacterBible:
         except Exception as e:
             logger.error(f"保存角色圣经失败 {char_id}: {e}")
 
-    def get_tags(self, char_id: str) -> str:
-        """获取角色圣经的 tag 风格摘要（英文逗号分隔，适配 SD1.5 CLIP）
+    def save_en(self, char_id: str, bible_en: dict) -> None:
+        """保存英文圣经翻译数据"""
+        from infra.config import ProjectPaths, load_yaml_full, save_yaml
+        paths = ProjectPaths(self._project_dir)
+        char_file = paths.character_yaml(char_id)
+        if not char_file.exists():
+            logger.warning(f"角色文件不存在: {char_file}")
+            return
 
-        优先读 _en 字段（英文短标签），回退到中文字段。
-        """
-        bible = self.load(char_id)
-        if not bible:
-            return ""
-
-        tags: list[str] = []
-
-        # 核心性格
-        core = bible.get("core_traits_en") or bible.get("core_traits", "")
-        if core:
-            tags.append(core)
-
-        # 说话风格
-        speech = bible.get("speech_patterns_en") or bible.get("speech_patterns", "")
-        if speech:
-            tags.append(speech)
-
-        # 人际关系
-        rels_en = bible.get("relationships_en", {})
-        rels = bible.get("relationships", {})
-        for rid in set(list(rels_en.keys()) + list(rels.keys())):
-            desc = rels_en.get(rid) or rels.get(rid, "")
-            if desc:
-                tags.append(desc)
-
-        # 情绪表达（取 1-2 个典型）
-        emo_en = bible.get("emotional_range_en", {})
-        emo = bible.get("emotional_range", {})
-        for key in list(emo_en.keys())[:2] or list(emo.keys())[:2]:
-            desc = emo_en.get(key) or emo.get(key, "")
-            if desc:
-                tags.append(desc)
-
-        # 肢体语言（取 1 个典型）
-        body_en = bible.get("body_language_en", {})
-        body = bible.get("body_language", {})
-        for key in list(body_en.keys())[:1] or list(body.keys())[:1]:
-            desc = body_en.get(key) or body.get(key, "")
-            if desc:
-                tags.append(desc)
-
-        return ", ".join(tags) if tags else ""
+        try:
+            data = load_yaml_full(char_file)
+            data.setdefault("character", {})["bible_en"] = bible_en
+            save_yaml(char_file, data)
+            self._cache_en[char_id] = bible_en
+            logger.info(f"角色圣经翻译已保存: {char_id}")
+        except Exception as e:
+            logger.error(f"保存角色圣经翻译失败 {char_id}: {e}")
 
     def get_all(self) -> dict[str, dict]:
-        """获取所有角色的圣经数据
-
-        Returns:
-            {char_id: bible_dict} 映射
-        """
+        """获取所有角色的中文圣经数据"""
         from infra.config import ProjectPaths, load_yaml_entities
         paths = ProjectPaths(self._project_dir)
         chars = load_yaml_entities(paths.characters_dir, "character")
-
-        result = {}
-        for char in chars:
-            cid = char.get("id", "")
-            if cid:
-                result[cid] = char.get("bible", {})
-        return result
+        return {c["id"]: c.get("bible", {}) for c in chars if c.get("id")}
 
 
 # ══════════════════════════════════════════════════════════
-#  LLM 生成角色圣经
+#  LLM 生成角色圣经（中文原始数据）
 # ══════════════════════════════════════════════════════════
 
 def generate_bible(llm, character: dict, outline: str = "", other_chars: list[dict] = None) -> dict:
-    """用 LLM 生成角色圣经
+    """用 LLM 生成角色圣经（中文原始数据，不含 _en 字段）
 
     Args:
         llm: LLM 后端实例
@@ -183,7 +190,7 @@ def generate_bible(llm, character: dict, outline: str = "", other_chars: list[di
         other_chars: 其他角色列表（用于推断人际关系）
 
     Returns:
-        角色圣经 dict
+        角色圣经 dict（纯中文）
     """
     from infra.json_parse import parse_llm_json
 
@@ -191,7 +198,6 @@ def generate_bible(llm, character: dict, outline: str = "", other_chars: list[di
 
     parts = [f"角色名: {character.get('name', '?')}"]
     parts.append(f"外貌: {character.get('appearance', '')}")
-    # 优先读 bible 已有的 core_traits
     existing_traits = ""
     bible_section = character.get("bible", {})
     if isinstance(bible_section, dict):
@@ -212,7 +218,8 @@ def generate_bible(llm, character: dict, outline: str = "", other_chars: list[di
         raw = llm.chat(prompt, system=system, max_tokens=1024)
         result = parse_llm_json(raw)
         if result and isinstance(result, dict):
-            return result
+            # 过滤掉可能混入的 _en 字段
+            return {k: v for k, v in result.items() if not k.endswith("_en")}
     except Exception as e:
         logger.warning(f"角色圣经生成失败: {e}")
 

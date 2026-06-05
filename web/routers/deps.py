@@ -180,6 +180,11 @@ def yaml_save(yaml_dir: str, entity_key: str, entity_id: str, data: dict) -> Non
             file_data = {}
             existing = {}
     merged = {**existing, **data, "id": entity_id}
+    # bible/bible_en: 深合并（前端可能只发送部分字段）
+    for nested_key in ("bible", "bible_en"):
+        if nested_key in merged and nested_key in existing and nested_key in data:
+            if isinstance(merged[nested_key], dict) and isinstance(existing[nested_key], dict):
+                merged[nested_key] = {**existing[nested_key], **data[nested_key]}
     if entity_key == "character":
         from infra.models import normalize_character
         merged = normalize_character(merged)
