@@ -428,4 +428,4 @@ def _resolve_element(elem_type: str, name: str, idx: int,
         return (entity_id, paths.scene_asset_dir(entity_id),
                 paths.scene_yaml(entity_id), "scenes", "scene")
 
-    return ("", paths.assets_dir / "seko", None, "seko", "")
+    return (f"elem_{idx}", paths.assets_dir / "seko" / f"elem_{idx}", None, "seko", "")

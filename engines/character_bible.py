@@ -142,39 +142,28 @@ class CharacterBible:
 
     def save(self, char_id: str, bible: dict) -> None:
         """保存中文圣经数据"""
-        from infra.config import ProjectPaths, load_yaml_full, save_yaml
-        paths = ProjectPaths(self._project_dir)
-        char_file = paths.character_yaml(char_id)
-        if not char_file.exists():
-            logger.warning(f"角色文件不存在: {char_file}")
-            return
-
-        try:
-            data = load_yaml_full(char_file)
-            data.setdefault("character", {})["bible"] = bible
-            save_yaml(char_file, data)
-            self._cache[char_id] = bible
-            logger.info(f"角色圣经已保存: {char_id}")
-        except Exception as e:
-            logger.error(f"保存角色圣经失败 {char_id}: {e}")
+        self._save_bible(char_id, "bible", bible, self._cache)
 
     def save_en(self, char_id: str, bible_en: dict) -> None:
         """保存英文圣经翻译数据"""
+        self._save_bible(char_id, "bible_en", bible_en, self._cache_en)
+
+    def _save_bible(self, char_id: str, key: str, data: dict, cache: dict) -> None:
+        """通用圣经保存（消除 save/save_en 重复）"""
         from infra.config import ProjectPaths, load_yaml_full, save_yaml
         paths = ProjectPaths(self._project_dir)
         char_file = paths.character_yaml(char_id)
         if not char_file.exists():
             logger.warning(f"角色文件不存在: {char_file}")
             return
-
         try:
-            data = load_yaml_full(char_file)
-            data.setdefault("character", {})["bible_en"] = bible_en
-            save_yaml(char_file, data)
-            self._cache_en[char_id] = bible_en
-            logger.info(f"角色圣经翻译已保存: {char_id}")
+            file_data = load_yaml_full(char_file)
+            file_data.setdefault("character", {})[key] = data
+            save_yaml(char_file, file_data)
+            cache[char_id] = data
+            logger.info(f"角色圣经已保存: {char_id} ({key})")
         except Exception as e:
-            logger.error(f"保存角色圣经翻译失败 {char_id}: {e}")
+            logger.error(f"保存角色圣经失败 {char_id} ({key}): {e}")
 
     def get_all(self) -> dict[str, dict]:
         """获取所有角色的中文圣经数据"""

@@ -409,8 +409,9 @@ async function newProj() {
     }).catch(e => toast(e.message, 'error'));
   });
 }
-function switchProj(name) {
-  api('/projects/switch', { method: 'POST', body: { name } }).then(() => {
+async function switchProj(name) {
+  try {
+    await api('/projects/switch', { method: 'POST', body: { name } });
     _cache.clear();
     _undoStack.length = 0;
     _redoStack.length = 0;
@@ -420,7 +421,7 @@ function switchProj(name) {
     loadProjects();
     const p = document.querySelector('.page.active');
     if (p) { const pageName = p.id.replace('page-', ''); const fn = PAGES[pageName]; if (fn && typeof window[fn] === 'function') window[fn](); }
-  }).catch(e => toast(e.message, 'error'));
+  } catch (e) { toast(e.message, 'error'); }
 }
 async function deleteProj(n) {
   if (!await modalConfirm(t('proj.confirm_delete', { name: n }))) return;

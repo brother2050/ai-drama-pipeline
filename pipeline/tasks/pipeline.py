@@ -206,12 +206,12 @@ def _retry_failed(self, config_path, episode, shots, results, failed_indices, pr
     if not failed_indices:
         return
     logger.info(f"重试 {len(failed_indices)} 个失败镜头...")
-    for i in failed_indices:
+    for retry_idx, i in enumerate(failed_indices):
         shot = shots[i]
         shot_id = shot.get("shot_id", f"{i+1:03d}")
         self.update_state(state="PROGRESS", meta={"step": "retry", "shot_id": shot_id,
-            "progress": int(progress_base + (total + len(failed_indices)) / total * progress_range),
-            "message": f"重试镜头 {shot_id}..."})
+            "progress": int(progress_base + retry_idx / len(failed_indices) * progress_range),
+            "message": f"重试镜头 {shot_id} ({retry_idx+1}/{len(failed_indices)})..."})
         try:
             result = shot_task.apply_async(args=[config_path, episode, shot], kwargs={"force": True}).get(timeout=1800)
             results[i] = result
@@ -279,7 +279,11 @@ def _apply_preset(config_path: str, preset: str) -> str:
     existing.setdefault("generation", {}).update(overrides)
     fd, tmp_path = tempfile.mkstemp(suffix=".yaml", dir=str(Path(config_path).parent))
     os.close(fd)
-    save_config(tmp_path, existing)
+    try:
+        save_config(tmp_path, existing)
+    except Exception:
+        os.unlink(tmp_path)
+        raise
     return tmp_path
 
 

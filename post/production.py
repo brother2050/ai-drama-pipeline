@@ -33,9 +33,13 @@ def _cleanup_intermediates(out_dir: Path, episode: int) -> None:
 
 
 def _collect_videos(out_dir: Path) -> list[Path]:
-    """收集所有镜头视频（按 shot_id 排序，优先 synced.mp4）"""
+    """收集所有镜头视频（按 shot_id 数值排序，优先 synced.mp4）"""
+    import re
+    def _shot_sort_key(p: Path) -> int:
+        m = re.search(r'\d+', p.name)
+        return int(m.group()) if m else 0
     videos = []
-    for shot_dir in sorted(out_dir.glob("s*")):
+    for shot_dir in sorted(out_dir.glob("s*"), key=_shot_sort_key):
         synced = shot_dir / "synced.mp4"
         video = shot_dir / "video.mp4"
         if synced.exists():

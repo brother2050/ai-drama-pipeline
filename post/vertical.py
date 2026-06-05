@@ -109,9 +109,9 @@ def to_vertical(video: str, output: str, mode: str = "face_track") -> str:
         else:
             logger.info("未检测到人脸，使用模糊背景模式")
             # 背景: 铺满 9:16 + 模糊；前景: 等比缩放适配 9:16 框，居中叠加
-            vf = (f"split[original][blur];"
-                  f"[blur]scale={target_w}:{target_h},boxblur=20[bg];"
-                  f"[original]scale={target_w}:{target_h}"
+            vf = (f"split[main][blur_in];"
+                  f"[blur_in]scale={target_w}:{target_h},boxblur=20[bg];"
+                  f"[main]scale={target_w}:{target_h}"
                   f":force_original_aspect_ratio=decrease[fg];"
                   f"[bg][fg]overlay=(W-w)/2:(H-h)/2")
 

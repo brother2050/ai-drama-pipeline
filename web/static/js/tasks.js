@@ -167,6 +167,7 @@ const TaskPanel = (() => {
         _lastUpdateTime: Date.now(),
       });
       _render();
+      _startTaskTimer();
 
       // 有新任务时自动展开（仅用户未手动折叠时）
       if (_collapsed && !_userCollapsed) {
@@ -388,15 +389,22 @@ const TaskPanel = (() => {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  // 定时刷新活跃任务的耗时显示
-  setInterval(() => {
-    for (const task of _tasks.values()) {
-      if (!['success', 'failed', 'cancelled', 'timeout'].includes(task.status)) {
-        _render();
-        break;
+  // 定时刷新活跃任务的耗时显示（有活跃任务时运行，无任务时停止）
+  let _taskTimer = null;
+  function _startTaskTimer() {
+    if (_taskTimer) return;
+    _taskTimer = setInterval(() => {
+      let hasActive = false;
+      for (const task of _tasks.values()) {
+        if (!['success', 'failed', 'cancelled', 'timeout'].includes(task.status)) {
+          hasActive = true;
+          break;
+        }
       }
-    }
-  }, 3000);
+      if (hasActive) _render();
+      else { clearInterval(_taskTimer); _taskTimer = null; }
+    }, 3000);
+  }
 
   // ── 公开 API ──
 
