@@ -42,6 +42,23 @@
 
 ---
 
+## P0 — 待解耦（bible / bible_en）
+
+> commit d5c53e6 将 bible 拆为 `bible`（中文）和 `bible_en`（英文）两个 YAML 区块，
+> 但逻辑上 bible_en 仍是 bible 的"翻译产物"，未真正独立。
+
+| # | 文件 | 描述 |
+|---|------|------|
+| B1 | `engines/character_bible.py` | `get_tags()` 中文打底英文覆盖，bible_en 为空时回退中文 → 应去掉回退，bible_en 为空返回空 |
+| B2 | `pipeline/tasks/ai.py` | `_collect_bible_texts()` 从 bible 读中文翻译写入 bible_en → 需支持 bible_en 独立生成（LLM 直接英文） |
+| B3 | `pipeline/tasks/pipeline.py` | `run_all_task` 强制 bible → prepare 顺序 → 解耦后 bible_en 有内容时可跳过 prepare 翻译 |
+| B4 | `web/static/js/pipeline.js` | 前端 prepare 按钮无独立提示 → 需支持 bible_en 直接编辑/生成，不依赖 bible 按钮 |
+| B5 | `web/static/js/characters.js` | 角色编辑页无 bible_en 编辑入口 → 需增加英文圣经独立编辑区域 |
+
+**解耦目标**：bible_en 可独立存在、独立生成、独立编辑，不依赖 bible 按钮。
+
+---
+
 ## P1 — 低优先级（边缘场景或理论隐患）
 
 | # | 文件 | 描述 |
