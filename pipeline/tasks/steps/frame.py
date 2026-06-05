@@ -1,0 +1,248 @@
+"""首帧生成步骤 — ComfyUI 工作流构建 + 执行 → frame.png"""
+from __future__ import annotations
+
+import logging
+import os
+from dataclasses import dataclass
+from pathlib import Path
+
+from engines.shot_utils import parse_char_ids
+from infra.constants import STATUS_DONE, STATUS_ERROR, ERR_NOT_PREPARED
+from pipeline.tasks.helpers import _skip, _err, _done, _validate_output
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class FirstFrameParams:
+    """首帧生成参数 — 消除 first_frame_core 的 8 个参数"""
+    shot_id: str
+    shot: dict
+    cfg: object
+    cont: object
+    out_dir: Path
+    force: bool = False
+    characters: dict | None = None
+    scenes: dict | None = None
+
+
+# ── 内部工具 ──
+
+
+def _check_lora_availability(wf: dict, paths, cfg, comfyui) -> list[str]:
+    """检查工作流中的 LoRA 文件是否存在于 ComfyUI 服务器"""
+    from engines.workflow import find_lora_nodes
+    from infra.asset_tracker import AssetTracker
+    from urllib.parse import urlparse
+
+    tracker = AssetTracker(str(paths.root))
+    image_server_url = comfyui.url
+    lora_nodes = find_lora_nodes(wf)
+    missing = []
+
+    for node_id, lora_name in lora_nodes:
+        if tracker.is_lora_tracked(image_server_url, lora_name):
+            continue
+        parsed = urlparse(image_server_url)
+        is_local = parsed.hostname in ("localhost", "127.0.0.1", "::1")
+        found = False
+        if is_local:
+            loras_dir_candidates = []
+            comfyui_dir = cfg.get("comfyui", {}).get("models_dir", "")
+            if comfyui_dir:
+                loras_dir_candidates.append(Path(comfyui_dir) / "loras")
+            loras_dir_candidates.append(Path.home() / "ComfyUI" / "models" / "loras")
+            for loras_dir in loras_dir_candidates:
+                if (loras_dir / lora_name).exists():
+                    tracker.mark_lora_tracked(image_server_url, lora_name)
+                    found = True
+                    break
+        if not found:
+            missing.append(lora_name)
+            logger.warning(f"LoRA '{lora_name}' 未确认存在于服务器 {image_server_url}")
+    return missing
+
+
+def _upload_reference_images(wf: dict, shot: dict, wb, comfyui, paths) -> dict:
+    """并行上传参考图到 ComfyUI 服务器，更新工作流节点引用"""
+    from engines.workflow import find_character_load_image_nodes as _find_char_nodes
+    from infra.asset_tracker import comfyui_asset_name
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    _char_node_set = set(_find_char_nodes(wf))
+    upload_map = wb.build_upload_map(shot, wf)
+    if not upload_map:
+        return wf
+
+    def _upload_one(node_id: str, file_path: str) -> tuple[str, str, str | None]:
+        if not Path(file_path).exists():
+            return node_id, "", f"文件不存在: {file_path}"
+        try:
+            if node_id in _char_node_set and "/assets/characters/" in file_path:
+                parts = Path(file_path).parts
+                char_idx = parts.index("characters") + 1
+                cid = parts[char_idx] if char_idx < len(parts) else "unknown"
+                remote_name = comfyui_asset_name(str(paths.root), cid, Path(file_path).name)
+            else:
+                remote_name = Path(file_path).name
+            comfyui.upload_image(file_path, filename=remote_name)
+            return node_id, remote_name, None
+        except Exception as e:
+            return node_id, "", f"上传失败: {e}"
+
+    with ThreadPoolExecutor(max_workers=min(len(upload_map), 4)) as pool:
+        futures = {pool.submit(_upload_one, nid, fp): nid for nid, fp in upload_map.items()}
+        failed_char_refs = []
+        for future in as_completed(futures):
+            node_id, remote_name, err = future.result()
+            if err:
+                if node_id in _char_node_set:
+                    failed_char_refs.append(f"[{node_id}] {err}")
+                    logger.error(f"角色参考图上传失败 [{node_id}]: {err}")
+                else:
+                    logger.warning(f"场景图上传失败 [{node_id}: {err}")
+            elif node_id in wf and remote_name:
+                cls = wf[node_id].get("class_type", "")
+                if cls in ("LoadImage", "LoadImageFromPath", "ImageLoad"):
+                    wf[node_id]["inputs"]["image"] = remote_name
+        if failed_char_refs:
+            raise RuntimeError(f"角色参考图上传失败（{len(failed_char_refs)} 个）: {'; '.join(failed_char_refs)}")
+    return wf
+
+
+def _resolve_shot_context(shot: dict, cfg, characters: dict | None, scenes: dict | None):
+    """解析镜头上下文：角色描述、场景描述、多人提示、服装"""
+    from engines.prompt import get_view_appearance
+    from engines.multi_char import MultiCharacterHandler
+
+    char_ids = parse_char_ids(shot)
+    characters, scenes = _ensure_char_scene_data(cfg, characters, scenes)
+
+    # 角色描述
+    shot_type = shot.get("shot_type", "")
+    char_descs = []
+    for cid in char_ids:
+        char = characters.get(cid, {})
+        if char:
+            desc = get_view_appearance(char, shot_type)
+            if not desc:
+                return None, None, None, None, f"角色 {cid} 未生成 AI 绘图 prompt，{ERR_NOT_PREPARED}"
+            char_descs.append(desc)
+
+    # 场景描述
+    scene = scenes.get(shot.get("scene_id", ""), {})
+    scene_desc = ""
+    if scene:
+        scene_desc = scene.get("description_en", "")
+        if not scene_desc and scene.get("description"):
+            return None, None, None, None, f"场景 '{shot.get('scene', '')}' 尚未生成英文描述，{ERR_NOT_PREPARED}"
+
+    # 多人提示
+    multi_char_prompt = ""
+    if len(char_ids) > 1:
+        multi_char_prompt = MultiCharacterHandler().generate_multi_char_prompt(
+            [c for c in (characters.get(cid, {}) for cid in char_ids) if c])
+
+    shot = _auto_match_outfit(shot, char_ids, characters)
+    shot = _resolve_scene_ref(shot, scene, cfg)
+    return shot, char_descs, scene_desc, multi_char_prompt, None
+
+
+def _ensure_char_scene_data(cfg, characters, scenes):
+    """确保角色/场景数据已加载"""
+    if characters is not None and scenes is not None:
+        return characters, scenes
+    from engines.shot_manager import ShotManager
+    sm = ShotManager(str(cfg.paths.config_dir))
+    return characters if characters is not None else sm.characters, \
+           scenes if scenes is not None else sm.scenes
+
+
+def _auto_match_outfit(shot, char_ids, characters):
+    """服装自动匹配（outfit 为空时回退到 default 或第一个）"""
+    if shot.get("outfit", "").strip() or not char_ids:
+        return shot
+    primary_char = characters.get(char_ids[0], {})
+    if not primary_char:
+        return shot
+    char_outfits = primary_char.get("outfits", {})
+    if not isinstance(char_outfits, dict) or not char_outfits:
+        return shot
+    outfit = "default" if "default" in char_outfits else next(iter(char_outfits))
+    logger.info(f"outfit 为空，自动回退到 '{outfit}'")
+    shot = dict(shot)
+    shot["outfit"] = outfit
+    return shot
+
+
+def _resolve_scene_ref(shot, scene, cfg):
+    """解析场景参考图路径"""
+    if not scene:
+        return shot
+    scene_refs = scene.get("reference_images", [])
+    if not scene_refs or shot.get("scene_ref"):
+        return shot
+    ref_url = scene_refs[0]
+    if ref_url.startswith("/api/assets/"):
+        local_path = cfg.paths.assets_dir / ref_url.removeprefix("/api/assets/")
+        if local_path.exists():
+            shot = dict(shot)
+            shot["scene_ref"] = str(local_path)
+    return shot
+
+
+# ── 核心逻辑 ──
+
+
+def first_frame_core(p: FirstFrameParams) -> dict:
+    """首帧生成核心逻辑 — ComfyUI 工作流构建 + 执行"""
+    p.out_dir.mkdir(parents=True, exist_ok=True)
+    frame_path = p.out_dir / "frame.png"
+    if not p.force and frame_path.exists():
+        return _skip(p.shot_id, "first_frame", "首帧已存在")
+
+    from engines.workflow_builder import WorkflowBuilder, WorkflowBuilderConfig
+
+    shot, char_descs, scene_desc, multi_char_prompt, err = _resolve_shot_context(
+        p.shot, p.cfg, p.characters, p.scenes)
+    if err:
+        return _err(p.shot_id, "first_frame", err)
+
+    paths = p.cfg.paths
+    wb = WorkflowBuilder(WorkflowBuilderConfig(
+        config=p.cfg.data, models=p.cfg.get("models", {}), project_dir=str(paths.root),
+        comfyui=p.cont.get("image"), container=p.cont, force=p.force))
+    wb.load_workflows()
+    prompt, wf = wb.build_first_frame(
+        shot, character_desc=", ".join(char_descs),
+        scene_desc=scene_desc, multi_char_prompt=multi_char_prompt)
+    if not wf:
+        return _err(p.shot_id, "first_frame", "首帧工作流为空（缺少模板）")
+
+    from infra.globals import get_watchdog, get_concurrency_groups
+    from infra.safe_executor import safe_run
+    wd = get_watchdog()
+    groups = get_concurrency_groups()
+
+    comfyui = p.cont.get("image")
+    _check_lora_availability(wf, paths, p.cfg, comfyui)
+    wf = _upload_reference_images(wf, shot, wb, comfyui, paths)
+
+    def _do_generate():
+        with groups.acquire("comfyui"):
+            with wd.track(f"{p.shot_id}:first_frame", backend="comfyui"):
+                return comfyui.generate(wf, str(p.out_dir))
+
+    try:
+        files = safe_run(_do_generate, retries=2, base_delay=2.0, task_id=f"{p.shot_id}:first_frame")
+    except Exception as e:
+        return _err(p.shot_id, "first_frame", f"ComfyUI 首帧生成失败: {e}")
+    if not files:
+        return _err(p.shot_id, "first_frame", "ComfyUI 未返回任何图片")
+
+    frame_path = str(p.out_dir / "frame.png")
+    os.replace(files[0], frame_path)
+    err = _validate_output(frame_path, "first_frame", min_size=500)
+    if err:
+        return _err(p.shot_id, "first_frame", err)
+    return _done(p.shot_id, "first_frame", frame_path, prompt=prompt.get("positive", ""))
