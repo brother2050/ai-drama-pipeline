@@ -13,8 +13,6 @@ from __future__ import annotations
 
 import logging
 
-from engines.prompt_compiler import get_compiler
-
 logger = logging.getLogger(__name__)
 
 __all__ = ["CharacterBible"]
@@ -175,53 +173,3 @@ class CharacterBible:
         paths = ProjectPaths(self._project_dir)
         chars = load_yaml_entities(paths.characters_dir, "character")
         return {c["id"]: c.get("bible", {}) for c in chars if c.get("id")}
-
-
-# ══════════════════════════════════════════════════════════
-#  LLM 生成角色圣经（中文原始数据）
-# ══════════════════════════════════════════════════════════
-
-def generate_bible(llm, character: dict, outline: str = "", other_chars: list[dict] = None) -> dict:
-    """用 LLM 生成角色圣经（中文原始数据，不含 _en 字段）
-
-    Args:
-        llm: LLM 后端实例
-        character: 角色数据
-        outline: 剧情大纲（用于推断人际关系）
-        other_chars: 其他角色列表（用于推断人际关系）
-
-    Returns:
-        角色圣经 dict（纯中文）
-    """
-    from infra.json_parse import parse_llm_json
-
-    system = get_compiler().get("bible_generation_system")
-
-    parts = [f"角色名: {character.get('name', '?')}"]
-    parts.append(f"外貌: {character.get('appearance', '')}")
-    existing_traits = ""
-    bible_section = character.get("bible", {})
-    if isinstance(bible_section, dict):
-        existing_traits = bible_section.get("core_traits", "")
-    parts.append(f"性格: {existing_traits}")
-
-    if other_chars:
-        others = [f"{c.get('id', '?')}({c.get('name', '?')})" for c in other_chars if c.get('id') != character.get('id')]
-        if others:
-            parts.append(f"其他角色: {', '.join(others)}")
-
-    if outline:
-        parts.append(f"剧情大纲: {outline[:500]}")
-
-    prompt = "\n".join(parts)
-
-    try:
-        raw = llm.chat(prompt, system=system, max_tokens=1024)
-        result = parse_llm_json(raw)
-        if result and isinstance(result, dict):
-            # 过滤掉可能混入的 _en 字段
-            return {k: v for k, v in result.items() if not k.endswith("_en")}
-    except Exception as e:
-        logger.warning(f"角色圣经生成失败: {e}")
-
-    return {}
