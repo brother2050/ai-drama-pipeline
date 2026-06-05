@@ -145,7 +145,7 @@ def run_scene_images(
         scene_files = [f for f, _ in _load_wp(scenes_dir, "scene", with_paths=True)]
 
     if not scene_files:
-        return {"status": STATUS_ERROR, "reason": "没有场景配置"}
+        return {"status": STATUS_DONE, "generated": 0, "total": 0, "skipped": 0}
 
     wb = WorkflowBuilder(WorkflowBuilderConfig(config=cfg.data, models=cfg.get("models", {}), project_dir=str(paths.root), comfyui=comfyui))
     wb.load_workflows()

@@ -75,7 +75,7 @@ def _db_record_step(episode: int, shot_id: str, step: str, result: dict) -> None
                       error=result.get("reason", "") if result.get("status") in ("skipped", "error") else "",
                       elapsed=result.get("elapsed", 0.0))
     except Exception as e:
-        logger.debug(f"DB 写入跳过: {e}")
+        logger.debug(f"DB 写入跳过: {e}", exc_info=True)
 
 
 def _db_mark_running(episode: int, shot_id: str, step: str) -> None:
