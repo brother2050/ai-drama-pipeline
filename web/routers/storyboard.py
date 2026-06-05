@@ -211,7 +211,7 @@ def batch_delete_storyboard_shots(episode: int, req: StoryboardBatchDeleteReques
 
 @router.post("/pipeline/run")
 def run_pipeline(req: PipelineRequest) -> dict:
-    from pipeline.tasks import preview_task, produce_task, post_task, ai_prepare_task, ai_bible_task
+    from pipeline.tasks import preview_task, produce_task, post_task, ai_prepare_task, ai_bible_task, run_all_task
     cfg = _cfg_path()
     dispatch = {
         "preview": lambda: _submit_task(preview_task, cfg, req.episode, req.level, req.force),
@@ -219,6 +219,7 @@ def run_pipeline(req: PipelineRequest) -> dict:
         "prepare": lambda: _submit_task(ai_prepare_task, cfg, req.episode, force=req.force, translate=True),
         "produce": lambda: _submit_task(produce_task, cfg, req.episode, force=req.force),
         "post":    lambda: _submit_task(post_task, cfg, req.episode, req.vertical),
+        "run_all": lambda: _submit_task(run_all_task, cfg, req.episode, req.vertical, req.force),
     }
     handler = dispatch.get(req.command)
     if not handler:

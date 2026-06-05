@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 # 管线编排
-from pipeline.tasks.pipeline import shot_task, preview_task, produce_task
+from pipeline.tasks.pipeline import shot_task, preview_task, produce_task, run_all_task
 
 # 单步执行（Web 工作台「单步执行」按钮调用）
 from pipeline.tasks.steps import step_tts, step_first_frame, step_video, step_lipsync
@@ -42,7 +42,7 @@ from pipeline.tasks.helpers import (
 
 __all__ = [
     # 管线
-    "shot_task", "preview_task", "produce_task", "post_task",
+    "shot_task", "preview_task", "produce_task", "post_task", "run_all_task",
     # 单步
     "step_tts", "step_first_frame", "step_video", "step_lipsync",
     # 核心逻辑

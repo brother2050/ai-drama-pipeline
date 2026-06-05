@@ -522,37 +522,32 @@ async function runAll() {
   if (!await modalConfirm(t('wb.run_all') + '?')) return;
   const statusEl = document.getElementById('wb-batch-status');
   statusEl.style.display = 'block';
-  const stages = ['bible', 'prepare', 'produce', 'post'];
-  for (let i = 0; i < stages.length; i++) {
-    const cmd = stages[i];
-    statusEl.innerHTML = `<div class="batch-progress"><div class="batch-bar"><div class="batch-fill" style="width:${(i / stages.length) * 100}%"></div></div>
-      <div class="batch-text">[${i + 1}/${stages.length}] ${cmd}...</div></div>`;
-    try {
-      const { task_id } = await api('/pipeline/run', { method: 'POST', body: { episode: ep, command: cmd } });
-      if (typeof TaskPanel !== 'undefined') TaskPanel.trackTask(task_id, `全流程 ${cmd}`);
-      const result = await pollTask(task_id);
-      if (result.status !== 'success') { statusEl.innerHTML = `<div class="batch-done">❌ ${cmd}: ${esc(result.error || t('wb.shot_fail'))}</div>`; return; }
-      // 检查子任务返回的实际状态（Celery SUCCESS 不代表业务成功）
-      const sub = result.result;
-      if (sub?.status === 'error' || sub?.status === 'empty') {
-        statusEl.innerHTML = `<div class="batch-done">❌ ${cmd}: ${esc(sub.reason || sub.message || t('wb.shot_fail'))}</div>`; return;
-      }
-      // produce 阶段：检查是否有镜头执行失败
-      if (cmd === 'produce' && sub?.shots) {
-        const errors = sub.shots.filter(s => s.error || (s.errors && s.errors.length));
-        if (errors.length > 0) {
-          const errShots = errors.map(s => s.shot_id || '?').join(', ');
-          statusEl.innerHTML = `<div class="batch-done">⚠ ${cmd}: ${errors.length} 个镜头失败 (${esc(errShots)})，后续步骤继续执行</div>`;
-        }
-      }
-    } catch (e) { statusEl.innerHTML = `<div class="batch-done">❌ ${cmd}: ${esc(e.message)}</div>`; return; }
+  statusEl.innerHTML = `<div class="batch-progress"><div class="batch-bar"><div class="batch-fill" style="width:5%"></div></div>
+    <div class="batch-text">⏳ ${t('wb.run_all')}...</div></div>`;
+  try {
+    const { task_id } = await api('/pipeline/run', { method: 'POST', body: { episode: ep, command: 'run_all', vertical: false, force: _isForce() } });
+    if (typeof TaskPanel !== 'undefined') TaskPanel.trackTask(task_id, t('wb.run_all'));
+    const result = await pollTask(task_id, info => {
+      const step = info.step || '';
+      const pct = info.progress || 5;
+      statusEl.innerHTML = `<div class="batch-progress"><div class="batch-bar"><div class="batch-fill" style="width:${pct}%"></div></div>
+        <div class="batch-text">⏳ ${info.message || step} (${pct}%)</div></div>`;
+    });
+    if (result.status === 'success' && result.result?.status !== 'error') {
+      statusEl.innerHTML = `<div class="batch-done">✅ ${t('wb.run_all')}</div>`;
+      toast('✅ ' + t('wb.run_all'));
+    } else {
+      const r = result.result || {};
+      statusEl.innerHTML = `<div class="batch-done">❌ ${r.stage || ''}: ${esc(r.reason || result.error || t('wb.shot_fail'))}</div>`;
+      toast('❌ ' + (r.reason || t('wb.run_all')), 'error');
+    }
+    invalidateCache(`storyboard/${ep}`);
+    invalidateCache(`res/${ep}`);
+    renderShotsGrid();
+  } catch (e) {
+    statusEl.innerHTML = `<div class="batch-done">❌ ${t('wb.run_all')}: ${esc(e.message)}</div>`;
+    toast('❌ ' + e.message, 'error');
   }
-  statusEl.innerHTML = `<div class="batch-done">✅ ${t('wb.run_all')}</div>`;
-  toast('✅ ' + t('wb.run_all'));
-  // 刷新资源
-  invalidateCache(`storyboard/${ep}`);
-  invalidateCache(`res/${ep}`);
-  renderShotsGrid();
 }
 
 async function addShotFromPipeline() {

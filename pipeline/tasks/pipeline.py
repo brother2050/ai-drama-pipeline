@@ -309,3 +309,56 @@ def produce_task(self, config_path: str, episode: int, vertical: bool = False, f
         results = _iterate_shots(self, config_path, episode, shots, progress_base=5, progress_range=90, force=force)
 
         return {"status": STATUS_DONE, "episode": episode, "shots": results}
+
+
+@app.task(bind=True, name="pipeline_run_all", soft_time_limit=14400)
+def run_all_task(self, config_path: str, episode: int, vertical: bool = False, force: bool = False) -> dict:
+    """一键全流程 — bible → prepare → produce → post
+
+    单个 Celery 任务编排全部阶段，前端只需轮询一次。
+    """
+    project_name = Path(config_path).resolve().parent.parent.name
+    from infra.database._db import project_scope
+    with project_scope(project_name):
+        stages = [
+            ("bible",   lambda: _run_stage_bible(config_path)),
+            ("prepare", lambda: _run_stage_prepare(config_path, episode, force)),
+            ("produce", lambda: _run_stage_produce(self, config_path, episode, force)),
+            ("post",    lambda: _run_stage_post(config_path, episode, vertical)),
+        ]
+        total = len(stages)
+        results = {}
+        for i, (name, fn) in enumerate(stages):
+            self.update_state(state="PROGRESS", meta={
+                "step": name, "progress": int(i / total * 100),
+                "message": f"[{i+1}/{total}] {name}..."})
+            try:
+                result = fn()
+                results[name] = result
+                if isinstance(result, dict) and result.get("status") == "error":
+                    return {"status": STATUS_ERROR, "stage": name,
+                            "reason": result.get("reason", "未知错误"), "results": results}
+            except Exception as e:
+                logger.error(f"全流程 {name} 阶段异常: {e}", exc_info=True)
+                return {"status": STATUS_ERROR, "stage": name,
+                        "reason": str(e), "results": results}
+        return {"status": STATUS_DONE, "episode": episode, "results": results}
+
+
+def _run_stage_bible(config_path: str) -> dict:
+    from pipeline.tasks.ai import ai_bible_task
+    return ai_bible_task.apply(args=[config_path]).get(timeout=1800)
+
+
+def _run_stage_prepare(config_path: str, episode: int, force: bool) -> dict:
+    from pipeline.tasks.ai import ai_prepare_task
+    return ai_prepare_task.apply(args=[config_path, episode], kwargs={"force": force, "translate": True}).get(timeout=3600)
+
+
+def _run_stage_produce(task_self, config_path: str, episode: int, force: bool) -> dict:
+    return produce_task.apply(args=[config_path, episode], kwargs={"force": force}).get(timeout=7200)
+
+
+def _run_stage_post(config_path: str, episode: int, vertical: bool) -> dict:
+    from pipeline.tasks.media_tasks import post_task
+    return post_task.apply(args=[config_path, episode], kwargs={"vertical": vertical}).get(timeout=1800)
