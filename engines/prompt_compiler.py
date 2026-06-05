@@ -284,8 +284,9 @@ class PromptCompiler:
                     parts_2[0] += f", with a {emotion} expression"
                 else:
                     parts_2[0] += f" has a {emotion} expression"
-            else:
-                parts_2.append(f"With a {emotion} expression")
+            elif character:
+                # 有角色但无动作：以角色为主语
+                parts_2.append(f"{character} with a {emotion} expression")
         if parts_2:
             sentences.append(parts_2[0] + ".")
 

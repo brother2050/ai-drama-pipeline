@@ -92,8 +92,8 @@ def tts_single_task(self, config_path: str, text: str, voice_config: dict | None
 def music_task(self, config_path: str, duration: float, mood: str, output: str) -> dict:
     cfg, cont = _init_ctx(config_path)
     from post.music import MusicGenerator
-    gen = MusicGenerator(config=cfg.data, container=cont)
     try:
+        gen = MusicGenerator(config=cfg.data, container=cont)
         result = gen.generate(duration, output, mood=mood)
     except Exception as e:
         return {"status": STATUS_ERROR, "reason": f"配乐生成失败: {e}", "mood": mood, "duration": duration}

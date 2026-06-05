@@ -149,9 +149,10 @@ def seko_proposal_status(req: SekoProposalStatusRequest) -> dict:
             if req.download_dir == "__project_assets__":
                 download_dir = str(_paths().seko_asset_dir(req.task_id))
             else:
-                if ".." in req.download_dir.split("/"):
-                    raise HTTPException(400, "非法下载目录")
-                download_dir = os.path.join(req.download_dir, req.task_id)
+                # 路径安全校验：防止路径遍历
+                base = _paths().assets_dir / "seko"
+                safe_dir = _safe_path(base, req.download_dir)
+                download_dir = str(safe_dir / req.task_id)
             downloaded = download_elements_images(data, download_dir)
     return {
         "status": result.get("data", {}).get("taskStatus", "UNKNOWN"),

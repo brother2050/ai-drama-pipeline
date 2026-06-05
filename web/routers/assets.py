@@ -42,7 +42,7 @@ async def upload_entity_image(entity_type: str, entity_id: str, file: UploadFile
 
     content = await file.read()
     if len(content) > _MAX_UPLOAD_SIZE:
-        raise HTTPException(400, f"文件过大（{len(content) // 1024 // 1024}MB），最大允许 {_MAX_UPLOAD_SIZE // 1024 // 1024}MB")
+        raise HTTPException(400, f"文件过大（{len(content) / 1024 / 1024:.1f}MB），最大允许 {_MAX_UPLOAD_SIZE // 1024 // 1024}MB")
     if len(content) < 8:
         raise HTTPException(400, "文件过小，不是有效的图片")
 

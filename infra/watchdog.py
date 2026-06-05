@@ -246,6 +246,7 @@ class HealthCache:
 
         与 get_or_check 的区别：缓存完整返回值而非仅 bool。
         适合 toolcheck 等需要返回详细信息的场景。
+        异常结果也会被缓存（短 TTL），避免重复触发已知失败的检查。
         """
         now = time.monotonic()
         with self._lock:
@@ -254,7 +255,14 @@ class HealthCache:
                 if now - ts < self._ttl:
                     return value
 
-        value = checker()
+        try:
+            value = checker()
+        except Exception as e:
+            # 缓存失败结果（短 TTL），避免每次调用都重新触发同样的异常
+            error_result = {"available": False, "reason": str(e), "type": "error"}
+            with self._lock:
+                self._full_cache[key] = (error_result, time.monotonic() - self._ttl + 5)
+            return error_result
         with self._lock:
             self._full_cache[key] = (value, time.monotonic())
         return value
