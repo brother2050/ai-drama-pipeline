@@ -118,12 +118,14 @@ def save_entities(
 
     # 第一遍：去重同名（保留第一个）
     name_to_first: dict[str, str] = {}
+    duplicates: list[str] = []
     for entity in entities:
         if entity is None:
             continue
         old_id = entity.get("id", "")
         name = entity.get("name", "").strip() or old_id
         if name in name_to_first:
+            duplicates.append(name)
             logger.warning(f"  ⚠ {entity_key}名重复: '{name}'（{old_id} 与 {name_to_first[name]}），合并")
             continue
         name_to_first[name] = old_id
@@ -131,7 +133,7 @@ def save_entities(
     # 第二遍：保存
     id_remap: dict[str, str] = {}
     generated: list[str] = []
-    warnings: list[str] = []
+    warnings: list[str] = [f"同名{entity_key}「{n}」已合并（保留首个）" for n in duplicates]
 
     for entity in entities:
         if entity is None:

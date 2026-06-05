@@ -171,8 +171,10 @@ function invalidateCache(prefix) { for (const k of _cache.keys()) if (k.startsWi
 
 async function api(path, opts = {}) {
   const { body, headers, ...rest } = opts;
+  const h = { ...headers };
+  if (body) h['Content-Type'] = 'application/json';
   const r = await fetch(API + path, {
-    headers: { 'Content-Type': 'application/json', ...headers }, ...rest,
+    headers: h, ...rest,
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!r.ok) {

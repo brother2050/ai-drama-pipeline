@@ -79,9 +79,9 @@ def _write_srt(output: str, lines: list[str]) -> None:
 
 
 def _format_srt_time(seconds: float) -> str:
-    seconds = max(0, seconds)
+    seconds = max(0, round(seconds, 3))
     h = int(seconds // 3600)
     m = int((seconds % 3600) // 60)
     s = int(seconds % 60)
-    ms = int((seconds % 1) * 1000)
+    ms = int((seconds % 1) * 1000 + 0.5)  # +0.5 四舍五入
     return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"

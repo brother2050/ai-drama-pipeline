@@ -170,14 +170,11 @@ class ConsistencyChecker:
         """检查情绪逻辑过渡：相邻镜头情绪不应剧烈跳变"""
         errors = []
 
-        # 情绪跳变白名单（允许的跳变）
-        ALLOWED_TRANSITIONS = {
-            ("happy", "neutral"), ("neutral", "happy"),
-            ("sad", "neutral"), ("neutral", "sad"),
-            ("worried", "surprised"), ("surprised", "worried"),
-            ("angry", "neutral"), ("neutral", "angry"),
-            ("calm", "neutral"), ("neutral", "calm"),
-            ("happy", "romantic"), ("romantic", "happy"),
+        # 情绪跳变黑名单（不合理的跳变，其余均允许）
+        BLOCKED_TRANSITIONS = {
+            ("happy", "fearful"), ("fearful", "happy"),
+            ("romantic", "angry"), ("angry", "romantic"),
+            ("calm", "angry"), ("angry", "calm"),
         }
 
         for i in range(1, len(shots)):
@@ -189,7 +186,7 @@ class ConsistencyChecker:
             if shots[i - 1].get("scene_id") != shots[i].get("scene_id"):
                 continue
             transition = (prev_emotion, curr_emotion)
-            if transition not in ALLOWED_TRANSITIONS:
+            if transition in BLOCKED_TRANSITIONS:
                 errors.append(
                     f"镜头 {shots[i].get('shot_id', '?')}: 情绪跳变 "
                     f"({prev_emotion} → {curr_emotion})，建议添加过渡镜头"
