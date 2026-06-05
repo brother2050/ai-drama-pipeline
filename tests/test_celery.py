@@ -238,7 +238,7 @@ def test_celery_app_config():
 def test_celery_tasks_registered():
     """任务注册"""
     from pipeline.celery_app import app
-    import pipeline.tasks  # 触发任务注册
+    import pipeline.tasks  # noqa: F401 — 触发任务注册
 
     expected = [
         "pipeline_step_tts", "pipeline_step_first_frame", "pipeline_step_video",

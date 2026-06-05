@@ -295,7 +295,7 @@ def test_music():
 
 def test_distributor():
     """测试分发"""
-    from post.distributor import distribute, check_platform_compat, get_adapt_params
+    from post.distributor import distribute
 
     results = distribute("/tmp/test.mp4", ["douyin", "bilibili"])
     assert "douyin" in results
@@ -469,7 +469,7 @@ def test_celery_app():
 def test_celery_tasks_registered():
     """测试 Celery 任务注册"""
     from pipeline.celery_app import app
-    import pipeline.tasks  # 触发任务注册
+    import pipeline.tasks  # noqa: F401 — 触发任务注册
 
     expected_tasks = [
         "pipeline_step_tts", "pipeline_step_first_frame", "pipeline_step_video",

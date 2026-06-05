@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import logging
 import shutil
-import yaml
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -315,7 +314,7 @@ def _cleanup_project_db(project_dir: Path) -> None:
     proj_str = str(project_dir)
 
     try:
-        from infra.database._db import project_scope, query
+        from infra.database._db import project_scope
         from infra.database.comfyui_assets import delete_by_project as _del_assets
 
         # comfyui_assets（按 project 名称匹配）

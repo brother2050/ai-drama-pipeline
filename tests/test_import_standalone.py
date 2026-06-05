@@ -150,7 +150,7 @@ def test_reference_errors():
 
 def test_shots_only_with_existing_project():
     """测试 shots-only JSON + 已有项目目录（两步导入场景）"""
-    import tempfile, os
+    import tempfile
     from pathlib import Path
     from infra.config import save_yaml, ProjectPaths
 

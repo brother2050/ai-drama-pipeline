@@ -87,7 +87,7 @@ def test_schema_validation():
     """1. Schema 校验"""
     print("=" * 50)
     print("1. Schema 校验")
-    from infra.models import ImportPlan, ImportValidator
+    from infra.models import ImportPlan
 
     plan = ImportPlan(**PLAN_JSON)
     print(f"   ✅ ImportPlan 创建成功")

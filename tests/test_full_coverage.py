@@ -35,7 +35,6 @@ def project_dir(tmp_dir):
     (p / "output").mkdir(parents=True)
     (p / "workflows").mkdir(parents=True)
     # project.yaml
-    import yaml
     from infra.config import save_yaml
     save_yaml(p / "config" / "project.yaml", {
         "project": {"name": "测试项目", "episodes": 1, "style": "cinematic", "genre": "urban"},
@@ -889,8 +888,7 @@ class TestInfrastructure:
         """常量完整性"""
         from infra.constants import (
             VALID_EMOTIONS, VALID_SHOT_TYPES, VALID_CAMERAS,
-            STATUS_PENDING, STATUS_RUNNING, STATUS_DONE, STATUS_ERROR, STATUS_SKIPPED,
-            EMOTION_MAP, SHOT_TYPE_MAP, CAMERA_MAP,
+            STATUS_DONE, STATUS_ERROR, EMOTION_MAP, SHOT_TYPE_MAP, CAMERA_MAP,
         )
         assert len(VALID_EMOTIONS) > 5
         assert len(VALID_SHOT_TYPES) > 5

@@ -112,8 +112,7 @@ class ProjectBuilder:
         Raises:
             ValueError: 项目不存在
         """
-        from infra.config import ProjectPaths, save_yaml, load_yaml_entities, projects_dir
-        from engines.storyboard import save_storyboard
+        from infra.config import projects_dir
 
         if not project_dir:
             if plan.project_name:

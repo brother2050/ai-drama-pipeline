@@ -9,7 +9,7 @@ from pathlib import Path
 from fastapi import APIRouter, Body, HTTPException
 
 from web.routers.deps import (
-    _cfg, _merged_cfg, _merged_cfg_public, _cfg_path, _paths,
+    _merged_cfg, _merged_cfg_public, _cfg_path, _paths,
     _check_uuid,
     _check_tool, _submit_task,
 )
