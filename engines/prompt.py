@@ -28,24 +28,10 @@ class PromptBuildParams:
     character_bible: str = ""
 
 
-def _get_compiler():
-    """获取 PromptCompiler 单例"""
+def _tpl(key: str) -> str:
+    """从 prompt_templates.yaml 惰性加载模板"""
     from engines.prompt_compiler import get_compiler
-    return get_compiler()
-
-
-def _get_template(key: str) -> str:
-    """从 PromptCompiler 获取模板文本"""
-    return _get_compiler().get(key)
-
-
-# ══════════════════════════════════════════════════════════
-#  LLM 批量生成模型友好 prompt（prepare 阶段调用）
-# ══════════════════════════════════════════════════════════
-
-def _get_appearance_system() -> str:
-    """加载角色外貌 prompt 系统提示（从配置文件）"""
-    return _get_template("appearance_prompt_system")
+    return get_compiler().get(key)
 
 
 def batch_generate_appearance_prompts(characters: list[dict], llm: object) -> dict[str, dict]:
@@ -69,7 +55,7 @@ def batch_generate_appearance_prompts(characters: list[dict], llm: object) -> di
     from infra.json_parse import parse_llm_json
 
     processor = AdaptiveBatchProcessor(llm)
-    system = _get_appearance_system()
+    system = _tpl("appearance_prompt_system")
 
     def build_prompts(batch):
         parts = []
@@ -291,11 +277,6 @@ def _truncate_tag_prompt(prompt: str, max_tokens: int = 75) -> str:
 #  LLM 翻译（场景、动作、台词等非外貌文本）
 # ══════════════════════════════════════════════════════════
 
-def _get_translate_system() -> str:
-    """加载翻译系统提示（从配置文件）"""
-    return _get_template("translate_system") or "You are a professional translator. Output only the translation, no explanations."
-
-
 def translate_to_english(text: str, llm: object = None) -> str:
     """中文→英文翻译（LLM）。失败返回空串，不回退到原文。"""
     if not text:
@@ -306,16 +287,12 @@ def translate_to_english(text: str, llm: object = None) -> str:
         logger.warning(f"LLM 不可用，跳过翻译: {text[:50]}...")
         return ""
     try:
-        result = llm.chat(f"Translate to English: {text}", system=_get_translate_system())
+        result = llm.chat(f"Translate to English: {text}",
+                          system=_tpl("translate_system") or "You are a professional translator. Output only the translation, no explanations.")
         return result.strip() if result and result.strip() else ""
     except Exception as e:
         logger.warning(f"翻译失败: {e}")
         return ""
-
-
-def _get_batch_translate_system() -> str:
-    """加载批量翻译系统提示（从配置文件）"""
-    return _get_template("batch_translate_system") or "You are a professional translator. The user will send numbered Chinese texts.\nTranslate each to English. Output ONLY the translations, one per line, keeping the same numbering.\nDo not add explanations. If a line is already English, output it unchanged."
 
 
 def batch_translate_to_english(texts: list[str], llm: object = None) -> list[str]:
@@ -329,7 +306,7 @@ def batch_translate_to_english(texts: list[str], llm: object = None) -> list[str
 
     from infra.batch_processor import AdaptiveBatchProcessor, estimate_tokens
     processor = AdaptiveBatchProcessor(llm)
-    system_prompt = _get_batch_translate_system()
+    system_prompt = _tpl("batch_translate_system") or "You are a professional translator. The user will send numbered Chinese texts.\nTranslate each to English. Output ONLY the translations, one per line, keeping the same numbering.\nDo not add explanations. If a line is already English, output it unchanged."
     batch_items = list(zip(need_idx, need_text))
 
     batch_result = processor.process(
