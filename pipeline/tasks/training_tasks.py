@@ -95,7 +95,7 @@ def _save_lora_to_yaml(char_yaml: Path, result_path: str) -> None:
 
 @app.task(bind=True, name="pipeline_train_lora", soft_time_limit=7200)
 def train_lora_task(self, config_path: str, char_id: str, *,
-                    trigger_word: str = "", steps: int = 600,
+                    steps: int = 600,
                     learning_rate: float = 1e-4, rank: int = 16,
                     resolution: str = "512x768", force: bool = False,
                     train_config: dict | None = None) -> dict:
@@ -140,8 +140,7 @@ def train_lora_task(self, config_path: str, char_id: str, *,
         _db_record_step(0, char_id, "train_lora", {"status": STATUS_ERROR, "reason": f"训练后端不可用: {e}"})
         return {"status": STATUS_ERROR, "reason": f"训练后端不可用: {e}"}
 
-    if not trigger_word:
-        trigger_word = _resolve_trigger_word(paths.character_yaml(char_id), char_id)
+    trigger_word = _resolve_trigger_word(paths.character_yaml(char_id), char_id)
 
     update = self.update_state
     def _on_progress(current: int, total: int, msg: str):

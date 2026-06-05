@@ -554,7 +554,6 @@ async function startLoraTraining(charId) {
   try {
     const body = {
       char_id: charId,
-      trigger_word: $val('train-trigger') || '',
       steps: parseInt($val('train-steps')) || 600,
       learning_rate: parseFloat($val('train-lr')) || 0.0001,
       rank: parseInt($val('train-rank')) || 16,

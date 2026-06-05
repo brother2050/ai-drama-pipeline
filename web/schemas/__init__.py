@@ -268,7 +268,6 @@ class SekoImportRequest(BaseModel):
 class TrainingRequest(BaseModel):
     """LoRA 训练请求"""
     char_id: str = Field(..., min_length=1, max_length=50, description="角色 ID")
-    trigger_word: str = Field("", max_length=100, description="触发词（留空自动生成）")
     steps: int = Field(600, ge=100, le=10000, description="训练步数")
     learning_rate: float = Field(1e-4, gt=0, le=1, description="学习率")
     rank: int = Field(16, ge=4, le=128, description="LoRA rank")

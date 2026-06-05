@@ -215,7 +215,7 @@ def train_lora(req: TrainingRequest) -> dict:
     cfg = _cfg_path()
     from pipeline.tasks import train_lora_task
     return _submit_task(train_lora_task, cfg, req.char_id,
-                        trigger_word=req.trigger_word, steps=req.steps,
+                        steps=req.steps,
                         learning_rate=req.learning_rate, rank=req.rank,
                         resolution=req.resolution, force=req.force)
 
