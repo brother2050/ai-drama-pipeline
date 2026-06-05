@@ -315,7 +315,11 @@ bible_generation_system:
       },
       "body_language_en": {
         "nervous": "nervous body language (short tag)"
-      }
+      },
+      "habits": ["中文习惯1"],
+      "habits_en": ["english habit tag"],
+      "taboos": ["中文禁忌1"],
+      "taboos_en": ["english taboo tag"]
     }
 
     规则：
