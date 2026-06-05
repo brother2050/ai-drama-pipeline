@@ -242,7 +242,11 @@ character_system:
       }
     }
 
-    规则：id 原样填入，name 不能重复，outfits 至少有 default，reference_images 必须为空数组，只输出 JSON
+    规则：
+    - id 由调用方指定时原样填入；自行生成时必须与已有 id 不同
+    - name 必须与已有角色的 name 完全不同（不能只是加数字后缀）
+    - outfits 至少有 default，reference_images 必须为空数组
+    - 只输出 JSON
 
 scene_system:
   name: "场景生成"
@@ -258,7 +262,11 @@ scene_system:
       "lighting": "光照描述（20-40字），含光源方向/色温"
     }
 
-    规则：id 原样填入，description 要有画面感，只输出 JSON
+    规则：
+    - id 由调用方指定时原样填入；自行生成时必须与已有 id 不同
+    - name 必须与已有场景的 name 完全不同（不能只是加数字后缀）
+    - description 要有画面感
+    - 只输出 JSON
 
 expand_outline_system:
   name: "大纲扩写"

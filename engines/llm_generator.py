@@ -122,30 +122,45 @@ def generate_storyboard(llm: object, params: StoryboardGenParams) -> list[dict]:
 # ══════════════════════════════════════════════════════════
 
 
-def generate_characters(llm: object, descriptions: list[str], expected_ids: list[str] | None = None) -> list[dict]:
+def generate_characters(llm: object, descriptions: list[str], expected_ids: list[str] | None = None,
+                        existing_characters: list[dict] | None = None) -> list[dict]:
     """从描述生成角色配置 — 全部成功或抛异常"""
     from infra.models import normalize_character
-    results = _generate_entities(llm, descriptions, expected_ids, _get_character_system(), "角色", max_tokens=1024)
+    results = _generate_entities(llm, descriptions, expected_ids, _get_character_system(), "角色",
+                                 existing_entities=existing_characters, max_tokens=1024)
     for char in results:
         normalize_character(char)
     return results
 
 
-def generate_scenes(llm: object, descriptions: list[str], expected_ids: list[str] | None = None) -> list[dict]:
+def generate_scenes(llm: object, descriptions: list[str], expected_ids: list[str] | None = None,
+                    existing_scenes: list[dict] | None = None) -> list[dict]:
     """从描述生成场景配置 — 全部成功或抛异常"""
-    return _generate_entities(llm, descriptions, expected_ids, _get_scene_system(), "场景", max_tokens=1024)
+    return _generate_entities(llm, descriptions, expected_ids, _get_scene_system(), "场景",
+                              existing_entities=existing_scenes, max_tokens=1024)
 
 
 def _generate_entities(llm: object, descriptions: list[str], expected_ids: list[str] | None,
-                       system: str, label: str, max_tokens: int = 1024) -> list[dict]:
+                       system: str, label: str, *, existing_entities: list[dict] | None = None,
+                       max_tokens: int = 1024) -> list[dict]:
     """通用实体生成 — AdaptiveBatchProcessor 自适应分批 + 容错隔离"""
     from infra.batch_processor import AdaptiveBatchProcessor, estimate_tokens
     from infra.json_parse import parse_llm_json
 
     processor = AdaptiveBatchProcessor(llm)
 
+    # 构建已有实体上下文（注入 LLM prompt 让其避撞）
+    existing_ctx = ""
+    if existing_entities:
+        lines = [f"  - {e['id']}（{e['name']}）" for e in existing_entities]
+        existing_ctx = f"=== 已有{label}（id 和 name 不可重复）===\n" + "\n".join(lines) + "\n\n"
+
     def build_prompts(batch):
-        parts = [f"[{label}{i+1}] {desc}" for i, desc in enumerate(batch)]
+        parts = []
+        if existing_ctx:
+            parts.append(existing_ctx)
+        for i, desc in enumerate(batch):
+            parts.append(f"[{label}{i+1}] {desc}")
         return {"system": system, "user": "\n\n".join(parts)}
 
     def parse_result(raw, batch):
@@ -180,13 +195,24 @@ def _generate_entities(llm: object, descriptions: list[str], expected_ids: list[
             f"{label}生成数量不匹配：请求 {len(descriptions)} 个，实际返回 {len(entities)} 个。"
             f"LLM 可能合并了多个{label}为一个，请重试或减少单批数量。")
 
-    # ID 注入 + 名称去重
-    used_names: set[str] = set()
+    # ID 注入 + 名称去重（包含已有实体名称，防止 LLM 生成重复名）
+    used_names: set[str] = {e["name"] for e in (existing_entities or []) if e.get("name")}
+    used_ids: set[str] = {e["id"] for e in (existing_entities or []) if e.get("id")}
     for i, entity in enumerate(entities):
         if not isinstance(entity, dict):
             continue
         if expected_ids and i < len(expected_ids):
             entity["id"] = expected_ids[i]
+        # ID 去重：与已有实体 ID 冲突时生成新 ID
+        eid = entity.get("id", "")
+        if eid in used_ids:
+            n, orig = 2, eid
+            while f"{eid}_{n}" in used_ids:
+                n += 1
+            entity["id"] = f"{eid}_{n}"
+            logger.warning(f"  ⚠ {label}ID 冲突: {orig} → {entity['id']}")
+        used_ids.add(entity["id"])
+        # 名称去重
         name = entity.get("name", "").strip()
         if name in used_names:
             n, orig = 2, name

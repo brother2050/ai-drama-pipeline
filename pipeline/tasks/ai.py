@@ -143,7 +143,10 @@ def _generate_characters_for_storyboard(llm, shots, char_ids, outline, style, ge
         char_descriptions.append("\n".join(parts))
 
     try:
-        new_chars = generate_characters(llm, char_descriptions, expected_ids=sorted_ids)
+        from infra.config import load_existing_entities
+        existing = load_existing_entities(char_dir, "character")
+        new_chars = generate_characters(llm, char_descriptions, expected_ids=sorted_ids,
+                                        existing_characters=existing)
     except RuntimeError as e:
         return {"error": str(e)}
     except Exception as e:
@@ -180,7 +183,9 @@ def _generate_scenes_for_storyboard(llm, shots, scene_ids, outline, style, genre
         scene_descriptions.append("\n".join(parts))
 
     try:
-        new_entities = generate_scenes(llm, scene_descriptions)
+        from infra.config import load_existing_entities
+        existing = load_existing_entities(scene_dir, "scene")
+        new_entities = generate_scenes(llm, scene_descriptions, existing_scenes=existing)
     except RuntimeError as e:
         return {"error": str(e)}
     except Exception as e:
@@ -262,7 +267,9 @@ def ai_characters_task(self, config_path: str, descriptions: list[str]) -> dict:
             return {"status": STATUS_ERROR, "reason": f"LLM 初始化失败: {e}"}
 
         try:
-            chars = generate_characters(llm, descriptions)
+            from infra.config import load_existing_entities
+            existing = load_existing_entities(cfg.paths.characters_dir, "character")
+            chars = generate_characters(llm, descriptions, existing_characters=existing)
         except RuntimeError as e:
             return {"status": STATUS_ERROR, "reason": str(e)}
         except Exception as e:
@@ -295,7 +302,9 @@ def ai_scenes_task(self, config_path: str, descriptions: list[str]) -> dict:
             return {"status": STATUS_ERROR, "reason": f"LLM 初始化失败: {e}"}
 
         try:
-            scene_list = generate_scenes(llm, descriptions)
+            from infra.config import load_existing_entities
+            existing = load_existing_entities(cfg.paths.scenes_dir, "scene")
+            scene_list = generate_scenes(llm, descriptions, existing_scenes=existing)
         except RuntimeError as e:
             return {"status": STATUS_ERROR, "reason": str(e)}
         except Exception as e:

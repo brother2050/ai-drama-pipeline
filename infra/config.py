@@ -24,7 +24,7 @@ except ImportError:
     logger.debug("dotenv 导入跳过")
 
 __all__ = ["Config", "ProjectPaths", "load_config", "save_config", "save_yaml",
-           "load_yaml_full", "load_character", "load_scene", "cfg_get",
+           "load_yaml_full", "load_character", "load_scene", "load_existing_entities", "cfg_get",
            "SYSTEM_CONFIG_PATH", "REGISTRY_PATH", "PROMPT_TEMPLATES_PATH", "REPO_LOGS_DIR",
            "deep_merge", "resolve_project_config",
            "get_active_project_dir", "projects_dir", "get_root"]
@@ -326,6 +326,13 @@ def load_yaml_entities(directory: Path, entity_key: str, *, with_paths: bool = F
             logger.warning(f"跳过损坏的 YAML {f.name}: {e}")
     return result
 
+
+def load_existing_entities(entities_dir: Path, entity_key: str) -> list[dict]:
+    """加载已有实体的 (id, name) 摘要，用于注入 LLM prompt 避免 ID/名称冲突"""
+    if not entities_dir.exists():
+        return []
+    return [{"id": e["id"], "name": e.get("name", e["id"])}
+            for e in load_yaml_entities(entities_dir, entity_key)]
 
 
 def load_yaml_full(path: Path) -> dict:
