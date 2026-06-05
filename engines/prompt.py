@@ -33,6 +33,28 @@ def _tpl(key: str) -> str:
     return get_compiler().get(key)
 
 
+# 身体特征关键词（从 prompt_en 中提取）
+_BODY_FEATURE_KEYWORDS = {
+    "scar", "tattoo", "birthmark", "burn", "freckle", "mole",
+    "bruise", "wound", "prosthetic", "amputee", "blind", "deaf",
+    "bandage", "stitch", "piercing", "mark",
+}
+
+
+def _extract_body_features(prompt_en: str) -> str:
+    """从英文 prompt 中提取身体特征短语（LLM 未返回 body_features 时的兜底）
+
+    匹配逻辑：逗号分隔的短语中包含身体特征关键词的，提取为 body_features。
+    """
+    parts = [p.strip() for p in prompt_en.split(",") if p.strip()]
+    features = []
+    for part in parts:
+        lower = part.lower()
+        if any(kw in lower for kw in _BODY_FEATURE_KEYWORDS):
+            features.append(part)
+    return ", ".join(features)
+
+
 def batch_generate_appearance_prompts(characters: list[dict], llm: object) -> dict[str, dict]:
     """批量生成角色模型友好 prompt — AdaptiveBatchProcessor 自适应分批
 
@@ -96,9 +118,14 @@ def batch_generate_appearance_prompts(characters: list[dict], llm: object) -> di
             if not cid and i < len(batch_chars):
                 cid = batch_chars[i].get("id", f"char_{i}")
             if cid:
+                prompt_en = item.get("prompt_en", "")
+                body_features = item.get("body_features", "")
+                # 兜底：LLM 未返回 body_features 时，从 prompt_en 中提取
+                if not body_features and prompt_en:
+                    body_features = _extract_body_features(prompt_en)
                 all_mapping[cid] = {
-                    "prompt_en": item.get("prompt_en", ""),
-                    "body_features": item.get("body_features", ""),
+                    "prompt_en": prompt_en,
+                    "body_features": body_features,
                 }
         offset += batch_size
 
