@@ -79,7 +79,6 @@ class ServiceRegistry:
         2. 本地部署的后端（local_first=True 时）
         3. 任何可用的后端
         """
-        models = config.get("models", {})
         local_first = config.get("local_first", False)
 
         candidates = sorted(

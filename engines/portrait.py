@@ -197,7 +197,6 @@ def ensure_portrait(char_id: str, config: dict, container=None, force: bool = Fa
     from infra.config import load_yaml_full
     data = load_yaml_full(char_file)
     char = data.get("character", {})
-    appearance = char.get("appearance", char_id)
 
     if not container:
         return ""
