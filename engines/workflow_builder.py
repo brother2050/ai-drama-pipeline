@@ -244,20 +244,23 @@ class WorkflowBuilder:
         return w, h
 
     @staticmethod
-    def _randomize_seed(wf: dict) -> None:
-        """随机化工作流中所有 KSampler / KSamplerAdvanced 的 seed，避免重复生成相同图片"""
+    def _iter_seed_nodes(wf: dict):
+        """遍历所有含 seed 输入的采样器节点（不硬编码 class_type）"""
         for nid, node in wf.items():
-            ct = node.get("class_type", "")
-            if ct in ("KSampler", "KSamplerAdvanced"):
-                node["inputs"]["seed"] = random.randint(0, 2**63 - 1)
+            if "seed" in node.get("inputs", {}):
+                yield nid, node
+
+    @staticmethod
+    def _randomize_seed(wf: dict) -> None:
+        """随机化工作流中所有采样器的 seed，避免重复生成相同图片"""
+        for nid, node in WorkflowBuilder._iter_seed_nodes(wf):
+            node["inputs"]["seed"] = random.randint(0, 2**63 - 1)
 
     @staticmethod
     def _set_seed(wf: dict, seed: int) -> None:
         """设置指定 seed（用于定妆照五视图/服装图保持一致性）"""
-        for nid, node in wf.items():
-            ct = node.get("class_type", "")
-            if ct in ("KSampler", "KSamplerAdvanced"):
-                node["inputs"]["seed"] = seed
+        for nid, node in WorkflowBuilder._iter_seed_nodes(wf):
+            node["inputs"]["seed"] = seed
 
     @staticmethod
     def _find_downstream_consumer(wf: dict, source_node: str) -> tuple[str | None, str | None]:

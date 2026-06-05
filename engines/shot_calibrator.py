@@ -142,6 +142,10 @@ def _enrich_stage(llm: object, shots: list[dict], system: str, label: str, requi
     result = llm_call_with_retry(llm, prompt, system, label, max_tokens=4096)
 
     if not result or not isinstance(result, list):
+        if not result:
+            logger.warning(f"  {label}: LLM 返回空")
+        else:
+            logger.warning(f"  {label}: LLM 返回非列表类型: {type(result).__name__}")
         return None
 
     # 按 shot_id 合并（规范化为三位数格式，防止 LLM 返回 "1" 而原始是 "001"）
@@ -150,11 +154,14 @@ def _enrich_stage(llm: object, shots: list[dict], system: str, label: str, requi
         if isinstance(item, dict):
             sid = item.get("shot_id", "")
             if sid:
-                # 统一为三位数格式
+                # 统一为三位数格式（支持 "1" → "001"、"s001" → "001" 等变体）
                 try:
                     sid = f"{int(sid):03d}"
                 except (ValueError, TypeError):
-                    pass
+                    import re
+                    digits = re.search(r'\d+', str(sid))
+                    if digits:
+                        sid = f"{int(digits.group()):03d}"
                 result_map[sid] = item
 
     merged = []

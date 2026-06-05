@@ -70,11 +70,20 @@ class CharacterBible:
         """获取英文圣经 tag 摘要（逗号分隔，注入 ComfyUI prompt）
 
         合并 bible + bible_en：en 覆盖 zh，未翻译字段回退中文。
+        嵌套字典（relationships/emotional_range/body_language）深度合并，避免丢失。
         """
         zh = self.load(char_id)
         en = self.load_en(char_id)
-        # 合并：中文打底，英文覆盖已翻译字段
-        source = {**zh, **en} if en else zh
+        if not zh and not en:
+            return ""
+        # 深度合并：中文打底，英文覆盖已翻译字段（嵌套字典逐字段合并）
+        source = dict(zh)
+        if en:
+            for k, v in en.items():
+                if isinstance(v, dict) and isinstance(source.get(k), dict):
+                    source[k] = {**source[k], **v}
+                else:
+                    source[k] = v
         if not source:
             return ""
 

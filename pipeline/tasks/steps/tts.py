@@ -10,6 +10,15 @@ from pipeline.tasks.helpers import _skip, _err, _done, _validate_output
 logger = logging.getLogger(__name__)
 
 
+# 文件变化时清除 TTS 角色缓存（YAML 修改后自动生效）
+from infra.hooks import on_cache_invalidate
+
+@on_cache_invalidate(priority=50)
+def _clear_tts_char_cache():
+    if hasattr(tts_core, "_chars"):
+        tts_core._chars = {}
+
+
 def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
              force: bool = False, characters: dict | None = None) -> dict:
     """TTS 核心逻辑 — 合成台词为音频（带看门狗跟踪 + 并发组限流）"""

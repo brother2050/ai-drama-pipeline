@@ -43,6 +43,11 @@ class ServiceRegistry:
     def register(self, meta: BackendMeta) -> None:
         key = f"{meta.service_type}:{meta.name}"
         self._backends[key] = meta
+        # 同时注册规范化名（fish-speech ↔ fish_speech），消除 _resolve 中的重复查找
+        normalized = meta.name.replace("-", "_")
+        if normalized != meta.name:
+            norm_key = f"{meta.service_type}:{normalized}"
+            self._backends.setdefault(norm_key, meta)
 
     def get(self, service_type: str, name: str) -> BackendMeta | None:
         return self._backends.get(f"{service_type}:{name}")

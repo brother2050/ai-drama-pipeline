@@ -39,6 +39,13 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 _tool_executor = ThreadPoolExecutor(max_workers=5)
 
+# 注册清理钩子：进程退出时关闭线程池
+from infra.hooks import on_cleanup
+
+@on_cleanup(priority=90)
+def _shutdown_tool_executor():
+    _tool_executor.shutdown(wait=False)
+
 
 def _collect_tools(cfg: dict) -> dict:
     """收集所有工具状态（并行检测，避免串行超时累积）"""
@@ -53,12 +60,18 @@ def _collect_tools(cfg: dict) -> dict:
         names = ["redis", "celery", "tts", "comfyui", "lipsync", "llm", "music", "ffmpeg", "seko", "training", "ip_adapter", "pulid_flux"]
     tools = {}
     futures = {_tool_executor.submit(_check_tool, name, cfg): name for name in names}
-    for fut in as_completed(futures, timeout=15):
-        name = futures[fut]
-        try:
-            tools[name] = fut.result(timeout=10)
-        except Exception as e:
-            tools[name] = {"available": False, "backend": "unknown", "type": "unknown", "reason": str(e)}
+    try:
+        for fut in as_completed(futures, timeout=15):
+            name = futures[fut]
+            try:
+                tools[name] = fut.result(timeout=10)
+            except Exception as e:
+                tools[name] = {"available": False, "backend": "unknown", "type": "unknown", "reason": str(e)}
+    except TimeoutError:
+        # 部分健康检查超时，标记为不可用而非静默丢失
+        for fut, name in futures.items():
+            if name not in tools:
+                tools[name] = {"available": False, "backend": "unknown", "type": "unknown", "reason": "检测超时"}
     return tools
 
 
