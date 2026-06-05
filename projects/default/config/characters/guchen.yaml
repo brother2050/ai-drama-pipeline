@@ -5,6 +5,8 @@ character:
   appearance: >-
     22岁年轻男性，短发，剑眉星目，
     身高180cm，体型匀称
+  appearance_prompt_en: ""
+  body_features: ""
   outfits:
     casual:
       description: "黑色卫衣，深色休闲裤，运动鞋，双肩包"

@@ -69,7 +69,7 @@ def test_project():
          "action": "做饭", "dialogue": "......", "camera": "固定",
          "shot_type": "中景", "duration": "3", "emotion": "calm"},
     ])
-    pool.closeall()
+    pool.close()
 
     return d
 

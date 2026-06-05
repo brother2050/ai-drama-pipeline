@@ -126,6 +126,9 @@ class CharacterData(BaseModel):
     voice: dict | None = None
     outfits: dict | None = None
     reference_images: list[str] | None = None
+    appearance_prompt_en: str = Field("", max_length=4000, description="英文外貌 prompt")
+    body_features: str = Field("", max_length=2000, description="身体特征（纹身/伤疤等）")
+    bible: dict | None = None
 
     @field_validator("id")
     @classmethod

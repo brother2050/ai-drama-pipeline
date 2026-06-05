@@ -50,6 +50,10 @@ def _save_entities(entities: list[dict], entity_key: str, entity_dir: Path) -> i
             console.print(f"[yellow]⚠ 跳过重复 id: {eid}[/yellow]")
             continue
         seen_ids.add(eid)
+        # 角色数据规范化
+        if entity_key == "character":
+            from infra.models import normalize_character
+            entity = normalize_character(entity)
         path = entity_dir / f"{eid}.yaml"
         save_yaml(path, {entity_key: entity})
         console.print(f"  ✅ {entity.get('name', '?')} ({eid}) → {path.name}")

@@ -304,11 +304,23 @@ def normalize_character(char: dict) -> dict:
         char["bible"] = copy.deepcopy(char["bible"])
     if isinstance(char.get("reference_images"), list):
         char["reference_images"] = list(char["reference_images"])
-    # bible: 确保存在且有 core_traits
+
+    # ── 迁移：bible 下的顶级字段提升 ──
     bible = char.get("bible")
+    if isinstance(bible, dict):
+        for field in ("appearance_prompt_en", "body_features"):
+            if field in bible and not char.get(field):
+                char[field] = bible.pop(field)
+
+    # bible: 确保存在且有 core_traits
     if not isinstance(bible, dict):
         char["bible"] = {}
-    char["bible"].setdefault("core_traits", "")
+        bible = char["bible"]
+    bible.setdefault("core_traits", "")
+
+    # 确保顶级字段存在
+    char.setdefault("appearance_prompt_en", "")
+    char.setdefault("body_features", "")
 
     # reference_images: 清理外部 URL，保留本地路径
     refs = char.get("reference_images")

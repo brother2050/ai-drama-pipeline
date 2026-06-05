@@ -56,7 +56,7 @@ def test_env():
                  "action": "做饭", "dialogue": "......", "camera": "缓慢推近",
                  "shot_type": "近景", "duration": "3", "emotion": "calm"},
             ])
-            pool.closeall()
+            pool.close()
         except Exception as e:
             import logging
             logging.getLogger(__name__).warning(f"测试 DB 初始化跳过: {e}")

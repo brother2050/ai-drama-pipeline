@@ -192,6 +192,7 @@ def yaml_save(yaml_dir: str, entity_key: str, entity_id: str, data: dict) -> Non
 
     - 保留整个文件结构（顶层字段不丢失）
     - 始终写出正确结构 {entity_key: {…}}
+    - 角色数据自动规范化（outfits 格式、bible 补全等）
     """
     d = _paths().config_entity_dir(yaml_dir)
     d.mkdir(parents=True, exist_ok=True)
@@ -214,6 +215,10 @@ def yaml_save(yaml_dir: str, entity_key: str, entity_id: str, data: dict) -> Non
             file_data = {}
             existing = {}
     merged = {**existing, **data, "id": entity_id}
+    # 角色数据规范化
+    if entity_key == "character":
+        from infra.models import normalize_character
+        merged = normalize_character(merged)
     # 始终写出正确结构：{entity_key: {…}}
     out = {k: v for k, v in file_data.items() if k != entity_key}
     out[entity_key] = merged
