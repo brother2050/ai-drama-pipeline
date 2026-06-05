@@ -6,7 +6,7 @@ import json
 import logging
 
 from pipeline.celery_app import app
-from pipeline.tasks.helpers import _init_ctx, _paths, _project_scope_from_config, _unique_hash_id
+from pipeline.tasks.helpers import _init_ctx, _project_scope_from_config
 from infra.json_parse import parse_llm_json
 from engines.llm_generator import StoryboardGenParams
 
@@ -102,10 +102,10 @@ def _generate_entities_for_storyboard_core(llm, shots, entity_ids, outline, styl
 
     从分镜数据构建描述 → 调用 LLM 生成 → 保存到 YAML。
     """
-    from engines.entity_utils import generate_and_save
+    from engines.entity_utils import generate_and_save, build_entity_descriptions
 
     sorted_ids = sorted(entity_ids)
-    descriptions = _build_entity_descriptions(shots, sorted_ids, outline, style, genre, entity_key)
+    descriptions = build_entity_descriptions(shots, sorted_ids, outline, style, genre, entity_key)
     out_dir = paths.characters_dir if entity_key == "character" else paths.scenes_dir
 
     result = generate_and_save(

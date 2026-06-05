@@ -230,7 +230,8 @@ def _cmd_all(episode, outline, duration, config_path):
 
     if char_ids:
         console.print(f"\n[bold][2/3] 生成 {len(char_ids)} 个角色...[/bold]")
-        char_descs = _build_entity_descriptions_from_shots(shots, sorted(char_ids), outline_text, style, genre, "character")
+        from engines.entity_utils import build_entity_descriptions
+        char_descs = build_entity_descriptions(shots, sorted(char_ids), outline_text, style, genre, "character")
         result = generate_and_save(llm, char_descs, "character", paths.characters_dir, "ch", expected_ids=sorted(char_ids))
         if result.get("status") == "done":
             for e in result["entities"]:
@@ -238,14 +239,14 @@ def _cmd_all(episode, outline, duration, config_path):
             if result.get("id_remap"):
                 from engines.entity_utils import remap_shot_ids
                 remap_shot_ids(shots, result["id_remap"])
-                from engines.storyboard import save_storyboard
                 save_storyboard(shots, episode)
         else:
             console.print(f"  [yellow]⚠ 角色生成失败: {result.get('reason', '')}[/yellow]")
 
     if scene_ids:
-        console.print(f"\n[bold][2b/3] 生成 {len(scene_ids)} 个场景...[/bold]")
-        scene_descs = _build_entity_descriptions_from_shots(shots, sorted(scene_ids), outline_text, style, genre, "scene")
+        console.print(f"\n[bold][3/3] 生成 {len(scene_ids)} 个场景...[/bold]")
+        from engines.entity_utils import build_entity_descriptions
+        scene_descs = build_entity_descriptions(shots, sorted(scene_ids), outline_text, style, genre, "scene")
         result = generate_and_save(llm, scene_descs, "scene", paths.scenes_dir, "sc", expected_ids=sorted(scene_ids))
         if result.get("status") == "done":
             for e in result["entities"]:
@@ -260,46 +261,6 @@ def _cmd_all(episode, outline, duration, config_path):
     _print_shots_preview(shots)
 
 
-def _build_entity_descriptions_from_shots(shots, sorted_ids, outline, style, genre, entity_key):
-    """从分镜构建角色/场景描述（CLI 全量生成用）"""
-    from engines.shot_utils import parse_char_ids
-    descriptions = []
-    for eid in sorted_ids:
-        if entity_key == "character":
-            entity_shots = [s for s in shots if eid in parse_char_ids(s)]
-        else:
-            entity_shots = [s for s in shots if (s.get("scene_id") or "").strip() == eid]
-        actions = [s.get("action", "") for s in entity_shots[:5]]
-        dialogues = [s.get("dialogue", "") for s in entity_shots[:5]
-                     if s.get("dialogue") and s.get("dialogue") != "......"]
-        label = "角色" if entity_key == "character" else "场景"
-        parts = [
-            f"根据以下信息生成{label}「{eid}」的配置。",
-            f"{'角色' if entity_key == 'character' else '场景'}ID: {eid}（必须原样填入 id 字段，不可修改）",
-            f"剧情大纲: {outline}",
-        ]
-        if style or genre:
-            ctx = []
-            if style:
-                ctx.append(f"视觉风格: {style}")
-            if genre:
-                ctx.append(f"题材类型: {genre}")
-            parts.append(f"创作方向: {'，'.join(ctx)}")
-        if entity_key == "character":
-            parts.append("该角色在分镜中的表现:")
-            if actions:
-                for idx, a in enumerate(actions, 1):
-                    parts.append(f"  镜头{idx}: {a}")
-            if dialogues:
-                parts.append(f"台词: {' / '.join(dialogues)}")
-            parts.append(f"\n【重要】此角色的 id 必须为「{eid}」，且 name 必须是与其他角色不同的独立名字，不能与其他角色重名。")
-        else:
-            parts.append("该场景在分镜中的画面:")
-            if actions:
-                for idx, a in enumerate(actions, 1):
-                    parts.append(f"  镜头{idx}: {a}")
-        descriptions.append("\n".join(parts))
-    return descriptions
 
 
 def register_generate_commands(cli):

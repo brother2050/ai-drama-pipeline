@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from infra.constants import STATUS_RUNNING, STATUS_DONE, STATUS_ERROR, STATUS_SKIPPED
-import hashlib
 import logging
 import sys
 import threading
@@ -325,22 +324,6 @@ def _paths(config_path: str) -> "ProjectPaths":
 
 
 def _unique_hash_id(prefix: str, name: str, existing: dict) -> str:
-    """基于名字生成确定性短 hash ID，碰撞时自动追加后缀
-
-    Args:
-        prefix: ID 前缀（如 "ch"、"sc"）
-        name: 角色/场景名（任意语言）
-        existing: 已有的 id_remap，用于检测碰撞
-
-    Returns:
-        唯一的 hash ID，如 ch_8a3f2b1c 或 ch_8a3f2b1c_2
-    """
-    h = hashlib.md5(name.encode("utf-8")).hexdigest()[:8]
-    base = f"{prefix}_{h}"
-    candidate = base
-    counter = 2
-    # 检查碰撞：id_remap 中值已存在 且 不是自己
-    while candidate in existing.values():
-        candidate = f"{base}_{counter}"
-        counter += 1
-    return candidate
+    """基于名字生成确定性短 hash ID — 委托给 engines.entity_utils"""
+    from engines.entity_utils import unique_hash_id
+    return unique_hash_id(prefix, name, existing)
