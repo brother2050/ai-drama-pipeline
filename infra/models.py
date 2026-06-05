@@ -293,7 +293,6 @@ class ImportValidator:
 _BIBLE_STR_FIELDS = ("core_traits", "core_traits_en", "speech_patterns", "speech_patterns_en")
 _BIBLE_DICT_FIELDS = ("relationships", "relationships_en", "emotional_range",
                       "emotional_range_en", "body_language", "body_language_en")
-_BIBLE_LIST_FIELDS = ("habits", "habits_en", "taboos", "taboos_en")
 
 
 def normalize_character(char: dict) -> dict:
@@ -318,9 +317,6 @@ def normalize_character(char: dict) -> dict:
     for f in _BIBLE_DICT_FIELDS:
         if not isinstance(bible.get(f), dict):
             bible[f] = {}
-    for f in _BIBLE_LIST_FIELDS:
-        if not isinstance(bible.get(f), list):
-            bible[f] = []
 
     # 顶级字段
     char.setdefault("appearance_prompt_en", "")

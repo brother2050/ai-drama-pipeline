@@ -433,11 +433,6 @@ def _serialize_dict_values(d: dict) -> str:
     return "\n".join(f"{i+1}. {v}" for i, v in enumerate(d.values()) if v)
 
 
-def _serialize_list_items(items: list) -> str:
-    """将 list 项序列化为编号文本（翻译用）"""
-    return "\n".join(f"{i+1}. {v}" for i, v in enumerate(items) if v)
-
-
 def _deserialize_numbered(raw: str, keys: list | None = None) -> dict | list:
     """将编号文本反序列化为 dict 或 list"""
     import re
@@ -475,15 +470,6 @@ def _collect_bible_texts(char: dict, cid: str, all_texts: list[str],
             if serialized:
                 all_texts.append(serialized)
                 text_meta.append(("character.bible_dict", cid, field, en_field))
-
-    # list 字段
-    for field, en_field in [("habits", "habits_en"), ("taboos", "taboos_en")]:
-        items = bible.get(field, [])
-        if isinstance(items, list) and items and (force or not bible.get(en_field)):
-            serialized = _serialize_list_items(items)
-            if serialized:
-                all_texts.append(serialized)
-                text_meta.append(("character.bible_list", cid, field, en_field))
 
 
 def _collect_translation_texts(paths, force: bool = False) -> tuple[list[str], list[tuple[str, str, str, str]]]:
@@ -597,10 +583,6 @@ def _load_entity_cache(text_meta, results, entity_type, yaml_fn, entity_key) -> 
             orig = bible.get(en_field.removesuffix("_en"), {})
             orig_keys = list(orig.keys()) if isinstance(orig, dict) else None
             bible[en_field] = _deserialize_numbered(results[i], orig_keys)
-
-        elif etype == f"{entity_type}.bible_list":
-            bible = _ensure(eid).setdefault(entity_key, {}).setdefault("bible", {})
-            bible[en_field] = _deserialize_numbered(results[i])
 
     return cache
 

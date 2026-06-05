@@ -456,8 +456,8 @@ class TestNormalizeCharacter:
         assert isinstance(bible["relationships"], dict)
         assert isinstance(bible["emotional_range"], dict)
         assert isinstance(bible["body_language"], dict)
-        assert isinstance(bible["habits"], list)
-        assert isinstance(bible["taboos"], list)
+        assert "habits" not in bible
+        assert "taboos" not in bible
 
     def test_outfits_ensure_default(self):
         """outfits 无 default 时自动添加"""

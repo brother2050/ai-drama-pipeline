@@ -32,12 +32,6 @@ def _append_map(bible: dict, key: str, label: str, fmt: str, parts: list[str]) -
             parts.append(f"{label}: " + "；".join(items))
 
 
-def _append_list(bible: dict, key: str, label: str, parts: list[str]) -> None:
-    items = bible.get(key, [])
-    if items:
-        parts.append(f"{label}: " + "、".join(items))
-
-
 class CharacterBible:
     """角色圣经管理器
 
@@ -61,8 +55,6 @@ class CharacterBible:
         _append_map(bible, "relationships", "人际关系", "与{key}", parts)
         _append_map(bible, "emotional_range", "情绪表达", "{key}时{val}", parts)
         _append_map(bible, "body_language", "肢体语言", "{key}时{val}", parts)
-        _append_list(bible, "habits", "习惯", parts)
-        _append_list(bible, "taboos", "禁忌", parts)
         return "。".join(parts) + "。" if parts else ""
 
     def load(self, char_id: str) -> dict:
