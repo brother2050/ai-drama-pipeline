@@ -4,7 +4,6 @@ import logging
 import re
 from dataclasses import dataclass, field
 
-from engines.shot_utils import strip_dialogue
 from infra.constants import is_ascii_only
 
 logger = logging.getLogger(__name__)
@@ -191,7 +190,6 @@ def _filter_back_features(features: str) -> str:
 
 def build_prompt(params: PromptBuildParams) -> str:
     """从镜头数据构建 ComfyUI Prompt"""
-    shot = params.shot
     registry = params.registry
 
     # ── 判断后端 prompt 风格（从注册表查询，不硬编码后端名） ──
@@ -201,35 +199,22 @@ def build_prompt(params: PromptBuildParams) -> str:
 
     prompt_style = registry.get_prompt_style(params.image_backend) if params.image_backend else "tag"
 
+    # ── 检查是否已准备（中文警告） ──
+    from infra.constants import ERR_NOT_PREPARED
+    if params.scene_desc and not is_ascii_only(params.scene_desc):
+        logger.warning(f"场景描述仍为中文，{ERR_NOT_PREPARED}")
+    action_en = params.shot.get("action_en", "").strip()
+    if not action_en:
+        raw_action = params.shot.get("action", "")
+        if raw_action and not is_ascii_only(raw_action):
+            logger.warning(f"动作描述仍为中文（action_en 缺失），{ERR_NOT_PREPARED}")
+
     # ── 使用 PromptCompiler 编译 ──
-    from engines.prompt_compiler import get_compiler
-    compiler = get_compiler()
-
-    # 清理输入
-    scene_clean = ""
-    if params.scene_desc:
-        if not is_ascii_only(params.scene_desc):
-            from infra.constants import ERR_NOT_PREPARED
-            logger.warning(f"场景描述仍为中文，{ERR_NOT_PREPARED}")
-        scene_clean = params.scene_desc
-
-    char_clean = params.character_desc.strip() if params.character_desc else ""
-
-    action = shot.get("action_en", "").strip()
-    if not action:
-        action = shot.get("action", "")
-        if action:
-            action = strip_dialogue(action)
-            if not is_ascii_only(action):
-                from infra.constants import ERR_NOT_PREPARED
-                logger.warning(f"动作描述仍为中文（action_en 缺失），{ERR_NOT_PREPARED}")
-    else:
-        action = strip_dialogue(action)
-
-    result = compiler.compile_first_frame(
-        shot=shot,
-        character_desc=char_clean,
-        scene_desc=scene_clean,
+    from engines.prompt_compiler import get_compiler as _get_compiler
+    result = _get_compiler().compile_first_frame(
+        shot=params.shot,
+        character_desc=params.character_desc.strip() if params.character_desc else "",
+        scene_desc=params.scene_desc or "",
         style=params.style,
         genre=params.genre,
         prompt_style=prompt_style,
