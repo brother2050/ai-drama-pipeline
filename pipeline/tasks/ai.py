@@ -571,42 +571,37 @@ def _writeback_translations(text_meta, results, paths, episode, shots) -> dict:
 
 
 def _load_entity_cache(text_meta, results, entity_type, yaml_fn, entity_key) -> dict[str, dict]:
-    """从 text_meta 加载实体 YAML 到缓存，同时处理 outfit/bible 子字段"""
+    """从 text_meta 加载实体 YAML 到缓存，处理 outfit/bible 子字段"""
     from infra.config import load_yaml_full
     cache: dict[str, dict] = {}
+
+    def _ensure(eid: str) -> dict:
+        if eid not in cache:
+            fpath = yaml_fn(eid)
+            cache[eid] = load_yaml_full(fpath) if fpath.exists() else {entity_key: {"id": eid}}
+        return cache[eid]
+
     for i, (etype, eid, _, en_field) in enumerate(text_meta):
         if etype == entity_type:
-            if eid not in cache:
-                fpath = yaml_fn(eid)
-                cache[eid] = load_yaml_full(fpath) if fpath.exists() else {entity_key: {"id": eid}}
-            cache[eid].setdefault(entity_key, {})[en_field] = results[i]
+            _ensure(eid).setdefault(entity_key, {})[en_field] = results[i]
+
         elif etype == f"{entity_type}.outfits":
             cid, okey = eid.split(".", 1)
-            if cid not in cache:
-                fpath = yaml_fn(cid)
-                cache[cid] = load_yaml_full(fpath) if fpath.exists() else {entity_key: {"id": cid}}
-            cache[cid].setdefault(entity_key, {}).setdefault("outfits", {}).setdefault(okey, {})[en_field] = results[i]
+            _ensure(cid).setdefault(entity_key, {}).setdefault("outfits", {}).setdefault(okey, {})[en_field] = results[i]
+
         elif etype == f"{entity_type}.bible":
-            # bible 简单字符串字段
-            if eid not in cache:
-                fpath = yaml_fn(eid)
-                cache[eid] = load_yaml_full(fpath) if fpath.exists() else {entity_key: {"id": eid}}
-            cache[eid].setdefault(entity_key, {}).setdefault("bible", {})[en_field] = results[i]
+            _ensure(eid).setdefault(entity_key, {}).setdefault("bible", {})[en_field] = results[i]
+
         elif etype == f"{entity_type}.bible_dict":
-            # bible dict 字段：反序列化编号文本 → dict
-            if eid not in cache:
-                fpath = yaml_fn(eid)
-                cache[eid] = load_yaml_full(fpath) if fpath.exists() else {entity_key: {"id": eid}}
-            bible = cache[eid].setdefault(entity_key, {}).setdefault("bible", {})
-            orig_keys = list(bible.get(en_field.replace("_en", ""), {}).keys()) if isinstance(bible.get(en_field.replace("_en", "")), dict) else None
+            bible = _ensure(eid).setdefault(entity_key, {}).setdefault("bible", {})
+            orig = bible.get(en_field.removesuffix("_en"), {})
+            orig_keys = list(orig.keys()) if isinstance(orig, dict) else None
             bible[en_field] = _deserialize_numbered(results[i], orig_keys)
+
         elif etype == f"{entity_type}.bible_list":
-            # bible list 字段：反序列化编号文本 → list
-            if eid not in cache:
-                fpath = yaml_fn(eid)
-                cache[eid] = load_yaml_full(fpath) if fpath.exists() else {entity_key: {"id": eid}}
-            bible = cache[eid].setdefault(entity_key, {}).setdefault("bible", {})
+            bible = _ensure(eid).setdefault(entity_key, {}).setdefault("bible", {})
             bible[en_field] = _deserialize_numbered(results[i])
+
     return cache
 
 

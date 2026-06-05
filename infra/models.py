@@ -52,9 +52,10 @@ class ImportCharacter(BaseModel):
     age: str = Field("", max_length=10)
     appearance: str = Field(..., min_length=10, max_length=2000)
     outfits: dict[str, ImportOutfit] | None = None
+    bible: dict | None = None
     # ── 可选：预翻译（提供则跳过 prepare） ──
     appearance_prompt_en: str = Field("", max_length=4000, description="英文外貌 prompt（可选）")
-    body_features: str = Field("", max_length=2000, description="身体特征（伤疤/纹身/胎记等，可选）")
+    body_features: str = Field("", max_length=2000, description="身体特征（伤疤/纹身等，可选）")
 
     @field_validator("id")
     @classmethod
@@ -289,54 +290,43 @@ class ImportValidator:
 
 # ── 角色数据规范化 ──────────────────────────────────────
 
+_BIBLE_STR_FIELDS = ("core_traits", "core_traits_en", "speech_patterns", "speech_patterns_en")
+_BIBLE_DICT_FIELDS = ("relationships", "relationships_en", "emotional_range",
+                      "emotional_range_en", "body_language", "body_language_en")
+_BIBLE_LIST_FIELDS = ("habits", "habits_en", "taboos", "taboos_en")
+
+
 def normalize_character(char: dict) -> dict:
-    """规范化角色数据 — 统一格式，补全缺失字段
+    """规范化角色数据 — 补全缺失字段，统一格式
 
-    适用场景：LLM 生成、Seko 导入、Web 手动创建。
-    确保无论数据来源如何，输出格式一致。
+    新项目专用，不做旧数据迁移。
     """
-    # 浅拷贝避免就地修改调用方的原始 dict
     char = dict(char)
-    # 深拷贝嵌套 dict：后续会就地修改（添加 default 键、setdefault 等）
-    if isinstance(char.get("outfits"), dict):
-        char["outfits"] = copy.deepcopy(char["outfits"])
-    if isinstance(char.get("bible"), dict):
-        char["bible"] = copy.deepcopy(char["bible"])
-    if isinstance(char.get("reference_images"), list):
-        char["reference_images"] = list(char["reference_images"])
 
-    # ── 迁移：bible 下的顶级字段提升 ──
-    bible = char.get("bible")
-    if isinstance(bible, dict):
-        for field in ("appearance_prompt_en", "body_features"):
-            if field in bible and not char.get(field):
-                char[field] = bible.pop(field)
+    # 深拷贝嵌套结构
+    for key in ("outfits", "bible"):
+        if isinstance(char.get(key), dict):
+            char[key] = copy.deepcopy(char[key])
 
     # bible: 确保存在且有全部字段
+    bible = char.get("bible")
     if not isinstance(bible, dict):
         char["bible"] = {}
         bible = char["bible"]
-    bible.setdefault("core_traits", "")
-    bible.setdefault("core_traits_en", "")
-    bible.setdefault("speech_patterns", "")
-    bible.setdefault("speech_patterns_en", "")
-    for dict_field in ("relationships", "relationships_en",
-                       "emotional_range", "emotional_range_en",
-                       "body_language", "body_language_en"):
-        if not isinstance(bible.get(dict_field), dict):
-            bible[dict_field] = {}
-    for list_field in ("habits", "habits_en", "taboos", "taboos_en"):
-        if not isinstance(bible.get(list_field), list):
-            bible[list_field] = []
+    for f in _BIBLE_STR_FIELDS:
+        bible.setdefault(f, "")
+    for f in _BIBLE_DICT_FIELDS:
+        if not isinstance(bible.get(f), dict):
+            bible[f] = {}
+    for f in _BIBLE_LIST_FIELDS:
+        if not isinstance(bible.get(f), list):
+            bible[f] = []
 
-    # 确保顶级字段存在
+    # 顶级字段
     char.setdefault("appearance_prompt_en", "")
     char.setdefault("body_features", "")
-
-    # reference_images: 清理外部 URL，保留本地路径
-    refs = char.get("reference_images")
-    if isinstance(refs, list):
-        char["reference_images"] = [r for r in refs if not (isinstance(r, str) and r.startswith("http"))]
+    if not isinstance(char.get("reference_images"), list):
+        char["reference_images"] = []
 
     # outfits: 确保 default 键 + 统一格式
     outfits = char.get("outfits")
@@ -349,8 +339,6 @@ def normalize_character(char: dict) -> dict:
             elif isinstance(v, dict):
                 v.setdefault("description", "")
                 v.setdefault("reference_images", [])
-                v["reference_images"] = [r for r in v.get("reference_images", [])
-                                         if not (isinstance(r, str) and r.startswith("http"))]
     elif outfits is None:
         char["outfits"] = {"default": {"description": "", "reference_images": []}}
 
