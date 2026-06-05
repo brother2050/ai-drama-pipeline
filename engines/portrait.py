@@ -194,7 +194,6 @@ def ensure_portrait(char_id: str, config: dict, container=None, force: bool = Fa
         logger.warning(f"角色配置不存在: {char_file}")
         return ""
 
-    from infra.config import load_yaml_full
     data = load_yaml_full(char_file)
     char = data.get("character", {})
 
@@ -219,7 +218,6 @@ def ensure_portrait(char_id: str, config: dict, container=None, force: bool = Fa
             logger.info(f"  🔄 重新生成，代数: {generation}")
 
         # 确定性 seed：同一角色+同一代 → 所有视图/服装共享基础 seed
-        cover_path = portrait_dir / "cover.png"
 
         generated_urls = _generate_five_views(comfyui, wb, char_id, portrait_dir, char, project_dir, generation)
         _update_view_refs(char, char_id, generated_urls)

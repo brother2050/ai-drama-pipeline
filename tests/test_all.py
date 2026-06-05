@@ -292,13 +292,6 @@ def test_music():
 
 
 
-    assert "needs_transcode" in params
-    print("✅ 平台兼容性检查正常")
-
-
-
-
-
 
 
 

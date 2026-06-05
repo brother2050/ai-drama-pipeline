@@ -52,6 +52,7 @@ def register_system_commands(cli):
     @click.option("--concurrency", "-c", default=2, help="并发数")
     def worker(concurrency) -> None:
         """启动 Celery Worker（处理异步任务）"""
+        import sys
         from cli import _load_env
         _load_env()
         from cli import _ensure_redis
@@ -61,7 +62,6 @@ def register_system_commands(cli):
         celery = shutil.which("celery")
         if not celery:
             # venv 场景：celery 可能不在 PATH 中，但在同一 bin 目录
-            import sys
             venv_celery = os.path.join(os.path.dirname(sys.executable), "celery")
             if os.path.isfile(venv_celery) and os.access(venv_celery, os.X_OK):
                 celery = venv_celery

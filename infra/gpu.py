@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 __all__ = ["get_generation_config"]
 
 
-def get_generation_config(config: "Config | dict | None" = None) -> dict:
+def get_generation_config(config=None) -> dict:
     """从配置读取生成参数（支持热读取）。
 
     Args:

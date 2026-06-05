@@ -94,7 +94,8 @@ def _build_context(outline: str, characters: list[dict], scenes: list[dict], tar
     if characters:
         mapping = []
         for c in characters:
-            cid, cname = c.get("id", "?"), c.get("name", cid)
+            cid = c.get("id", "?")
+            cname = c.get("name", cid)
             outfits = c.get("outfits", {})
             keys = list(outfits.keys()) if isinstance(outfits, dict) else []
             oi = f"，服装: {'/'.join(keys)}" if keys else ""

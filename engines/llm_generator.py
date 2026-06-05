@@ -51,7 +51,8 @@ def generate_storyboard(llm: object, params: StoryboardGenParams) -> list[dict]:
         mapping = []
         details = []
         for c in characters:
-            cid, cname = c.get("id", "?"), c.get("name", cid)
+            cid = c.get("id", "?")
+            cname = c.get("name", cid)
             mapping.append(f"  {cid} → {cname}")
             outfits = c.get("outfits", {})
             keys = list(outfits.keys()) if isinstance(outfits, dict) else []

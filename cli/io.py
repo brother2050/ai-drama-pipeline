@@ -87,7 +87,7 @@ def register_io_commands(cli):
         from infra.config import get_active_project_dir
 
         try:
-            active = get_active_project_dir()
+            get_active_project_dir()
         except Exception:
             console.print("[red]❌ 未找到活动项目[/red]")
             return

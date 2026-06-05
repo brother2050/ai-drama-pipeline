@@ -159,7 +159,7 @@ def invalidate_ctx_cache():
         _cfg_cache.clear()
     with _ctx_lock:
         if _ctx_cache is not None:
-            cfg, cont = _ctx_cache[1], _ctx_cache[2]
+            cont = _ctx_cache[2]
             if hasattr(cont, 'shutdown_all'):
                 try:
                     cont.shutdown_all()
@@ -334,7 +334,7 @@ def _validate_output(path: str, step: str, *, min_size: int = 0) -> str | None:
     return None
 
 
-def _paths(config_path: str) -> "ProjectPaths":
+def _paths(config_path: str):
     """获取统一路径管理对象"""
     return _get_config(config_path).paths
 
@@ -372,7 +372,7 @@ def comfyui_generate(shot_id: str, step: str, comfyui, workflow: dict, out_dir: 
     except Exception as e:
         return _err(shot_id, step, f"ComfyUI {step} 失败: {e}")
     if not files:
-        return _err(shot_id, step, f"ComfyUI 未返回任何文件")
+        return _err(shot_id, step, "ComfyUI 未返回任何文件")
 
     out_path = str(out_dir / output_name)
     os.replace(files[0], out_path)
