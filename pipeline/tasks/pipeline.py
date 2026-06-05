@@ -310,15 +310,15 @@ def produce_task(self, config_path: str, episode: int, vertical: bool = False, f
 
 @app.task(bind=True, name="pipeline_run_all", soft_time_limit=14400)
 def run_all_task(self, config_path: str, episode: int, vertical: bool = False, force: bool = False) -> dict:
-    """一键全流程 — bible → prepare → produce → post
+    """一键全流程 — prepare → produce → post
 
     单个 Celery 任务编排全部阶段，前端只需轮询一次。
+    bible 已合并到角色生成阶段（AI 生成角色时自动生成），无需独立步骤。
     """
     project_name = Path(config_path).resolve().parent.parent.name
     from infra.database._db import project_scope
     with project_scope(project_name):
         stages = [
-            ("bible",   lambda: _run_stage_bible(config_path)),
             ("prepare", lambda: _run_stage_prepare(config_path, episode, force)),
             ("produce", lambda: _run_stage_produce(config_path, episode, force)),
             ("post",    lambda: _run_stage_post(config_path, episode, vertical)),
@@ -340,11 +340,6 @@ def run_all_task(self, config_path: str, episode: int, vertical: bool = False, f
                 return {"status": STATUS_ERROR, "stage": name,
                         "reason": str(e), "results": results}
         return {"status": STATUS_DONE, "episode": episode, "results": results}
-
-
-def _run_stage_bible(config_path: str) -> dict:
-    from pipeline.tasks.ai import ai_bible_task
-    return ai_bible_task.apply(args=[config_path]).get(timeout=1800)
 
 
 def _run_stage_prepare(config_path: str, episode: int, force: bool) -> dict:

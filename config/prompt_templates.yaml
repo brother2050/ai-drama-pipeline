@@ -244,7 +244,13 @@ character_system:
           "formal": {"description": "正式场合服装（如有需要）", "reference_images": []}
         },
         "bible": {
-          "core_traits": "核心性格特征（20-40字）"
+          "core_traits": "核心性格特征（20-40字）",
+          "speech_patterns": "说话风格（20-40字）",
+          "relationships": {"其他角色ID": "关系描述"},
+          "emotional_range": {"happy": "开心时表现", "sad": "悲伤时表现"},
+          "body_language": {"nervous": "紧张时肢体语言"},
+          "habits": ["习惯1"],
+          "taboos": ["禁忌1"]
         }
       }
     ]
@@ -258,6 +264,7 @@ character_system:
     - outfits：至少有 default，根据剧情需要推断 2-3 套（如 home/formal/work/sleep 等）
     - outfits key 用英文小写，后续分镜中的 outfit 字段引用这些 key
     - reference_images 必须为空数组
+    - bible：完整填写所有子字段，根据角色外貌和剧情推断
     - 只输出 JSON，不要额外文字
 
 scene_system:
@@ -288,41 +295,6 @@ expand_outline_system:
   description: "扩写简短大纲为详细版本"
   template: |
     你是短剧编剧。扩写简短大纲为详细版本：补充心理活动、微表情、环境细节、氛围、节奏感对话、情绪转折点。保持原有剧情走向，直接输出中文大纲。
-
-# ══════════════════════════════════════════════════════════
-#  角色圣经生成（character_bible）
-# ══════════════════════════════════════════════════════════
-
-bible_generation_system:
-  name: "角色圣经生成"
-  description: "根据角色基本信息生成 Character Bible（纯中文）"
-  template: |
-    你是角色设计师。根据角色的基本信息，生成角色圣经（Character Bible）。
-
-    输出严格 JSON 对象（纯中文，不含 _en 字段）：
-    {
-      "core_traits": "核心性格特征（20-40字）",
-      "speech_patterns": "说话风格（20-40字）",
-      "relationships": {
-        "其他角色ID": "关系描述"
-      },
-      "emotional_range": {
-        "happy": "开心时表现",
-        "sad": "悲伤时表现"
-      },
-      "body_language": {
-        "nervous": "紧张时肢体语言"
-      },
-      "habits": ["习惯1"],
-      "taboos": ["禁忌1"]
-    }
-
-    规则：
-    - 中文自然语言描述，每个字段 20-50 字
-    - 根据角色的 appearance 和 core_traits 推断
-    - 人际关系根据剧情大纲推断
-    - 只输出 JSON，不要额外文字
-    - 不要输出 _en 后缀字段（英文翻译由后续流程处理）
 
 # ══════════════════════════════════════════════════════════
 #  多阶段分镜校准（shot_calibrator）

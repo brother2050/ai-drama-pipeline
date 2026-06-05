@@ -13,7 +13,7 @@ from pipeline.tasks.steps import tts_core, first_frame_core, video_core, lipsync
 # AI 生成
 from pipeline.tasks.ai import (
     ai_storyboard_task, ai_characters_task, ai_scenes_task,
-    ai_chat_edit_task, ai_prepare_task, ai_bible_task,
+    ai_chat_edit_task, ai_prepare_task,
 )
 
 # 定妆照 / 场景图
@@ -49,7 +49,7 @@ __all__ = [
     "tts_core", "first_frame_core", "video_core", "lipsync_core",
     # AI
     "ai_storyboard_task", "ai_characters_task", "ai_scenes_task",
-    "ai_chat_edit_task", "ai_prepare_task", "ai_bible_task",
+    "ai_chat_edit_task", "ai_prepare_task",
     # 杂项
     "portraits_task", "scene_images_task",
     "portrait_single_task", "outfit_single_task", "outfits_batch_task",

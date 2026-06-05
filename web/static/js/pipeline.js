@@ -73,7 +73,6 @@ function renderWB(episodes) {
       <button class="btn btn-outline" onclick="redo()" title="Ctrl+Shift+Z">↪ ${t('undo.redo')}</button>
       <label class="force-toggle" title="${t('wb.force_overwrite')}"><input type="checkbox" id="wb-force-cb"> ${t('wb.force_overwrite')}</label>
       <span class="dim" style="margin:0 0.3rem">|</span>
-      <button class="btn btn-outline" onclick="runBible()" title="${t('wb.bible_hint')}">${t('wb.bible')}</button>
       <button class="btn btn-primary" onclick="runPrepare()" title="${t('wb.prepare_hint')}">${t('wb.prepare')}</button>
       <button class="btn btn-outline" onclick="runPortraits()">📸 ${t('wb.gen_portraits')}</button>
       <button class="btn btn-outline" onclick="runSceneImages()">🏔 ${t('wb.gen_scene_images')}</button>
@@ -448,38 +447,6 @@ async function _runTool(apiPath, body, label, queryParams) {
 async function runPortraits() { _updatePipelineStep('portrait', 'active'); await _runTool('/tools/portraits', {}, t('wb.gen_portraits'), { force: _isForce() }); _updatePipelineStep('portrait', 'done'); }
 async function runSceneImages() { _updatePipelineStep('scene', 'active'); await _runTool('/tools/scene-images', {}, t('wb.gen_scene_images'), { force: _isForce() }); _updatePipelineStep('scene', 'done'); }
 async function runPost() { await _runTool('/tools/post', { episode: ep }, t('wb.post_process')); }
-
-async function runBible() {
-  if (!await modalConfirm(t('wb.bible') + '？\n' + t('wb.bible_hint'))) return;
-  const statusEl = document.getElementById('wb-batch-status');
-  statusEl.style.display = 'block';
-  statusEl.innerHTML = `<div class="batch-progress"><div class="batch-bar"><div class="batch-fill" style="width:5%"></div></div>
-    <div class="batch-text">⏳ ${t('wb.bible')}...</div></div>`;
-  try {
-    const { task_id } = await api('/llm/bibles', { method: 'POST' });
-    if (typeof TaskPanel !== 'undefined') TaskPanel.trackTask(task_id, t('wb.bible'));
-    const result = await pollTask(task_id, info => {
-      statusEl.innerHTML = `<div class="batch-progress"><div class="batch-bar"><div class="batch-fill" style="width:${info.progress || 10}%"></div></div>
-        <div class="batch-text">⏳ ${info.message || t('wb.bible')} (${info.progress || 0}%)</div></div>`;
-    });
-    if (result.status === 'success' && result.result?.status !== 'error') {
-      const r = result.result || {};
-      statusEl.innerHTML = `<div class="batch-done">✅ ${t('wb.bible')}
-        <span style="margin-left:.5rem;font-size:.85rem;color:var(--fg2)">
-          ${r.count || 0} 个角色圣经已生成
-        </span></div>`;
-      toast('✅ ' + t('wb.bible'));
-      invalidateCache('characters');
-      renderShotsGrid();
-    } else {
-      statusEl.innerHTML = `<div class="batch-done">❌ ${t('wb.bible')}: ${esc(result.result?.reason || result.error || t('wb.shot_fail'))}</div>`;
-      toast('❌ ' + t('wb.bible'), 'error');
-    }
-  } catch (e) {
-    statusEl.innerHTML = `<div class="batch-done">❌ ${t('wb.bible')}: ${esc(e.message)}</div>`;
-    toast('❌ ' + e.message, 'error');
-  }
-}
 
 async function runPrepare() {
   if (!await modalConfirm(t('wb.prepare') + '？\n' + t('wb.prepare_hint'))) return;
