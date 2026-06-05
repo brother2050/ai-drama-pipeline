@@ -78,7 +78,7 @@ flowchart LR
 
 ## 阶段 1 · 准备
 
-> 批量翻译集中完成。运行一次后，生产管线 **零 LLM 调用**。角色圣经（character bible）已移至 `drama generate bible`。
+> 批量翻译集中完成。运行一次后，生产管线 **零 LLM 调用**。角色圣经（character bible）通过 Web 工作台「📝 分镜表」→「🤖 AI 生成角色圣经」生成。
 
 ```mermaid
 flowchart TB
@@ -147,7 +147,7 @@ flowchart LR
 
 ## 阶段 2 · 生产
 
-> 纯 GPU/本地执行，零 LLM 调用。逐镜头完成 TTS → 首帧 → 视频 → 口型同步。**不含后期合成**（后期由 `drama post` 独立处理）。
+> 纯 GPU/本地执行，零 LLM 调用。逐镜头完成 TTS → 首帧 → 视频 → 口型同步。**不含后期合成**（后期由 Web 工作台「📦 后期合成」独立处理）。
 
 ```mermaid
 flowchart TB
@@ -269,47 +269,47 @@ flowchart LR
 
 ---
 
-## 命令对比
+## Web 工作台操作流程
 
 ```mermaid
-flowchart TB
-    subgraph preview["drama preview 1 draft"]
+flowchart LR
+    subgraph prep["🔧 准备阶段"]
         direction TB
-        pr_loop["逐镜头循环<br/>(低质量参数)"]
+        p1["批量翻译<br/>LLM 密集"]
     end
 
-    subgraph produce["drama produce 1"]
+    subgraph prod["▶ 生产"]
         direction TB
-        po_sub["字幕 SRT"]
-        po_loop["逐镜头循环"]
-        po_sub --> po_loop
+        po1["字幕 SRT"]
+        po2["逐镜头循环<br/>TTS→首帧→视频→口型"]
+        po1 --> po2
     end
 
-    subgraph post["drama post 1"]
+    subgraph post["📦 后期合成"]
         direction TB
-        pt_post["后期合成"]
+        pt1["拼接→字幕→配乐→横转竖"]
     end
 
-    subgraph all["drama all 1"]
+    subgraph all["🚀 一键全流程"]
         direction TB
-        a_pr["prepare"]
-        a_po["produce"]
-        a_pt["post"]
-        a_pr --> a_po --> a_pt
+        a1["准备"]
+        a2["生产"]
+        a3["后期"]
+        a1 --> a2 --> a3
     end
 
-    style preview fill:#1e293b,stroke:#334155,color:#94a3b8
-    style produce fill:#1b3b2e,stroke:#059669,color:#6ee7b7
+    style prep fill:#1e293b,stroke:#334155,color:#94a3b8
+    style prod fill:#1b3b2e,stroke:#059669,color:#6ee7b7
     style post fill:#1e293b,stroke:#d97706,color:#fcd34d
     style all fill:#1b2e4b,stroke:#2563eb,color:#93c5fd
 ```
 
-| 命令 | 字幕 | 镜头循环 | 后期合成 | 用途 |
-|------|:----:|:--------:|:--------:|------|
-| `drama preview 1 draft` | ❌ | ✅ 低质量 | ❌ | 快速预览效果 |
-| `drama produce 1` | ✅ | ✅ 全质量 | ❌ | **镜头生产**（不含后期） |
-| `drama post 1` | ❌ | ❌ | ✅ | 重做后期（换配乐/加竖屏） |
-| `drama all 1` | ✅ | ✅ | ✅ | 一键全流程（prepare → produce → post） |
+| 操作 | 说明 |
+|------|------|
+| 「🔧 准备阶段」 | 批量翻译（LLM 密集，运行一次即可） |
+| 「▶ 生产」 | 镜头生产（纯 GPU，零 LLM） |
+| 「📦 后期合成」 | 拼接、字幕、配乐、横转竖 |
+| 「🚀 一键全流程」 | 准备 → 生产 → 后期 |
 
 ---
 
@@ -505,27 +505,16 @@ flowchart LR
 
 ## 快速参考
 
-```bash
-# 首次使用
-drama generate all 1 -o outline.txt    # 从大纲生成全部素材
-drama generate bible 1                 # 生成角色圣经（character bible）
-drama prepare 1                        # 准备阶段（批量翻译）
+```
+首次使用:
+1. 启动服务: drama serve + drama worker
+2. Web 工作台生成内容（大纲 → 分镜/角色/场景）
+3. 准备阶段（批量翻译）
+4. 生成定妆照 + 场景图
+5. 生产 → 后期 → 成片
 
-# 日常生产
-drama produce 1                        # 镜头生产（TTS → 首帧 → 视频 → 口型）
-drama produce 1 --force                # 强制重新生成
-drama post 1                           # 后期合成（横屏）
-drama post 1 --vertical                # 后期合成 + 横转竖
-
-# 完整流程
-drama all 1                            # 一键: prepare → produce → post
-
-# 单独操作
-drama preview 1 draft                  # 快速预览
-drama portraits                        # 只生成定妆照
-
-# 服务管理
-drama serve                            # 启动 Web 工作台
-drama worker                           # 启动 Celery Worker
-drama status                           # 查看服务状态
+服务管理:
+  drama serve    — 启动 Web 工作台
+  drama worker   — 启动 Celery Worker
+  drama status   — 查看服务状态
 ```
