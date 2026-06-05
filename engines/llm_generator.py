@@ -174,6 +174,12 @@ def _generate_entities(llm: object, descriptions: list[str], expected_ids: list[
     if failed_count:
         raise RuntimeError(f"{label}生成失败（{failed_count}/{len(descriptions)}）: 请检查 LLM 服务。")
 
+    # 校验 LLM 返回数量与请求数一致（防止 LLM 合并/丢失实体）
+    if len(entities) != len(descriptions):
+        raise RuntimeError(
+            f"{label}生成数量不匹配：请求 {len(descriptions)} 个，实际返回 {len(entities)} 个。"
+            f"LLM 可能合并了多个{label}为一个，请重试或减少单批数量。")
+
     # ID 注入 + 名称去重
     used_names: set[str] = set()
     for i, entity in enumerate(entities):
