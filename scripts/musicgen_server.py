@@ -77,8 +77,13 @@ def _ensure_deps(quantize: bool = False):
     _bootstrap_log.info("依赖安装完成，重启进程以加载原生扩展...")
 
     # 重新 exec 自身，让新安装的 CUDA 扩展生效
+    # 基本安全检查：确保 sys.executable 是合法的 Python 解释器
+    exe = sys.executable
+    if not exe or not os.path.isfile(exe):
+        _bootstrap_log.error(f"Python 解释器路径无效: {exe}")
+        sys.exit(1)
     args = sys.argv + ["--_deps-installed"]
-    os.execv(sys.executable, [sys.executable, *args])
+    os.execv(exe, [exe, *args])
 
 
 # ── 启动时检测 --quantize 参数并安装依赖 ──

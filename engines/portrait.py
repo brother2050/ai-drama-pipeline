@@ -188,12 +188,16 @@ def ensure_portrait(char_id: str, config: dict, container=None, force: bool = Fa
     char_file = paths.character_yaml(char_id)
     if not char_file.exists():
         logger.warning(f"角色配置不存在: {char_file}")
+        with _generating_lock:
+            _generating.pop(char_id, None)
         return ""
 
     data = load_yaml_full(char_file)
     char = data.get("character", {})
 
     if not container:
+        with _generating_lock:
+            _generating.pop(char_id, None)
         return ""
 
     try:

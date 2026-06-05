@@ -92,8 +92,17 @@ def _ensure_redis() -> bool:
     console.print("[yellow]⚠ Redis 未运行，尝试启动...[/yellow]")
     redis = shutil.which("redis-server")
     if redis:
-        subprocess.Popen([redis, "--daemonize", "yes"],
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        proc = subprocess.Popen([redis, "--daemonize", "yes"],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # 检查进程是否立即退出（如端口占用、配置错误）
+        try:
+            proc.wait(timeout=2)
+            if proc.returncode and proc.returncode != 0:
+                stderr = proc.stderr.read().decode(errors="replace")[:200] if proc.stderr else ""
+                console.print(f"[red]❌ Redis 启动失败 (exit {proc.returncode}): {stderr}[/red]")
+                return False
+        except subprocess.TimeoutExpired:
+            pass  # 超时说明进程仍在运行（daemonize 后正常）
         for _ in range(6):
             time.sleep(0.5)
             if _port_open(_redis_port()):

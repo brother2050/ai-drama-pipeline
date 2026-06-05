@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 _loaded = False  # GIL 保证 bool 读写原子性，第一次检查在锁外安全
 _register_lock = threading.Lock()
+_fail_count = 0  # 连续失败计数，避免日志洪泛
+_MAX_RETRIES = 3
 
 
 def _ensure_registered():
@@ -25,9 +27,11 @@ def _ensure_registered():
     因此第一次检查在锁外是安全的。如果需要去除 GIL 依赖（如 nogil Python），
     可改用 threading.Event。
     """
-    global _loaded
+    global _loaded, _fail_count
     if _loaded:
         return
+    if _fail_count >= _MAX_RETRIES:
+        return  # 连续失败超过阈值，不再重试
     with _register_lock:
         if _loaded:
             return
@@ -38,9 +42,11 @@ def _ensure_registered():
         try:
             reg = ModelRegistry()
         except Exception as e:
-            logger.error(f"加载模型注册表失败: {e}")
-            _loaded = False  # 允许重试
+            _fail_count += 1
+            logger.error(f"加载模型注册表失败 ({_fail_count}/{_MAX_RETRIES}): {e}")
+            _loaded = False  # 允许重试（有上限）
             return
+        _fail_count = 0  # 成功后重置计数
 
         for _service_type, module_path, _priority in reg.get_backend_modules():
             try:

@@ -273,28 +273,33 @@ def build_prompt(params: PromptBuildParams) -> str:
     return result
 
 
+def _estimate_tokens(text: str) -> int:
+    """保守估算 token 数：CJK 字符约 1 token/字，英文约 1 token/4 字符"""
+    cjk = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+    other = len(text) - cjk
+    return max(1, int(cjk + other / 4))
+
+
 def _truncate_tag_prompt(prompt: str, max_tokens: int = 75) -> str:
     """将逗号分隔的 tag prompt 截断到指定 token 数以内。
 
     SD1.5 CLIP tokenizer 限制 75 tokens（不含 start/end token）。
-    粗略估算：1 token ≈ 4 字符（英文），按逗号分隔的 tag 边界截断，
-    保留前面的 tag（style/genre/scene/character 优先），丢弃末尾溢出部分。
+    按逗号分隔的 tag 边界截断，保留前面的 tag（style/genre/scene/character 优先），
+    丢弃末尾溢出部分。CJK 字符按 1 token/字估算。
     """
-    est_tokens = len(prompt) / 4
-    if est_tokens <= max_tokens:
+    if _estimate_tokens(prompt) <= max_tokens:
         return prompt
 
     # 按逗号拆分，逐个 tag 累加，超出限制时截断
-    char_limit = max_tokens * 4
     tags = [t.strip() for t in prompt.split(",") if t.strip()]
     result = []
-    char_count = 0
+    token_count = 0
     for tag in tags:
-        tag_cost = len(tag) / 4 + 1
-        if char_count + tag_cost > char_limit:
+        tag_cost = _estimate_tokens(tag) + 1  # +1 for comma separator token
+        if token_count + tag_cost > max_tokens:
             break
         result.append(tag)
-        char_count += len(tag) + 2  # ", " = 2 chars
+        token_count += tag_cost
 
     truncated = ", ".join(result)
     if len(truncated) < len(prompt):

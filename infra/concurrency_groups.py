@@ -113,15 +113,29 @@ class ConcurrencyGroups:
         lock = self._locks.get(group)
         if lock is None:
             return True
-        # Semaphore._value 不是公开 API，但用于监控可接受
-        return lock._value > 0
+        # 非阻塞 acquire + release：成功说明有空闲槽位
+        if lock.acquire(blocking=False):
+            lock.release()
+            return True
+        return False
 
     def stats(self) -> dict[str, dict]:
         """返回各组的状态"""
         result = {}
         for group, limit in self._limits.items():
             lock = self._locks.get(group)
-            available = lock._value if lock else limit
+            if lock is None:
+                available = limit
+            else:
+                # 非阻塞探测空闲槽位数
+                available = 0
+                for _ in range(limit):
+                    if lock.acquire(blocking=False):
+                        available += 1
+                    else:
+                        break
+                for _ in range(available):
+                    lock.release()
             result[group] = {
                 "limit": limit,
                 "available": available,
