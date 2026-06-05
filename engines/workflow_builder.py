@@ -103,6 +103,8 @@ class WorkflowBuilder:
         if not wf_name:
             logger.warning(f"未知 image_backend '{img_backend}'，回退到 {default_img}")
             wf_name = self.registry.get_image_workflow(default_img)
+        if not wf_name:
+            raise ValueError(f"首帧工作流未找到: image_backend='{img_backend}'，请检查 models_registry.yaml")
         self.first_frame_wf = self._load_wf(wf_name)
         self.first_frame_wf = resolve_node_aliases(self.first_frame_wf, available_nodes)
 

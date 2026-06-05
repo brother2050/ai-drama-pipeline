@@ -375,14 +375,17 @@ def _merge_translate_results(results: list[str], batch_items: list[tuple[int, st
     每个 parsed_dict 是 {line_num: translated_text}，None 表示批次失败。
     """
     total_items = len(batch_items)
-    items_per_batch = total_items // max(batch_result.get("total_batches", 1), 1)
+    batch_sizes = batch_result.get("batch_sizes", [])
     offset = 0
 
     for batch_idx, batch_data in enumerate(batch_result["results"]):
-        # 估算本批次大小：均匀分配或用剩余项
-        remaining = total_items - offset
-        batches_left = len(batch_result["results"]) - batch_idx
-        batch_len = max(remaining // max(batches_left, 1), 1) if remaining > 0 else 0
+        # 使用精确 batch_size（来自 AdaptiveBatchProcessor），回退到均匀分配
+        if batch_idx < len(batch_sizes):
+            batch_len = batch_sizes[batch_idx]
+        else:
+            remaining = total_items - offset
+            batches_left = len(batch_result["results"]) - batch_idx
+            batch_len = max(remaining // max(batches_left, 1), 1) if remaining > 0 else 0
 
         if batch_data is None:
             offset += batch_len

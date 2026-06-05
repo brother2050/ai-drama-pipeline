@@ -239,7 +239,10 @@ class Container:
         # 2. 从顶层 service_type 段读取（如 llm.backend, training.backend）
         svc_cfg = self._config.get(service_type, {})
         if isinstance(svc_cfg, dict) and svc_cfg.get("backend"):
-            return svc_cfg["backend"]
+            name = svc_cfg["backend"]
+            normalized = name.replace("-", "_")
+            if registry.get(service_type, name) or registry.get(service_type, normalized):
+                return name
         # 3. 自动选择（未显式配置时回退）
         auto = registry.auto_select(service_type, self._config)
         logger.info(f"{service_type} 未显式配置，自动选择: {auto}")
