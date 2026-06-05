@@ -60,6 +60,12 @@ def register_system_commands(cli):
 
         celery = shutil.which("celery")
         if not celery:
+            # venv 场景：celery 可能不在 PATH 中，但在同一 bin 目录
+            import sys
+            venv_celery = os.path.join(os.path.dirname(sys.executable), "celery")
+            if os.path.isfile(venv_celery) and os.access(venv_celery, os.X_OK):
+                celery = venv_celery
+        if not celery:
             console.print("[red]❌ celery 未安装。pip install celery redis[/red]")
             sys.exit(1)
 

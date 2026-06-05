@@ -37,11 +37,8 @@ all = ["ai-drama-pipeline[vertical,dev]"]
 [project.scripts]
 drama = "cli:cli"
 
-[tool.setuptools]
-py-modules = ["cli"]
-
 [tool.setuptools.packages.find]
-include = ["api*", "engines*", "flow*", "infra*", "pipeline*", "post*", "scripts*", "web*"]
+include = ["api*", "cli*", "engines*", "flow*", "infra*", "pipeline*", "post*", "scripts*", "web*"]
 
 [tool.setuptools.package-data]
 "web" = ["static/**/*"]
