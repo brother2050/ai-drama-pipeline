@@ -323,7 +323,7 @@ def run_all_task(self, config_path: str, episode: int, vertical: bool = False, f
         stages = [
             ("bible",   lambda: _run_stage_bible(config_path)),
             ("prepare", lambda: _run_stage_prepare(config_path, episode, force)),
-            ("produce", lambda: _run_stage_produce(self, config_path, episode, force)),
+            ("produce", lambda: _run_stage_produce(config_path, episode, force)),
             ("post",    lambda: _run_stage_post(config_path, episode, vertical)),
         ]
         total = len(stages)
@@ -355,7 +355,7 @@ def _run_stage_prepare(config_path: str, episode: int, force: bool) -> dict:
     return ai_prepare_task.apply(args=[config_path, episode], kwargs={"force": force, "translate": True}).get(timeout=3600)
 
 
-def _run_stage_produce(task_self, config_path: str, episode: int, force: bool) -> dict:
+def _run_stage_produce(config_path: str, episode: int, force: bool) -> dict:
     return produce_task.apply(args=[config_path, episode], kwargs={"force": force}).get(timeout=7200)
 
 
