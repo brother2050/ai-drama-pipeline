@@ -237,9 +237,14 @@ class Container:
             normalized = name.replace("-", "_")
             if registry.get(service_type, name) or registry.get(service_type, normalized):
                 return name
-            logger.warning(
-                f"models.{cfg_key}='{name}' 不是已注册的 {service_type} API 后端，"
-                f"回退到自动选择。请检查配置是否正确。")
+            # YAML 注册表中有定义（如 cosmos/flux/sd15）→ 正常回退，降为 debug
+            # YAML 中也没有 → 真正的配置错误，用 warning
+            if self._is_yaml_variant(service_type, name):
+                logger.debug(f"models.{cfg_key}='{name}' 是 YAML 变体，回退到自动选择")
+            else:
+                logger.warning(
+                    f"models.{cfg_key}='{name}' 不是已注册的 {service_type} API 后端，"
+                    f"回退到自动选择。请检查配置是否正确。")
         # 2. 从顶层 service_type 段读取（如 llm.backend, training.backend）
         svc_cfg = self._config.get(service_type, {})
         if isinstance(svc_cfg, dict) and svc_cfg.get("backend"):
@@ -251,6 +256,15 @@ class Container:
         auto = registry.auto_select(service_type, self._config)
         logger.info(f"{service_type} 未显式配置，自动选择: {auto}")
         return auto
+
+    @staticmethod
+    def _is_yaml_variant(service_type: str, name: str) -> bool:
+        """检查 name 是否在 YAML 注册表中定义（如 cosmos/flux/sd15/cosmos-video）"""
+        try:
+            from flow.model_registry import ModelRegistry
+            return ModelRegistry().get_backend(service_type, name) is not None
+        except Exception:
+            return False
 
     def _backend_config(self, service_type: str, name: str) -> dict:
         models = self._config.get("models", {})
