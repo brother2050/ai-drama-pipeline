@@ -65,12 +65,8 @@ def _generate_view(params: ViewGenParams) -> str:
     """生成单张视图，返回文件路径或空字符串"""
     p = params
     # 获取视角专属 prompt（prepare 阶段已生成）
-    from engines.prompt import get_view_appearance, build_view_prompt
-    if p.view_key and p.char:
-        base_en = p.char.get("appearance_prompt_en", "")
-        view_desc = build_view_prompt(base_en, p.char.get("body_features", ""), p.view_key) if base_en else ""
-    else:
-        view_desc = get_view_appearance(p.char, p.shot_type) if p.char else ""
+    from engines.prompt import get_view_appearance
+    view_desc = get_view_appearance(p.char, p.shot_type, view_key=p.view_key) if p.char else ""
     from infra.constants import ERR_NOT_PREPARED
     if not view_desc:
         logger.error(f"角色 '{p.char_id}' 未生成 AI 绘图 prompt，{ERR_NOT_PREPARED}")

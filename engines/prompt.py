@@ -150,7 +150,7 @@ def batch_generate_appearance_prompts(characters: list[dict], llm: object) -> di
     return all_mapping
 
 
-def get_view_appearance(char: dict, shot_type: str) -> str:
+def get_view_appearance(char: dict, shot_type: str, *, view_key: str = "") -> str:
     """获取角色在指定视角的模型友好英文 prompt
 
     视角映射（5视图）：
@@ -162,18 +162,21 @@ def get_view_appearance(char: dict, shot_type: str) -> str:
     Args:
         char: 角色数据 dict
         shot_type: 景别（特写/侧面特写/背面特写/全身 等）
+        view_key: 显式视角 key（left_side/right_side/front/back/three_quarter），
+                  优先于从 shot_type 推导。五视图生成时传入，避免左右脸混淆。
 
     Returns:
         英文 prompt 字符串
     """
-    if "背面" in shot_type:
-        view_key = "back"
-    elif "侧面" in shot_type:
-        view_key = "left_side"
-    elif "3/4" in shot_type or "三人" in shot_type:
-        view_key = "three_quarter"
-    else:
-        view_key = "front"
+    if not view_key:
+        if "背面" in shot_type:
+            view_key = "back"
+        elif "侧面" in shot_type:
+            view_key = "left_side"
+        elif "3/4" in shot_type or "三人" in shot_type:
+            view_key = "three_quarter"
+        else:
+            view_key = "front"
 
     base_en = char.get("appearance_prompt_en", "")
     if not base_en:
