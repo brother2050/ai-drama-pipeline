@@ -16,9 +16,7 @@
 | 22 | `engines/workflow_builder.py` | `_setup_img2img` 文件名在上传前设置，ComfyUI 可能找不到文件 |
 | 24 | `engines/workflow.py` | `set_clip_text_prompts` 将所有非 negative CLIPTextEncode 都设为 positive，第三节点被覆盖 |
 | 26 | `engines/workflow_inject.py` | `inject_pulid_flux` 第一个角色无参考图时跳过所有后续角色 |
-| 27 | `engines/workflow_inject.py` | LoRA 注入后 clip 连接未更新，绕过了 LoRA 对 CLIP 的微调 |
 | 32 | `pipeline/tasks/pipeline.py` | 原地修改 `shot_data["duration"]`，共享 dict 被污染 |
-| 34 | `pipeline/tasks/steps.py` | `tts_core` 中 `characters=None` 时每次都重建 ShotManager，批量处理时重复 IO |
 | 35 | `pipeline/tasks/ai.py` | `_ai_prepare_inner` 两次加载 storyboard，中间被修改会导致回写错误数据 |
 | 36 | `pipeline/tasks/ai.py` | `warnings` 用 `=` 赋值而非 `extend()`，前序 warnings 丢失 |
 | 37 | `pipeline/tasks/portrait_tasks.py` | `outfits_batch_task` 未绑定 project_scope，DB 写入可能指向错误项目 |
@@ -36,7 +34,6 @@
 | 80 | `api/backends/seko/proposal.py` | API 错误 code=500 应重试而非终止 |
 | 81 | `api/backends/training/ai_toolkit.py` | 文件句柄在异常时可能泄漏 |
 | 82 | `api/backends/training/ai_toolkit.py` | 从日志提取 safetensors 路径可能匹配到中间 checkpoint |
-| 84 | `web/routers/storyboard.py` | `batch_delete` 不检查 shot_id 是否属于当前 episode，可能误删 |
 | 86 | `web/routers/deps.py` | `yaml_save()` 中 entity_key 嵌套可能导致数据丢失 |
 | 87 | `web/schemas/__init__.py` | `min_length=1` 在可选字段上导致传空字符串报错 |
 
@@ -46,7 +43,6 @@
 |---|------|------|
 | 93 | `infra/json_parse.py` | `ast.literal_eval` 可能接受非 JSON 结构（Python tuple/set） |
 | 94 | `infra/batch_processor.py` | `estimate_tokens` 对英文高估（len//4 是合理近似，但可优化） |
-| 101 | `engines/shot_utils.py` | 引号清理只处理英文引号，缺中文引号 |
 | 102 | `engines/workflow_builder.py` | `_apply_gpu` 每次构建 `_sampler_types` 集合 |
 | 104 | `engines/workflow_inject.py` | suffix 用 `random.randint` 理论可能碰撞 |
 | 113 | `pipeline/tasks/helpers.py` | `_db_record_step` 静默吞异常，建议 `logger.warning` |
@@ -64,4 +60,8 @@
 | P0 #3 | `post/vertical.py` | `3529965` — 人脸裁剪使用 cy 垂直居中 |
 | P1 #33 | `pipeline/tasks/pipeline.py` | `3529965` — `.apply()` → `.apply_async()` |
 | P1 #30 | `infra/models.py` | `0abd4d0` — `normalize_character` 浅拷贝 |
+| P1 #27 | `engines/workflow_inject.py` | `ba01fd3` — LoRA 注入追踪 KSampler 当前 model/clip 来源 |
+| P1 #34 | `pipeline/tasks/steps.py` | `ba01fd3` — ShotManager 实例缓存 |
+| P1 #101 | `engines/shot_utils.py` | `ba01fd3` — 引号清理扩展中文引号 |
+| P1 #84 | `web/routers/storyboard.py` | 已有 episode 校验（代码已修复） |
 | — | `engines/llm_generator.py` | `24793fe` — 已有实体上下文注入 |
