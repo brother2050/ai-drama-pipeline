@@ -104,7 +104,8 @@ import_prompt_setup:
     - gender: male/female/other
     - age: 年龄（字符串格式，如 "28"）
     - appearance: 10-2000字外貌描述，必填
-    - outfits: { default: { description: "中文服装描述", description_en: "English outfit description" }, 其他服装key... }
+    - outfits: { default: { description: "中文服装描述", description_en: "English outfit description" }, home: { ... }, formal: { ... } }
+      根据剧情推断 2-3 套服装（如 default/home/formal/work/sleep），key 用英文小写
     - bible: { core_traits: "核心性格特征（20-40字）" }
     - appearance_prompt_en: 英文外貌 prompt（逗号分隔短语，用于 AI 绘图，如 "1girl, 22 years old, long black hair..."）
     - body_features: 身体特征（伤疤/纹身/胎记等，逗号分隔，无则留空）
@@ -238,7 +239,9 @@ character_system:
         "appearance_prompt_en": "英文外貌 prompt（逗号分隔短语，用于 AI 绘图）",
         "body_features": "身体特征（伤疤/纹身/胎记等，逗号分隔，无则留空）",
         "outfits": {
-          "default": {"description": "默认服装描述（30-50字）", "reference_images": []}
+          "default": {"description": "默认服装描述（30-50字）", "reference_images": []},
+          "home": {"description": "居家服装（如有需要）", "reference_images": []},
+          "formal": {"description": "正式场合服装（如有需要）", "reference_images": []}
         },
         "bible": {
           "core_traits": "核心性格特征（20-40字）"
@@ -252,7 +255,9 @@ character_system:
     - name 必须与已有角色的 name 完全不同（不能只是加数字后缀）
     - appearance_prompt_en：英文逗号分隔短语，包含面部特征/发型/体型/肤色/服装
     - body_features：从外貌描述中提取伤疤/纹身/胎记等身体特征，无则留空
-    - outfits 至少有 default，reference_images 必须为空数组
+    - outfits：至少有 default，根据剧情需要推断 2-3 套（如 home/formal/work/sleep 等）
+    - outfits key 用英文小写，后续分镜中的 outfit 字段引用这些 key
+    - reference_images 必须为空数组
     - 只输出 JSON，不要额外文字
 
 scene_system:
