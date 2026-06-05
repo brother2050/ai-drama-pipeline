@@ -449,7 +449,15 @@ class TestNormalizeCharacter:
         from infra.models import normalize_character
         char = {"id": "test", "bible": None}
         result = normalize_character(char)
-        assert result["bible"] == {"core_traits": ""}
+        bible = result["bible"]
+        assert bible["core_traits"] == ""
+        assert bible["core_traits_en"] == ""
+        assert bible["speech_patterns"] == ""
+        assert isinstance(bible["relationships"], dict)
+        assert isinstance(bible["emotional_range"], dict)
+        assert isinstance(bible["body_language"], dict)
+        assert isinstance(bible["habits"], list)
+        assert isinstance(bible["taboos"], list)
 
     def test_outfits_ensure_default(self):
         """outfits 无 default 时自动添加"""

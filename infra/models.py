@@ -312,11 +312,22 @@ def normalize_character(char: dict) -> dict:
             if field in bible and not char.get(field):
                 char[field] = bible.pop(field)
 
-    # bible: 确保存在且有 core_traits
+    # bible: 确保存在且有全部字段
     if not isinstance(bible, dict):
         char["bible"] = {}
         bible = char["bible"]
     bible.setdefault("core_traits", "")
+    bible.setdefault("core_traits_en", "")
+    bible.setdefault("speech_patterns", "")
+    bible.setdefault("speech_patterns_en", "")
+    for dict_field in ("relationships", "relationships_en",
+                       "emotional_range", "emotional_range_en",
+                       "body_language", "body_language_en"):
+        if not isinstance(bible.get(dict_field), dict):
+            bible[dict_field] = {}
+    for list_field in ("habits", "habits_en", "taboos", "taboos_en"):
+        if not isinstance(bible.get(list_field), list):
+            bible[list_field] = []
 
     # 确保顶级字段存在
     char.setdefault("appearance_prompt_en", "")
