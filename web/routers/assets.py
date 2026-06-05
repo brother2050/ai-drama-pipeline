@@ -27,6 +27,14 @@ async def upload_entity_image(entity_type: str, entity_id: str, file: UploadFile
     _check_entity_type(entity_type)
     _check_id(entity_id)
 
+    # 校验实体存在
+    p = _paths()
+    yaml_dir = "characters" if entity_type == "characters" else "scenes"
+    entity_key = "character" if entity_type == "characters" else "scene"
+    yaml_path = p.config_entity_yaml(yaml_dir, entity_id)
+    if not yaml_path.exists():
+        raise HTTPException(404, f"{entity_type} {entity_id} 不存在")
+
     allowed = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
     ext = Path(file.filename or "").suffix.lower()
     if ext not in allowed:
@@ -56,7 +64,6 @@ async def upload_entity_image(entity_type: str, entity_id: str, file: UploadFile
         raise HTTPException(400, f"文件内容不是允许的图片格式: {detected}")
 
     # 使用检测到的扩展名（而非用户上传的原始扩展名），防止伪装文件
-    p = _paths()
     asset_dir = p.assets_entity_dir(entity_type) / entity_id
     asset_dir.mkdir(parents=True, exist_ok=True)
     filename = f"cover{detected}"
@@ -65,9 +72,6 @@ async def upload_entity_image(entity_type: str, entity_id: str, file: UploadFile
         f.write(content)
 
     # 更新 YAML reference_images
-    yaml_dir = "characters" if entity_type == "characters" else "scenes"
-    entity_key = "character" if entity_type == "characters" else "scene"
-    yaml_path = p.config_entity_yaml(yaml_dir, entity_id)
     if yaml_path.exists():
         try:
             data = load_yaml_full(yaml_path)
