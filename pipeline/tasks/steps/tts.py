@@ -17,6 +17,7 @@ from infra.hooks import on_cache_invalidate
 def _clear_tts_char_cache():
     if hasattr(tts_core, "_chars"):
         tts_core._chars = {}
+        tts_core._chars_dir = None  # 强制下次重新加载
 
 
 def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,

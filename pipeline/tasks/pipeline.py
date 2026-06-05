@@ -54,12 +54,13 @@ def _shot_task_inner(self, config_path: str, episode: int, shot_data: dict, shot
 
     ctx = {"cfg": cfg, "cont": cont, "shot": shot_data, "characters": characters, "scenes": scenes}
 
-    # 复制避免污染传入的共享 dict
+    # 复制避免污染传入的共享 dict + 裁剪 duration
     shot_data = dict(shot_data)
     try:
         shot_data["duration"] = max(2, min(8, int(shot_data.get("duration", 4))))
     except (ValueError, TypeError):
         shot_data["duration"] = 4
+    ctx["shot"] = shot_data
 
     results = _run_shot_steps(self, config_path, episode, shot_id, force, ctx)
     return {"shot_id": shot_id,
