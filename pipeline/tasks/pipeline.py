@@ -280,7 +280,7 @@ def produce_task(self, config_path: str, episode: int, vertical: bool = False, f
     """镜头生产（TTS → 首帧 → 视频 → 口型同步）
 
     注意：后期合成（拼接/字幕/配乐）由 pipeline_post 独立负责，
-    drama all 会依次调用 produce → post，不要在此重复执行。
+    一键全流程会依次调用 produce → post，不要在此重复执行。
     """
     # 绑定项目作用域
     project_name = Path(config_path).resolve().parent.parent.name
@@ -295,8 +295,7 @@ def produce_task(self, config_path: str, episode: int, vertical: bool = False, f
             logger.warning(
                 "⚠ 当前分镜表为默认示例数据（林夏/顾辰），"
                 "请确认是否需要替换为你自己的剧本。"
-                "如需替换，请使用 AI 生成或通过 Web 工作台编辑: "
-                "drama generate storyboard 1 --outline your_outline.txt"
+                "如需替换，请在 Web 工作台「📝 分镜表」→「🤖 AI 生成」中输入你的大纲。"
             )
 
         # ── 生产前自检：确保定妆照和场景图就绪 ──
@@ -385,8 +384,7 @@ def _ensure_portraits_and_scenes(config_path: str, task_self=None, episode: int 
             f"请按以下步骤准备：\n"
             f"  1. 在 Web 工作台「🎬 生产管线」页面点击「🔧 准备阶段」（生成英文 prompt + 翻译）\n"
             f"  2. 在 Web 工作台「👤 角色」页面点击「🎨 AI 生成定妆照」\n"
-            f"  3. （可选）在 Web 工作台「🏔️ 场景」页面点击「🎨 AI 生成场景图」\n\n"
-            f"或使用 CLI：\n  drama prepare {episode}\n  drama portraits\n")
+            f"  3. （可选）在 Web 工作台「🏔️ 场景」页面点击「🎨 AI 生成场景图」\n")
         if task_self:
             task_self.update_state(state="PROGRESS", meta={"step": "preflight", "progress": 4, "message": msg})
         raise RuntimeError(msg)

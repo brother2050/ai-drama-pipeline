@@ -146,7 +146,7 @@ wget -O ComfyUI/models/animatediff/mm_sd_v15_v2.ckpt \
 ```
 
 > SD1.5 的 CLIP 和 VAE 内嵌在 Checkpoint 中，无需单独下载。
-> AnimateDiff 运动模块用于视频生成（`drama produce`），不装则无法生成镜头视频。
+> AnimateDiff 运动模块用于视频生成（生产阶段），不装则无法生成镜头视频。
 
 #### 📁 目录结构参考
 
@@ -256,7 +256,7 @@ drama serve
 
 > **并发数说明**：默认 concurrency=2，个人使用推荐 2-4。
 >
-> 主生产流程（`drama produce`）内部是逐镜头串行执行的，concurrency 设置不影响主流程速度。并发数主要影响 Web 工作台中多个操作同时提交时的响应（如同时生成定妆照和场景图）。外部服务（ComfyUI/TTS）通常是单实例单任务，设置过高的并发不会加速反而浪费内存。
+> 主生产流程（镜头生产）内部是逐镜头串行执行的，concurrency 设置不影响主流程速度。并发数主要影响 Web 工作台中多个操作同时提交时的响应（如同时生成定妆照和场景图）。外部服务（ComfyUI/TTS）通常是单实例单任务，设置过高的并发不会加速反而浪费内存。
 >
 > ```bash
 > drama worker -c 2   # 默认，省资源
