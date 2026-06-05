@@ -276,7 +276,9 @@ function newChar() {
         return {
           voice: _collectVoiceConfig('nc'),
           outfits: $val('nc-outfits') ? { default: { description: $val('nc-outfits'), reference_images: [] } } : null,
-          bible: { core_traits: coreTraits },
+          bible: { core_traits: coreTraits, core_traits_en: '', speech_patterns: '', speech_patterns_en: '',
+                   relationships: {}, relationships_en: {}, emotional_range: {}, emotional_range_en: {},
+                   body_language: {}, body_language_en: {}, habits: [], habits_en: [], taboos: [], taboos_en: [] },
         };
       },
       extraHtml: _ttsVoiceFieldsHtml('nc'),
@@ -689,10 +691,11 @@ async function editChar(id) {
     deleteFn: deleteCharWithRef,
     buildExtra() {
       const coreTraits = $val('ec-personality') || '';
+      const existingBible = item.bible || {};
       return {
         voice: _collectVoiceConfig('ec'),
         outfits: _collectOutfits(),
-        bible: { core_traits: coreTraits },
+        bible: { ...existingBible, core_traits: coreTraits },
       };
     },
     extraHtml: (item) => `<div class="edit-field"><button class="btn btn-ai btn-sm" onclick="generatePortrait('${esc(id)}')" id="gen-portrait-btn">🎨 AI 生成定妆照</button><span id="gen-portrait-status" class="dim" style="font-size:.8rem;margin-left:.5rem"></span></div>` + _outfitFieldsHtml(id, item.outfits || {}) + _ttsVoiceFieldsHtml('ec', item.voice || {}) + _loraTrainHtml(id, item),
