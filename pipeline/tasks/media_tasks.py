@@ -90,9 +90,9 @@ def tts_single_task(self, config_path: str, text: str, voice_config: dict | None
 
 @app.task(bind=True, name="pipeline_music", soft_time_limit=120)
 def music_task(self, config_path: str, duration: float, mood: str, output: str) -> dict:
-    cfg, _ = _init_ctx(config_path)
+    cfg, cont = _init_ctx(config_path)
     from post.music import MusicGenerator
-    gen = MusicGenerator(config=cfg.data)
+    gen = MusicGenerator(config=cfg.data, container=cont)
     try:
         result = gen.generate(duration, output, mood=mood)
     except Exception as e:
