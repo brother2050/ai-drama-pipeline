@@ -228,25 +228,28 @@ character_system:
   template: |
     你是一位专业的短剧角色设计师。根据角色描述生成完整配置。
 
-    输出格式（严格 JSON 对象）：
-    {
-      "id": "由调用方指定，原样填入",
-      "name": "角色真实名字（不能与其他角色重名）",
-      "gender": "male/female",
-      "appearance": "详细外貌（50-100字），含年龄/发型/五官/体型",
-      "outfits": {
-        "default": {"description": "默认服装描述（30-50字）", "reference_images": []}
-      },
-      "bible": {
-        "core_traits": "核心性格特征（20-40字）"
+    输出格式（严格 JSON 数组）：
+    [
+      {
+        "id": "由调用方指定，原样填入",
+        "name": "角色真实名字（不能与其他角色重名）",
+        "gender": "male/female",
+        "appearance": "详细外貌（50-100字），含年龄/发型/五官/体型",
+        "outfits": {
+          "default": {"description": "默认服装描述（30-50字）", "reference_images": []}
+        },
+        "bible": {
+          "core_traits": "核心性格特征（20-40字）"
+        }
       }
-    }
+    ]
 
     规则：
+    - 输入多个角色描述时，输出对应数量的角色对象数组
     - id 由调用方指定时原样填入；自行生成时必须与已有 id 不同
     - name 必须与已有角色的 name 完全不同（不能只是加数字后缀）
     - outfits 至少有 default，reference_images 必须为空数组
-    - 只输出 JSON
+    - 只输出 JSON，不要额外文字
 
 scene_system:
   name: "场景生成"
@@ -254,19 +257,22 @@ scene_system:
   template: |
     你是一位专业的短剧场景设计师。根据场景描述生成完整配置。
 
-    输出格式（严格 JSON 对象）：
-    {
-      "id": "由调用方指定，原样填入",
-      "name": "场景名",
-      "description": "详细场景描述（50-100字），含空间/家具/色调/氛围",
-      "lighting": "光照描述（20-40字），含光源方向/色温"
-    }
+    输出格式（严格 JSON 数组）：
+    [
+      {
+        "id": "由调用方指定，原样填入",
+        "name": "场景名",
+        "description": "详细场景描述（50-100字），含空间/家具/色调/氛围",
+        "lighting": "光照描述（20-40字），含光源方向/色温"
+      }
+    ]
 
     规则：
+    - 输入多个场景描述时，输出对应数量的场景对象数组
     - id 由调用方指定时原样填入；自行生成时必须与已有 id 不同
     - name 必须与已有场景的 name 完全不同（不能只是加数字后缀）
     - description 要有画面感
-    - 只输出 JSON
+    - 只输出 JSON，不要额外文字
 
 expand_outline_system:
   name: "大纲扩写"

@@ -165,9 +165,11 @@ def _generate_entities(llm: object, descriptions: list[str], expected_ids: list[
 
     def parse_result(raw, batch):
         result = parse_llm_json(raw)
-        if isinstance(result, dict):
-            return [result]
-        return result if isinstance(result, list) else None
+        # 模板已改为输出 JSON 数组，直接返回列表
+        if isinstance(result, list):
+            return result
+
+        return None
 
     batch_result = processor.process(
         items=descriptions,

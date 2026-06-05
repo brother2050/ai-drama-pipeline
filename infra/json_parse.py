@@ -36,13 +36,20 @@ def llm_call_with_retry(llm: object, prompt: str, system: str, label: str,
     for attempt in range(retries):
         try:
             raw = llm.chat(prompt, system=system, max_tokens=max_tokens)
+            if not raw:
+                logger.warning(f"  ⚠ {label} 生成失败（{attempt+1}/{retries}）: LLM 返回空内容")
+                continue
             result = parse_llm_json(raw)
             if result:
                 return result
+            # 解析失败但无异常，记录原始输出便于诊断
+            logger.warning(f"  ⚠ {label} 解析失败（{attempt+1}/{retries}）: 无法解析为 JSON")
+            logger.debug(f"  └─ 原始输出预览: {raw[:200]}...")
         except Exception as e:
             logger.warning(f"  ⚠ {label} 生成失败（{attempt+1}/{retries}）: {e}")
         if attempt < retries - 1:
             _time.sleep(2 ** attempt)
+    logger.error(f"  ✗ {label} 生成完全失败（已重试 {retries} 次）")
     return None
 
 
