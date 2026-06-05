@@ -8,44 +8,14 @@ from engines.shot_utils import postprocess_shots as _postprocess_shots
 from engines.prompt_compiler import get_compiler
 
 
+_tpl_cache: dict[str, str] = {}
+
+
 def _tpl(key: str) -> str:
-    """从 prompt_templates.yaml 加载模板"""
-    return get_compiler().get(key)
-
-
-# 惰性加载模板（避免模块导入时执行 YAML 读取，ARCH-03 修复）
-_storyboard_system: str | None = None
-_character_system: str | None = None
-_scene_system: str | None = None
-_expand_system: str | None = None
-
-
-def _get_storyboard_system() -> str:
-    global _storyboard_system
-    if _storyboard_system is None:
-        _storyboard_system = _tpl("storyboard_system")
-    return _storyboard_system
-
-
-def _get_character_system() -> str:
-    global _character_system
-    if _character_system is None:
-        _character_system = _tpl("character_system")
-    return _character_system
-
-
-def _get_scene_system() -> str:
-    global _scene_system
-    if _scene_system is None:
-        _scene_system = _tpl("scene_system")
-    return _scene_system
-
-
-def _get_expand_system() -> str:
-    global _expand_system
-    if _expand_system is None:
-        _expand_system = _tpl("expand_outline_system")
-    return _expand_system
+    """从 prompt_templates.yaml 惰性加载模板（带缓存）"""
+    if key not in _tpl_cache:
+        _tpl_cache[key] = get_compiler().get(key)
+    return _tpl_cache[key]
 
 
 @dataclass
@@ -108,7 +78,7 @@ def generate_storyboard(llm: object, params: StoryboardGenParams) -> list[dict]:
     parts.append(f"\n目标总时长约 {target_duration} 秒，每镜头 2-8 秒。")
 
     from infra.json_parse import llm_call_with_retry
-    raw_shots = llm_call_with_retry(llm, "\n".join(parts), _get_storyboard_system(), "分镜", max_tokens=4096)
+    raw_shots = llm_call_with_retry(llm, "\n".join(parts), _tpl("storyboard_system"), "分镜", max_tokens=4096)
     if not raw_shots or not isinstance(raw_shots, list):
         return []
 
@@ -126,7 +96,7 @@ def generate_characters(llm: object, descriptions: list[str], expected_ids: list
                         existing_characters: list[dict] | None = None) -> list[dict]:
     """从描述生成角色配置 — 全部成功或抛异常"""
     from infra.models import normalize_character
-    results = _generate_entities(llm, descriptions, expected_ids, _get_character_system(), "角色",
+    results = _generate_entities(llm, descriptions, expected_ids, _tpl("character_system"), "角色",
                                  existing_entities=existing_characters, max_tokens=1024)
     for char in results:
         normalize_character(char)
@@ -136,7 +106,7 @@ def generate_characters(llm: object, descriptions: list[str], expected_ids: list
 def generate_scenes(llm: object, descriptions: list[str], expected_ids: list[str] | None = None,
                     existing_scenes: list[dict] | None = None) -> list[dict]:
     """从描述生成场景配置 — 全部成功或抛异常"""
-    return _generate_entities(llm, descriptions, expected_ids, _get_scene_system(), "场景",
+    return _generate_entities(llm, descriptions, expected_ids, _tpl("scene_system"), "场景",
                               existing_entities=existing_scenes, max_tokens=1024)
 
 
@@ -205,8 +175,11 @@ def _generate_entities(llm: object, descriptions: list[str], expected_ids: list[
             continue
         if expected_ids and i < len(expected_ids):
             entity["id"] = expected_ids[i]
+        # LLM 未返回 id 时生成默认 ID
+        if not entity.get("id"):
+            entity["id"] = f"{label}_{i+1}"
         # ID 去重：与已有实体 ID 冲突时生成新 ID
-        eid = entity.get("id", "")
+        eid = entity["id"]
         if eid in used_ids:
             n, orig = 2, eid
             while f"{eid}_{n}" in used_ids:
@@ -238,7 +211,7 @@ def expand_outline(llm: object, outline: str) -> str:
     if not outline.strip():
         return outline
     try:
-        return llm.chat(outline, system=_get_expand_system(), max_tokens=2048)
+        return llm.chat(outline, system=_tpl("expand_outline_system"), max_tokens=2048)
     except Exception as e:
         logger.error(f"大纲扩写失败: {e}", exc_info=True)
         return outline
