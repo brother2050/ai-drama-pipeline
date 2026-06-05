@@ -37,17 +37,6 @@ logger = logging.getLogger(__name__)
 __all__ = ["WorkflowBuilder", "WorkflowBuilderConfig"]
 
 
-def _sort_cover_first(paths: list[str]) -> list[str]:
-    """将 cover.png 排到最前面（面部一致性参考图优先级最高）
-
-    IP-Adapter/PuLID 注入时取 refs[0] 作为参考图，必须保证是正面定妆照
-    而非按字母排序后的 back.png。
-    """
-    covers = [p for p in paths if os.path.basename(p) == "cover.png"]
-    others = [p for p in paths if os.path.basename(p) != "cover.png"]
-    return covers + sorted(others)
-
-
 @dataclass
 class WorkflowBuilderConfig:
     """工作流构建器配置 — 消除 __init__ 的 8 个参数"""
@@ -656,67 +645,42 @@ class WorkflowBuilder:
     # ── 内部方法 ──────────────────────────────────────────
 
     def _get_character_refs(self, char_id: str, outfit: str = "", *, _no_auto_gen: bool = False) -> list[str]:
-        """获取角色参考图路径列表（优先返回 outfit 对应的图）
+        """获取角色面部一致性参考图（IP-Adapter/PuLID 注入用）
 
-        返回值第一个元素是面部一致性参考图（IP-Adapter/PuLID 注入用），
-        因此必须保证 cover.png（正面定妆照）排在最前面，而非五视图全部混入。
+        返回单元素列表 [最佳正面照路径]，而非角色目录下的全部图片。
+        五视图（left_side/back 等）不是面部一致性参考图，不应混入。
+
+        优先级：outfit cover.png → 角色 cover.png → 自动定妆照 → 全局共享库
 
         Args:
             _no_auto_gen: 内部标志，禁止自动触发 ensure_portrait（防止递归）
         """
-        # 实例级缓存：同一 WorkflowBuilder 内避免并发重复查找/生成
         cache_key = f"{char_id}:{outfit}"
         if cache_key in self._refs_cache:
             return self._refs_cache[cache_key]
 
         from engines.portrait import ensure_portrait
-
         char_dir = self._paths.character_asset_dir(char_id)
 
-        # 1. 优先查找 outfit 子目录
+        # 1. 优先查找 outfit 专属参考图（outfit/<key>/cover.png）
         if outfit:
-            outfit_dir = self._paths.character_outfit_dir(char_id, outfit)
-            refs = []
-            if outfit_dir.exists():
-                for ext in ("*.png", "*.jpg", "*.jpeg"):
-                    refs.extend(str(p) for p in outfit_dir.glob(ext))
-            if refs:
-                result = _sort_cover_first(refs)
+            outfit_cover = self._paths.character_outfit_dir(char_id, outfit) / "cover.png"
+            if outfit_cover.exists():
+                result = [str(outfit_cover)]
                 self._refs_cache[cache_key] = result
                 return result
 
-            # outfit 目录为空，尝试触发 ensure_portrait（auto_outfit 会补充 outfit 图）
-            if _no_auto_gen:
-                result = _sort_cover_first(refs)
-                self._refs_cache[cache_key] = result
-                return result
-            portrait = ensure_portrait(char_id, self.config,
-                                       self._get_container(),
-                                       force=self.force)
-            # 重新检查 outfit 目录
-            if outfit_dir.exists():
-                for ext in ("*.png", "*.jpg", "*.jpeg"):
-                    refs.extend(str(p) for p in outfit_dir.glob(ext))
-            if refs:
-                result = _sort_cover_first(refs)
-                self._refs_cache[cache_key] = result
-                return result
-
-        # 2. 回退到角色根目录（重置 refs，避免 outfit 残留污染）
-        refs = []
-        if char_dir.exists():
-            for ext in ("*.png", "*.jpg", "*.jpeg"):
-                refs.extend(str(p) for p in char_dir.glob(ext))
-        if refs:
-            result = _sort_cover_first(refs)
+        # 2. 角色正面定妆照（cover.png）
+        cover = char_dir / "cover.png"
+        if cover.exists():
+            result = [str(cover)]
             self._refs_cache[cache_key] = result
             return result
 
-        # 3. 尝试自动定妆照（主图也不存在时）
+        # 3. 尝试自动定妆照
         if _no_auto_gen:
-            result = _sort_cover_first(refs)
-            self._refs_cache[cache_key] = result
-            return result
+            self._refs_cache[cache_key] = []
+            return []
         portrait = ensure_portrait(char_id, self.config,
                                    self._get_container(),
                                    force=self.force)
@@ -724,13 +688,12 @@ class WorkflowBuilder:
             self._refs_cache[cache_key] = [portrait]
             return [portrait]
 
-        # 4. 从全局主体库查找
-        refs = []
-        shared_dir = self._paths.shared_assets_dir / "characters" / char_id
-        if shared_dir.exists():
-            for ext in ("*.png", "*.jpg", "*.jpeg"):
-                refs.extend(str(p) for p in shared_dir.glob(ext))
+        # 4. 全局共享库
+        shared_cover = self._paths.shared_assets_dir / "characters" / char_id / "cover.png"
+        if shared_cover.exists():
+            result = [str(shared_cover)]
+            self._refs_cache[cache_key] = result
+            return result
 
-        result = _sort_cover_first(refs)
-        self._refs_cache[cache_key] = result
-        return result
+        self._refs_cache[cache_key] = []
+        return []
