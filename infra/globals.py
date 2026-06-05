@@ -43,7 +43,7 @@ def init_globals(
         if _watchdog is not None:
             return  # 已初始化
 
-        from infra.watchdog import WatchDog, HealthCache
+        from infra.monitor import WatchDog, HealthCache
         from infra.concurrency_groups import ConcurrencyGroups
 
         _watchdog = WatchDog(
