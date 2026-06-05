@@ -30,7 +30,7 @@ from infra.constants import is_ascii_only
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["PromptCompiler", "get_compiler"]
+__all__ = ["PromptCompiler", "get_compiler", "tpl"]
 
 # 模板缓存
 _compiler_lock = threading.Lock()
@@ -45,6 +45,11 @@ def get_compiler() -> PromptCompiler:
             if _compiler_instance is None:
                 _compiler_instance = PromptCompiler()
     return _compiler_instance
+
+
+def tpl(key: str) -> str:
+    """快捷获取模板文本（等价于 get_compiler().get(key)）"""
+    return get_compiler().get(key)
 
 
 def _build_first_frame_vars(style, genre, scene, character, action,

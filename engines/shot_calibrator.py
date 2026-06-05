@@ -13,21 +13,11 @@ import logging
 
 from infra.json_parse import llm_call_with_retry
 from engines.shot_utils import postprocess_shots as _postprocess_stage1
-from engines.prompt_compiler import get_compiler
+from engines.prompt_compiler import get_compiler, tpl
 
 logger = logging.getLogger(__name__)
 
 __all__ = ["calibrate_storyboard"]
-
-
-_tpl_cache: dict[str, str] = {}
-
-
-def _tpl(key: str) -> str:
-    """从 prompt_templates.yaml 惰性加载模板（带缓存）"""
-    if key not in _tpl_cache:
-        _tpl_cache[key] = get_compiler().get(key)
-    return _tpl_cache[key]
 
 
 # ══════════════════════════════════════════════════════════
@@ -50,7 +40,7 @@ def calibrate_storyboard(llm: object, params: object) -> list[dict]:
     if on_stage_progress:
         on_stage_progress(1, 3, "叙事骨架")
     logger.info("Stage 1/3: 叙事骨架...")
-    skeleton = llm_call_with_retry(llm, context, _tpl("shot_stage1_system"), "叙事骨架", max_tokens=4096)
+    skeleton = llm_call_with_retry(llm, context, tpl("shot_stage1_system"), "叙事骨架", max_tokens=4096)
     if not skeleton or not isinstance(skeleton, list):
         logger.error("Stage 1 失败，回退到单次生成")
         return _fallback_generate(llm, params)
@@ -62,7 +52,7 @@ def calibrate_storyboard(llm: object, params: object) -> list[dict]:
     if on_stage_progress:
         on_stage_progress(2, 3, "视觉描述")
     logger.info("Stage 2/3: 视觉描述...")
-    enriched = _enrich_stage(llm, shots, _tpl("shot_stage2_system"), "视觉描述", required_fields=["action", "dialogue"])
+    enriched = _enrich_stage(llm, shots, tpl("shot_stage2_system"), "视觉描述", required_fields=["action", "dialogue"])
     if enriched:
         shots = enriched
         logger.info("  ✅ 视觉描述完成")
@@ -73,7 +63,7 @@ def calibrate_storyboard(llm: object, params: object) -> list[dict]:
     if on_stage_progress:
         on_stage_progress(3, 3, "AI 绘图 Prompt")
     logger.info("Stage 3/3: AI 绘图 Prompt...")
-    enriched = _enrich_stage(llm, shots, _tpl("shot_stage3_system"), "AI 绘图", required_fields=["image_prompt_en"])
+    enriched = _enrich_stage(llm, shots, tpl("shot_stage3_system"), "AI 绘图", required_fields=["image_prompt_en"])
     if enriched:
         shots = enriched
         logger.info("  ✅ AI 绘图 Prompt 完成")

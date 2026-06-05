@@ -5,17 +5,7 @@ import logging
 from dataclasses import dataclass, field
 
 from engines.shot_utils import postprocess_shots as _postprocess_shots
-from engines.prompt_compiler import get_compiler
-
-
-_tpl_cache: dict[str, str] = {}
-
-
-def _tpl(key: str) -> str:
-    """从 prompt_templates.yaml 惰性加载模板（带缓存）"""
-    if key not in _tpl_cache:
-        _tpl_cache[key] = get_compiler().get(key)
-    return _tpl_cache[key]
+from engines.prompt_compiler import get_compiler, tpl
 
 
 @dataclass
@@ -78,7 +68,7 @@ def generate_storyboard(llm: object, params: StoryboardGenParams) -> list[dict]:
     parts.append(f"\n目标总时长约 {target_duration} 秒，每镜头 2-8 秒。")
 
     from infra.json_parse import llm_call_with_retry
-    raw_shots = llm_call_with_retry(llm, "\n".join(parts), _tpl("storyboard_system"), "分镜", max_tokens=4096)
+    raw_shots = llm_call_with_retry(llm, "\n".join(parts), tpl("storyboard_system"), "分镜", max_tokens=4096)
     if not raw_shots or not isinstance(raw_shots, list):
         return []
 
@@ -97,7 +87,7 @@ def generate_characters(llm: object, descriptions: list[str], expected_ids: list
     """从描述生成角色配置 — 全部成功或抛异常"""
     from infra.models import normalize_character
     from engines.prompt import _extract_body_features
-    results = _generate_entities(llm, descriptions, expected_ids, _tpl("character_system"), "角色",
+    results = _generate_entities(llm, descriptions, expected_ids, tpl("character_system"), "角色",
                                  existing_entities=existing_characters, max_tokens=1024)
     for char in results:
         normalize_character(char)
@@ -110,7 +100,7 @@ def generate_characters(llm: object, descriptions: list[str], expected_ids: list
 def generate_scenes(llm: object, descriptions: list[str], expected_ids: list[str] | None = None,
                     existing_scenes: list[dict] | None = None) -> list[dict]:
     """从描述生成场景配置 — 全部成功或抛异常"""
-    return _generate_entities(llm, descriptions, expected_ids, _tpl("scene_system"), "场景",
+    return _generate_entities(llm, descriptions, expected_ids, tpl("scene_system"), "场景",
                               existing_entities=existing_scenes, max_tokens=1024)
 
 
@@ -215,7 +205,7 @@ def expand_outline(llm: object, outline: str) -> str:
     if not outline.strip():
         return outline
     try:
-        return llm.chat(outline, system=_tpl("expand_outline_system"), max_tokens=2048)
+        return llm.chat(outline, system=tpl("expand_outline_system"), max_tokens=2048)
     except Exception as e:
         logger.error(f"大纲扩写失败: {e}", exc_info=True)
         return outline

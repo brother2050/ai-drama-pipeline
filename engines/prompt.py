@@ -26,11 +26,7 @@ class PromptBuildParams:
     registry: object = None  # ModelRegistry 实例
     character_bible: str = ""
 
-
-def _tpl(key: str) -> str:
-    """从 prompt_templates.yaml 惰性加载模板"""
-    from engines.prompt_compiler import get_compiler
-    return get_compiler().get(key)
+from engines.prompt_compiler import tpl
 
 
 # 身体特征关键词（从 prompt_en 中提取）
@@ -92,7 +88,7 @@ def batch_generate_appearance_prompts(characters: list[dict], llm: object) -> di
     from infra.json_parse import parse_llm_json
 
     processor = AdaptiveBatchProcessor(llm)
-    system = _tpl("appearance_prompt_system")
+    system = tpl("appearance_prompt_system")
 
     def build_prompts(batch):
         parts = []
@@ -319,7 +315,7 @@ def translate_to_english(text: str, llm: object = None) -> str:
         return ""
     try:
         result = llm.chat(f"Translate to English: {text}",
-                          system=_tpl("translate_system") or "You are a professional translator. Output only the translation, no explanations.")
+                          system=tpl("translate_system") or "You are a professional translator. Output only the translation, no explanations.")
         return result.strip() if result and result.strip() else ""
     except Exception as e:
         logger.warning(f"翻译失败: {e}")
@@ -337,7 +333,7 @@ def batch_translate_to_english(texts: list[str], llm: object = None) -> list[str
 
     from infra.batch_processor import AdaptiveBatchProcessor, estimate_tokens
     processor = AdaptiveBatchProcessor(llm)
-    system_prompt = _tpl("batch_translate_system") or "You are a professional translator. The user will send numbered Chinese texts.\nTranslate each to English. Output ONLY the translations, one per line, keeping the same numbering.\nDo not add explanations. If a line is already English, output it unchanged."
+    system_prompt = tpl("batch_translate_system") or "You are a professional translator. The user will send numbered Chinese texts.\nTranslate each to English. Output ONLY the translations, one per line, keeping the same numbering.\nDo not add explanations. If a line is already English, output it unchanged."
     batch_items = list(zip(need_idx, need_text))
 
     batch_result = processor.process(
