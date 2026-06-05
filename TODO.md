@@ -10,7 +10,6 @@
 |---|------|------|
 | 7 | `engines/storyboard.py` | `append_storyboard` 中 `int("")` 静默跳过，用户无感知丢弃镜头 |
 | 12 | `engines/llm_generator.py` | `_generate_entities` 不检查空 dict `{}`，空结果被当作成功 |
-| 14 | `engines/shot_calibrator.py` | shot_id 有误时（"001" vs "1"）错误按索引匹配，字段写入错误镜头 |
 | 17 | `engines/shot_utils.py` | `postprocess_shots` 去重和格式校验是 OR 关系，合法 sid 可能被覆盖 |
 | 20 | `engines/workflow_builder.py` | 未知图像后端回退到空工作流，静默返回无输出 |
 | 22 | `engines/workflow_builder.py` | `_setup_img2img` 文件名在上传前设置，ComfyUI 可能找不到文件 |
@@ -64,4 +63,5 @@
 | P1 #34 | `pipeline/tasks/steps.py` | `ba01fd3` — ShotManager 实例缓存 |
 | P1 #101 | `engines/shot_utils.py` | `ba01fd3` — 引号清理扩展中文引号 |
 | P1 #84 | `web/routers/storyboard.py` | 已有 episode 校验（代码已修复） |
+| P1 #14 | `engines/shot_calibrator.py` | `9f8d23f` — shot_id 匹配规范化为三位数 |
 | — | `engines/llm_generator.py` | `24793fe` — 已有实体上下文注入 |
