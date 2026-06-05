@@ -83,21 +83,6 @@ registry.register(BackendMeta(name="ollama", service_type="llm", factory=_f,
 
 class OpenAICompatLLM:
     """OpenAI 兼容 LLM 后端"""
-    _MODEL_CTX_MAP = {
-        "qwen3": 131072, "qwen2.5": 32768, "qwen2": 32768, "qwen": 32768,
-        "deepseek-v3": 65536, "deepseek-r1": 65536, "deepseek": 32768,
-        "gpt-4o": 128000, "gpt-4-turbo": 128000, "gpt-4": 8192,
-        "gpt-3.5": 16384,
-        "claude-3": 200000, "claude-2": 100000,
-        "glm-4": 128000, "glm-3": 8192,
-        "yi-1.5": 32768, "yi-34b": 200000, "yi": 4096,
-        "llama-3": 8192, "llama3": 8192, "llama-2": 4096,
-        "mistral": 32768, "mixtral": 32768,
-        "phi-3": 128000, "phi3": 128000,
-        "internlm2": 32768, "internlm": 8192,
-        "chatglm3": 8192, "chatglm4": 128000,
-        "gemini": 1000000,
-    }
 
     def __init__(self, config: dict):
         self._url = (config.get("base_url") or "").rstrip("/")
@@ -116,14 +101,17 @@ class OpenAICompatLLM:
 
     @property
     def context_length(self) -> int:
-        """模型上下文长度（优先配置值，否则按模型名猜）"""
+        """模型上下文长度（优先配置值，否则从注册表查询）"""
         if self._ctx > 0:
             return self._ctx
-        model_lower = self._model.lower()
-        for keyword, ctx in self._MODEL_CTX_MAP.items():
-            if keyword in model_lower:
-                return ctx
-        return 8192
+        try:
+            from flow.model_registry import ModelRegistry
+            limits = ModelRegistry().get_model_limits(self._model)
+            self._ctx = limits["context_window"]
+            return self._ctx
+        except Exception:
+            self._ctx = 8192
+            return 8192
 
     def chat(self, prompt: str, system: str = "", **kwargs) -> str:
         messages = []
