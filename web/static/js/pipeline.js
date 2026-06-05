@@ -73,8 +73,8 @@ function renderWB(episodes) {
       <button class="btn btn-outline" onclick="redo()" title="Ctrl+Shift+Z">↪ ${t('undo.redo')}</button>
       <label class="force-toggle" title="${t('wb.force_overwrite')}"><input type="checkbox" id="wb-force-cb"> ${t('wb.force_overwrite')}</label>
       <span class="dim" style="margin:0 0.3rem">|</span>
-      <button class="btn btn-primary" onclick="runPrepare()" title="${t('wb.prepare_hint')}">${t('wb.prepare')}</button>
       <button class="btn btn-outline" onclick="runBible()" title="${t('wb.bible_hint')}">${t('wb.bible')}</button>
+      <button class="btn btn-primary" onclick="runPrepare()" title="${t('wb.prepare_hint')}">${t('wb.prepare')}</button>
       <button class="btn btn-outline" onclick="runPortraits()">📸 ${t('wb.gen_portraits')}</button>
       <button class="btn btn-outline" onclick="runSceneImages()">🏔 ${t('wb.gen_scene_images')}</button>
       <span class="dim" style="margin:0 0.3rem">|</span>
