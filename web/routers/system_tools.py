@@ -88,8 +88,7 @@ _ALLOWED_SYS_KEYS = {"models", "comfyui", "llm", "seko", "training", "server", "
 @router.post("/system/config")
 def update_system_config(data: dict = Body(...)):
     """更新系统全局配置（仅允许白名单字段）"""
-    from infra.config import save_config, load_config, SYSTEM_CONFIG_PATH, Config
-    import tempfile
+    from infra.config import save_config, load_config, SYSTEM_CONFIG_PATH
     filtered = {k: v for k, v in data.items() if k in _ALLOWED_SYS_KEYS}
     if not filtered:
         raise HTTPException(400, "无有效的配置字段")
@@ -98,25 +97,13 @@ def update_system_config(data: dict = Body(...)):
     except Exception:
         existing = {}
     merged = _deep_merge(existing, filtered)
-    # 校验合并后的配置合法性
-    tmp = None
-    try:
-        fd, tmp = tempfile.mkstemp(suffix=".yaml", dir=str(Path(SYSTEM_CONFIG_PATH).parent))
-        os.close(fd)
-        save_config(tmp, merged)
-        Config(tmp)
-    except ValueError as e:
-        raise HTTPException(400, f"配置校验失败: {e}")
-    except Exception as e:
-        raise HTTPException(500, f"配置校验异常: {e}")
-    finally:
-        if tmp:
-            try:
-                os.unlink(tmp)
-            except OSError:
-                logger.debug("临时文件清理")
-                pass
     save_config(SYSTEM_CONFIG_PATH, merged)
+    # 通知 Config 实例热重载
+    try:
+        from infra.config import invalidate_config_cache
+        invalidate_config_cache(SYSTEM_CONFIG_PATH)
+    except Exception:
+        pass
     return {"status": "ok"}
 
 
@@ -443,25 +430,13 @@ def update_config(req: ConfigUpdate):
     except Exception:
         existing = {}
     merged = _deep_merge(existing, data)
-    from infra.config import Config
-    import tempfile
-    tmp = None
-    try:
-        fd, tmp = tempfile.mkstemp(suffix=".yaml", dir=str(Path(cfg_path).parent))
-        os.close(fd)
-        save_config(tmp, merged)
-        Config(tmp)
-    except ValueError as e:
-        raise HTTPException(400, f"配置校验失败: {e}")
-    except Exception as e:
-        raise HTTPException(500, f"配置校验异常: {e}")
-    finally:
-        if tmp:
-            try:
-                os.unlink(tmp)
-            except OSError as e:
-                logger.debug(f"{type(e).__name__}: {e}")
     save_config(cfg_path, merged)
+    # 通知 Config 实例热重载
+    try:
+        from infra.config import invalidate_config_cache
+        invalidate_config_cache(cfg_path)
+    except Exception:
+        pass
     return {"status": "ok"}
 
 
