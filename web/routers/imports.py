@@ -206,6 +206,20 @@ def seko_import_proposal(req: SekoImportRequest) -> dict:
 # LoRA 训练
 # ══════════════════════════════════════════════════════════
 
+@router.post("/training/trigger")
+def save_training_trigger(char_id: str, trigger: str = "") -> dict:
+    """保存角色的 LoRA 触发词到 YAML"""
+    _check_id(char_id, "角色 ID")
+    from infra.config import load_yaml_full, save_yaml
+    char_yaml = _paths().character_yaml(char_id)
+    if not char_yaml.exists():
+        raise HTTPException(404, f"角色 {char_id} 不存在")
+    data = load_yaml_full(char_yaml)
+    data.setdefault("character", {})["lora_trigger"] = trigger
+    save_yaml(char_yaml, data)
+    return {"status": "ok", "char_id": char_id, "lora_trigger": trigger}
+
+
 @router.post("/training/lora")
 def train_lora(req: TrainingRequest) -> dict:
     _check_id(req.char_id, "角色 ID")
