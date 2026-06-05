@@ -129,6 +129,7 @@ class CharacterData(BaseModel):
     appearance_prompt_en: str = Field("", max_length=4000, description="英文外貌 prompt")
     body_features: str = Field("", max_length=2000, description="身体特征（纹身/伤疤等）")
     bible: dict | None = None
+    lora_trigger: str = Field("", max_length=200, description="LoRA 训练触发词")
 
     @field_validator("id")
     @classmethod
