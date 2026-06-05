@@ -172,10 +172,19 @@ def _run_concurrent(self, config_path, episode, shots, force, progress_base, pro
         return _run
 
     tasks = [_make_task(i, shot) for i, shot in enumerate(shots)]
-    raw_results = run_staggered_sync(tasks, max_concurrent=2, stagger_ms=3000,
-        on_progress=lambda c, t, m: self.update_state(state="PROGRESS",
-            meta={"step": "shots", "progress": int(progress_base + c / total * progress_range),
-                  "message": f"[{c}/{t}] {m}"}))
+    try:
+        raw_results = run_staggered_sync(tasks, max_concurrent=2, stagger_ms=3000,
+            on_progress=lambda c, t, m: self.update_state(state="PROGRESS",
+                meta={"step": "shots", "progress": int(progress_base + c / total * progress_range),
+                      "message": f"[{c}/{t}] {m}"}))
+    except Exception as e:
+        logger.error(f"并发执行器异常: {e}", exc_info=True)
+        # 降级：所有镜头标记失败
+        for i, shot in enumerate(shots):
+            shot_id = shot.get("shot_id", f"{i+1:03d}")
+            results.append({"shot_id": shot_id, "error": f"并发执行器异常: {e}"})
+            failed_indices.append(i)
+        return results, failed_indices
 
     for i, (shot, raw) in enumerate(zip(shots, raw_results)):
         shot_id = shot.get("shot_id", f"{i+1:03d}")

@@ -65,6 +65,8 @@ def _collect_tools(cfg: dict) -> dict:
             name = futures[fut]
             try:
                 tools[name] = fut.result(timeout=10)
+            except TimeoutError:
+                tools[name] = {"available": False, "backend": "unknown", "type": "unknown", "reason": "检测超时"}
             except Exception as e:
                 tools[name] = {"available": False, "backend": "unknown", "type": "unknown", "reason": str(e)}
     except TimeoutError:
