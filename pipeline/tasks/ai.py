@@ -170,6 +170,88 @@ def ai_scenes_task(self, config_path: str, descriptions: list[str]) -> dict:
 
 
 # ══════════════════════════════════════════════════════════
+#  角色圣经生成（独立任务）
+# ══════════════════════════════════════════════════════════
+
+_BIBLE_REQUIRED_FIELDS = ("speech_patterns", "relationships", "emotional_range", "body_language")
+
+
+def _bible_is_incomplete(bible: dict) -> bool:
+    """检查 bible 是否缺少关键字段（只有 core_traits 视为不完整）"""
+    if not bible or not isinstance(bible, dict):
+        return True
+    for field in _BIBLE_REQUIRED_FIELDS:
+        val = bible.get(field)
+        if not val or (isinstance(val, (dict, list)) and not val):
+            return True
+    return False
+
+
+@app.task(bind=True, name="pipeline_ai_bibles", soft_time_limit=300)
+def ai_bible_task(self, config_path: str) -> dict:
+    """为 bible 不完整的角色自动生成圣经"""
+    with _project_scope_from_config(config_path):
+        return _ai_bible_inner(self, config_path)
+
+
+def _ai_bible_inner(self, config_path: str) -> dict:
+    from infra.config import load_yaml_entities, load_yaml_full, save_yaml
+    from engines.character_bible import generate_bible
+
+    cfg, cont = _init_ctx(config_path)
+    paths = cfg.paths
+
+    try:
+        llm = cont.get("llm")
+    except Exception as e:
+        return {"status": STATUS_ERROR, "reason": f"LLM 初始化失败: {e}"}
+
+    chars = load_yaml_entities(paths.characters_dir, "character")
+    incomplete = [c for c in chars if _bible_is_incomplete(c.get("bible", {}))]
+    if not incomplete:
+        return {"status": STATUS_DONE, "message": "所有角色圣经已完整", "count": 0}
+
+    self.update_state(state="PROGRESS", meta={"step": "bible", "progress": 10,
+                      "message": f"正在为 {len(incomplete)} 个角色生成圣经..."})
+
+    count = 0
+    errors = []
+    for i, char in enumerate(incomplete):
+        cid = char.get("id", "?")
+        self.update_state(state="PROGRESS", meta={"step": "bible", "progress": int(10 + 80 * i / len(incomplete)),
+                          "message": f"生成角色圣经: {char.get('name', cid)}..."})
+        try:
+            bible = generate_bible(llm, char)
+            if not bible:
+                errors.append(f"{cid}: LLM 返回空")
+                continue
+            existing_bible = char.get("bible", {}) or {}
+            merged = {**existing_bible, **bible}
+            merged.setdefault("core_traits", existing_bible.get("core_traits", ""))
+            merged.setdefault("core_traits_en", existing_bible.get("core_traits_en", ""))
+            char["bible"] = merged
+
+            fpath = paths.character_yaml(cid)
+            data = load_yaml_full(fpath) if fpath.exists() else {"character": {}}
+            data.setdefault("character", {})["bible"] = merged
+            save_yaml(fpath, data)
+            count += 1
+            logger.info(f"  ✅ 角色 {cid} 圣经已生成")
+        except Exception as e:
+            errors.append(f"{cid}: {e}")
+            logger.warning(f"  ⚠ 角色 {cid} 圣经生成异常: {e}")
+
+    msg = f"完成: {count}/{len(incomplete)} 个角色圣经已生成"
+    if errors:
+        msg += f"，{len(errors)} 个失败"
+    self.update_state(state="PROGRESS", meta={"step": "bible", "progress": 100, "message": msg})
+    result = {"status": STATUS_DONE, "message": msg, "count": count}
+    if errors:
+        result["errors"] = errors
+    return result
+
+
+# ══════════════════════════════════════════════════════════
 #  对话式编辑 — LLM Chat Edit
 # ══════════════════════════════════════════════════════════
 
@@ -505,59 +587,6 @@ def _run_quality_gate(paths, result: dict) -> None:
         logger.debug(f"质量门禁跳过: {e}")
 
 
-_BIBLE_REQUIRED_FIELDS = ("speech_patterns", "relationships", "emotional_range", "body_language")
-
-
-def _bible_is_incomplete(bible: dict) -> bool:
-    """检查 bible 是否缺少关键字段（只有 core_traits 视为不完整）"""
-    if not bible or not isinstance(bible, dict):
-        return True
-    for field in _BIBLE_REQUIRED_FIELDS:
-        val = bible.get(field)
-        if not val or (isinstance(val, (dict, list)) and not val):
-            return True
-    return False
-
-
-def _ensure_bibles(llm, paths) -> int:
-    """为 bible 不完整的角色自动生成圣经，返回补全数"""
-    from infra.config import load_yaml_entities, load_yaml_full, save_yaml
-    from engines.character_bible import generate_bible
-
-    chars = load_yaml_entities(paths.characters_dir, "character")
-    incomplete = [c for c in chars if _bible_is_incomplete(c.get("bible", {}))]
-    if not incomplete:
-        return 0
-
-    logger.info(f"发现 {len(incomplete)} 个角色圣经不完整，自动生成...")
-    count = 0
-    for char in incomplete:
-        cid = char.get("id", "?")
-        try:
-            bible = generate_bible(llm, char)
-            if not bible:
-                logger.warning(f"  ⚠ 角色 {cid} 圣经生成失败（LLM 返回空）")
-                continue
-            # 合并：保留已有的 core_traits/core_traits_en，补全其他字段
-            existing_bible = char.get("bible", {}) or {}
-            merged = {**existing_bible, **bible}
-            merged.setdefault("core_traits", existing_bible.get("core_traits", ""))
-            merged.setdefault("core_traits_en", existing_bible.get("core_traits_en", ""))
-            char["bible"] = merged
-
-            # 回写 YAML
-            fpath = paths.character_yaml(cid)
-            data = load_yaml_full(fpath) if fpath.exists() else {"character": {}}
-            data.setdefault("character", {})["bible"] = merged
-            save_yaml(fpath, data)
-            count += 1
-            logger.info(f"  ✅ 角色 {cid} 圣经已补全")
-        except Exception as e:
-            logger.warning(f"  ⚠ 角色 {cid} 圣经生成异常: {e}")
-
-    return count
-
-
 def _ai_prepare_inner(self, config_path, episode, force, translate):
     """准备阶段核心逻辑（在 project_scope 内执行）"""
     from engines.prompt import batch_translate_to_english
@@ -575,24 +604,17 @@ def _ai_prepare_inner(self, config_path, episode, force, translate):
     except Exception as e:
         return {"status": STATUS_ERROR, "reason": f"LLM 初始化失败: {e}"}
 
-    # 1. 补全空的 bible 字段（角色圣经）
-    self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 8, "message": "检查角色圣经..."})
-    bible_count = _ensure_bibles(llm, paths)
-
-    # 2. 收集待翻译文本
-    self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 15, "message": "扫描角色/场景/分镜..."})
+    # 1. 收集待翻译文本
+    self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 10, "message": "扫描角色/场景/分镜..."})
     all_texts, text_meta = _collect_translation_texts(paths, force)
     shots = load_storyboard(episode)
     _collect_shot_texts(shots, all_texts, text_meta, force)
 
     if not all_texts:
-        result = {"status": STATUS_DONE, "message": "无需翻译（所有字段已有英文版）",
-                  "characters": 0, "scenes": 0, "shots": 0}
-        if bible_count:
-            result["bibles_generated"] = bible_count
-        return result
+        return {"status": STATUS_DONE, "message": "无需翻译（所有字段已有英文版）",
+                "characters": 0, "scenes": 0, "shots": 0}
 
-    # 3. 批量翻译
+    # 2. 批量翻译
     self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 40,
                       "message": f"正在翻译 {len(all_texts)} 条文本..."})
     try:
@@ -600,7 +622,7 @@ def _ai_prepare_inner(self, config_path, episode, force, translate):
     except Exception as e:
         return {"status": STATUS_ERROR, "reason": f"翻译失败: {e}"}
 
-    # 4. 回写 + 视角 prompt
+    # 3. 回写 + 视角 prompt
     self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 80, "message": "正在保存..."})
     translated, char_cache = _writeback_translations(text_meta, results, paths, episode, shots)
 
@@ -608,12 +630,8 @@ def _ai_prepare_inner(self, config_path, episode, force, translate):
     translated["view_prompts"] = _generate_view_prompts(char_cache, llm, paths)
 
     msg = f"翻译完成: {translated['characters']} 角色, {translated['scenes']} 场景, {translated['shots']} 镜头"
-    if bible_count:
-        msg += f"，补全 {bible_count} 个角色圣经"
     self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 100, "message": msg})
     result = {"status": STATUS_DONE, "message": msg, **translated}
-    if bible_count:
-        result["bibles_generated"] = bible_count
     _run_quality_gate(paths, result)
     return result
 

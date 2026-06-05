@@ -211,10 +211,11 @@ def batch_delete_storyboard_shots(episode: int, req: StoryboardBatchDeleteReques
 
 @router.post("/pipeline/run")
 def run_pipeline(req: PipelineRequest) -> dict:
-    from pipeline.tasks import preview_task, produce_task, post_task, ai_prepare_task
+    from pipeline.tasks import preview_task, produce_task, post_task, ai_prepare_task, ai_bible_task
     cfg = _cfg_path()
     dispatch = {
         "preview": lambda: _submit_task(preview_task, cfg, req.episode, req.level, req.force),
+        "bible":   lambda: _submit_task(ai_bible_task, cfg),
         "prepare": lambda: _submit_task(ai_prepare_task, cfg, req.episode, force=req.force, translate=True),
         "produce": lambda: _submit_task(produce_task, cfg, req.episode, force=req.force),
         "post":    lambda: _submit_task(post_task, cfg, req.episode, req.vertical),
@@ -258,6 +259,14 @@ def llm_generate_scenes(req: SceneGenRequest) -> dict:
     cfg = _cfg_path()
     from pipeline.tasks import ai_scenes_task
     return _submit_task(ai_scenes_task, cfg, req.descriptions)
+
+
+@router.post("/llm/bibles")
+def llm_generate_bibles() -> dict:
+    """为 bible 不完整的角色自动生成圣经"""
+    cfg = _cfg_path()
+    from pipeline.tasks import ai_bible_task
+    return _submit_task(ai_bible_task, cfg)
 
 
 @router.post("/llm/chat-edit")
