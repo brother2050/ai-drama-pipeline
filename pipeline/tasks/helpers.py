@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from infra.constants import STATUS_RUNNING, STATUS_DONE, STATUS_ERROR, STATUS_SKIPPED
 import logging
+import os
 import sys
 import threading
 from dataclasses import dataclass
@@ -336,3 +337,46 @@ def _validate_output(path: str, step: str, *, min_size: int = 0) -> str | None:
 def _paths(config_path: str) -> "ProjectPaths":
     """获取统一路径管理对象"""
     return _get_config(config_path).paths
+
+
+def comfyui_generate(shot_id: str, step: str, comfyui, workflow: dict, out_dir: Path,
+                     output_name: str, min_size: int = 500) -> dict:
+    """ComfyUI 生成通用流程 — 看门狗跟踪 + 并发组限流 + 重试 + 输出校验
+
+    消除 frame.py / video.py 中重复的 _do_generate + safe_run + 验证模式。
+
+    Args:
+        shot_id: 镜头 ID
+        step: 步骤名（如 "first_frame" / "video"）
+        comfyui: ComfyUI 后端实例
+        workflow: ComfyUI 工作流
+        out_dir: 输出目录
+        output_name: 输出文件名（如 "frame.png" / "video.mp4"）
+        min_size: 最小文件大小（bytes）
+
+    Returns:
+        {"status": "done"/"error", ...}
+    """
+    from infra.globals import get_watchdog, get_concurrency_groups
+    from infra.safe_executor import safe_run
+    wd = get_watchdog()
+    groups = get_concurrency_groups()
+
+    def _do():
+        with groups.acquire("comfyui"):
+            with wd.track(f"{shot_id}:{step}", backend="comfyui"):
+                return comfyui.generate(workflow, str(out_dir))
+
+    try:
+        files = safe_run(_do, retries=2, base_delay=2.0, task_id=f"{shot_id}:{step}")
+    except Exception as e:
+        return _err(shot_id, step, f"ComfyUI {step} 失败: {e}")
+    if not files:
+        return _err(shot_id, step, f"ComfyUI 未返回任何文件")
+
+    out_path = str(out_dir / output_name)
+    os.replace(files[0], out_path)
+    err = _validate_output(out_path, step, min_size=min_size)
+    if err:
+        return _err(shot_id, step, err)
+    return _done(shot_id, step, out_path)

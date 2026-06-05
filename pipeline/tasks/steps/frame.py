@@ -7,8 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from engines.shot_utils import parse_char_ids
-from infra.constants import ERR_NOT_PREPARED
-from pipeline.tasks.helpers import _skip, _err, _done, _validate_output
+from infra.constants import ERR_NOT_PREPARED, STATUS_DONE
+from pipeline.tasks.helpers import _skip, _err
 
 logger = logging.getLogger(__name__)
 
@@ -222,30 +222,13 @@ def first_frame_core(p: FirstFrameParams) -> dict:
     if not wf:
         return _err(p.shot_id, "first_frame", "首帧工作流为空（缺少模板）")
 
-    from infra.globals import get_watchdog, get_concurrency_groups
-    from infra.safe_executor import safe_run
-    wd = get_watchdog()
-    groups = get_concurrency_groups()
+    from pipeline.tasks.helpers import comfyui_generate
 
     comfyui = p.cont.get("image")
     _check_lora_availability(wf, paths, p.cfg, comfyui)
     wf = _upload_reference_images(wf, shot, wb, comfyui, paths)
 
-    def _do_generate():
-        with groups.acquire("comfyui"):
-            with wd.track(f"{p.shot_id}:first_frame", backend="comfyui"):
-                return comfyui.generate(wf, str(p.out_dir))
-
-    try:
-        files = safe_run(_do_generate, retries=2, base_delay=2.0, task_id=f"{p.shot_id}:first_frame")
-    except Exception as e:
-        return _err(p.shot_id, "first_frame", f"ComfyUI 首帧生成失败: {e}")
-    if not files:
-        return _err(p.shot_id, "first_frame", "ComfyUI 未返回任何图片")
-
-    frame_path = str(p.out_dir / "frame.png")
-    os.replace(files[0], frame_path)
-    err = _validate_output(frame_path, "first_frame", min_size=500)
-    if err:
-        return _err(p.shot_id, "first_frame", err)
-    return _done(p.shot_id, "first_frame", frame_path, prompt=prompt.get("positive", ""))
+    result = comfyui_generate(p.shot_id, "first_frame", comfyui, wf, p.out_dir, "frame.png", min_size=500)
+    if result.get("status") != STATUS_DONE:
+        return result
+    return {**result, "prompt": prompt.get("positive", "")}

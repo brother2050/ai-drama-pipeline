@@ -6,7 +6,7 @@ import os
 import re
 from pathlib import Path
 
-from pipeline.tasks.helpers import _skip, _err, _done, _validate_output
+from pipeline.tasks.helpers import _skip, _err
 
 logger = logging.getLogger(__name__)
 
@@ -88,26 +88,5 @@ def video_core(shot_id: str, cfg, cont, out_dir: Path, *, shot: dict | None = No
     server_filename = _safe_server_filename(project_name, ep_tag, shot_id)
     video_wf = _upload_first_frame_if_needed(video_wf, frame_path, server_filename, paths, cont.get("video"))
 
-    from infra.globals import get_watchdog, get_concurrency_groups
-    from infra.safe_executor import safe_run
-    wd = get_watchdog()
-    groups = get_concurrency_groups()
-
-    def _do_generate():
-        with groups.acquire("comfyui"):
-            with wd.track(f"{shot_id}:video", backend="comfyui"):
-                return cont.get("video").generate(video_wf, str(out_dir))
-
-    try:
-        files = safe_run(_do_generate, retries=2, base_delay=2.0, task_id=f"{shot_id}:video")
-    except Exception as e:
-        return _err(shot_id, "video", f"视频生成失败: {e}")
-
-    if not files:
-        return _err(shot_id, "video", "ComfyUI 未返回任何视频")
-    video_path = str(out_dir / "video.mp4")
-    os.replace(files[0], video_path)
-    err = _validate_output(video_path, "video", min_size=10000)
-    if err:
-        return _err(shot_id, "video", err)
-    return _done(shot_id, "video", video_path)
+    from pipeline.tasks.helpers import comfyui_generate
+    return comfyui_generate(shot_id, "video", cont.get("video"), video_wf, out_dir, "video.mp4", min_size=10000)
