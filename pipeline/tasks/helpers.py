@@ -10,6 +10,29 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# ── Config 实例缓存（避免 _shot_dir/_paths/_check_available 每次 new Config）──
+_cfg_cache: dict[str, object] = {}  # config_path → Config
+_cfg_cache_lock = threading.Lock()
+
+
+def _get_config(config_path: str):
+    """获取缓存的 Config 实例（mtime 变化时自动重载）"""
+    from infra.config import Config
+    # 快速路径：已缓存
+    with _cfg_cache_lock:
+        cfg = _cfg_cache.get(config_path)
+        if cfg is not None:
+            cfg._check_reload()
+            return cfg
+    # 慢路径：首次创建
+    cfg = Config(config_path)
+    with _cfg_cache_lock:
+        existing = _cfg_cache.get(config_path)
+        if existing is not None:
+            return existing  # 另一线程已创建
+        _cfg_cache[config_path] = cfg
+    return cfg
+
 
 def _ensure_path():
     from infra.config import get_root
@@ -53,15 +76,13 @@ def _find_shot(episode: int, shot_id: str) -> dict | None:
 
 
 def _shot_dir(config_path: str, episode: int, shot_id: str) -> Path:
-    from infra.config import Config
-    return Config(config_path).paths.shot_dir(episode, shot_id)
+    return _get_config(config_path).paths.shot_dir(episode, shot_id)
 
 
 def _check_available(tool_name: str, config_path: str) -> tuple[bool, str]:
-    """检测工具可用性。Config 内部有 mtime 缓存，重复调用开销很小。"""
-    from infra.config import Config
+    """检测工具可用性"""
     from infra.toolcheck import check_tool
-    result = check_tool(tool_name, Config(config_path).data)
+    result = check_tool(tool_name, _get_config(config_path).data)
     return result["available"], result.get("reason", "")
 
 
@@ -140,6 +161,9 @@ def invalidate_ctx_cache():
     当角色/场景 YAML 文件变化时调用，强制下次 _build_ctx 重建 Config + Container。
     """
     global _ctx_cache
+    # 同时清除 Config 实例缓存
+    with _cfg_cache_lock:
+        _cfg_cache.clear()
     with _ctx_lock:
         if _ctx_cache is not None:
             cfg, cont = _ctx_cache[1], _ctx_cache[2]
@@ -319,8 +343,7 @@ def _validate_output(path: str, step: str, *, min_size: int = 0) -> str | None:
 
 def _paths(config_path: str) -> "ProjectPaths":
     """获取统一路径管理对象"""
-    from infra.config import Config
-    return Config(config_path).paths
+    return _get_config(config_path).paths
 
 
 def _unique_hash_id(prefix: str, name: str, existing: dict) -> str:
