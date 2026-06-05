@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -17,18 +18,20 @@ ROOT = _get_root()
 
 _cfg_path_cache: str | None = None
 _cfg_instance = None
+_cfg_lock = threading.Lock()
 
 
 def _get_config():
-    """获取缓存的 Config 实例（mtime 变化时自动重载）"""
+    """获取缓存的 Config 实例（mtime 变化时自动重载，线程安全）"""
     global _cfg_instance
     from infra.config import Config
     path = _cfg_path()
-    if _cfg_instance is None or _cfg_instance.path != path:
-        _cfg_instance = Config(path)
-    else:
-        _cfg_instance._check_reload()
-    return _cfg_instance
+    with _cfg_lock:
+        if _cfg_instance is None or _cfg_instance.path != path:
+            _cfg_instance = Config(path)
+        else:
+            _cfg_instance._check_reload()
+        return _cfg_instance
 
 
 def _merged_cfg() -> dict:
@@ -126,8 +129,9 @@ def require_tool(name: str, cfg: dict | None = None) -> dict:
 def _reset_proj_cache():
     """重置项目目录缓存（项目切换/删除后调用）"""
     global _cfg_path_cache, _cfg_instance
-    _cfg_path_cache = None
-    _cfg_instance = None
+    with _cfg_lock:
+        _cfg_path_cache = None
+        _cfg_instance = None
     from infra.database._db import _reset_project_cache
     _reset_project_cache()
     from infra.config import invalidate_config_cache

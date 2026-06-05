@@ -125,9 +125,10 @@ def save_episode_shots(pool, episode: int, shots: list[dict]) -> int:
 
 
 def upsert_shot(pool, episode: int, shot_id: str, data: dict):
-    """写入/更新单个镜头（写入前验证数据完整性）"""
+    """写入/更新单个镜头（写入前验证数据完整性，不修改原 dict）"""
     project = _get_project()
-    # 验证 duration
+    # 验证 duration（复制避免修改调用方的 dict）
+    data = {**data}
     dur = data.get("duration", 4)
     try:
         d = float(dur)

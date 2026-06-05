@@ -195,7 +195,7 @@ def _run_concurrent(self, config_path, episode, shots, force, progress_base, pro
 
 
 def _retry_failed(self, config_path, episode, shots, results, failed_indices, progress_base, progress_range, total):
-    """重试失败的镜头（仅一次）"""
+    """重试失败的镜头（仅一次）。就地修改 results 列表。"""
     if not failed_indices:
         return
     logger.info(f"重试 {len(failed_indices)} 个失败镜头...")
@@ -211,8 +211,6 @@ def _retry_failed(self, config_path, episode, shots, results, failed_indices, pr
             logger.info(f"  镜头 {shot_id} 重试完成: done={result.get('done', [])}, errors={result.get('errors', [])}")
         except Exception as e:
             logger.warning(f"  镜头 {shot_id} 重试仍失败: {e}")
-
-    return results
 
 
 @app.task(bind=True, name="pipeline_preview", soft_time_limit=1800)
