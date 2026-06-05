@@ -13,9 +13,9 @@
 from __future__ import annotations
 
 import copy
+import itertools
 import logging
 import os
-import random
 from pathlib import Path
 
 from engines.workflow import (
@@ -23,6 +23,9 @@ from engines.workflow import (
 )
 
 logger = logging.getLogger(__name__)
+
+# 原子计数器 — 保证单个工作流内节点 ID 唯一（替代 random.randint 碰撞风险）
+_suffix_counter = itertools.count(1000)
 
 __all__ = [
     "inject_character_refs", "update_existing_ip_adapter",
@@ -118,7 +121,7 @@ def inject_ip_adapter_plus(wf: dict, char_id: str, ref_images: list[str],
         return wf
 
     weight = ip_config.get("weight", 0.75)
-    suffix = random.randint(1000, 9999)
+    suffix = next(_suffix_counter)
     wf = _build_ip_adapter_nodes(wf, ksampler, model_source, ref_images[0], ip_config, weight, suffix)
 
     logger.info(f"注入 IP-Adapter Plus: {char_id} "
@@ -182,7 +185,7 @@ def inject_ip_adapter_chain(wf: dict, char_id: str, ref_images: list[str],
     if not downstream_node:
         return wf
 
-    suffix = random.randint(1000, 9999)
+    suffix = next(_suffix_counter)
     new_load = f"ipadapter_ref2_{char_id}_{suffix}"
     new_ip = f"ipadapter2_{char_id}_{suffix}"
 
@@ -278,7 +281,7 @@ def inject_pulid_flux(builder: object, wf: dict, char_ids: list[str],
             continue
 
         if not primary_injected:
-            suffix = random.randint(1000, 9999)
+            suffix = next(_suffix_counter)
             wf = _inject_pulid_nodes(wf, ksampler, model_source, refs[0], pulid_config, weight, suffix)
             logger.info(f"注入 PuLID-Flux: {char_id} (weight={weight}, refs={os.path.basename(refs[0])})")
             primary_injected = True
@@ -354,7 +357,7 @@ def inject_pulid_flux_chain(wf: dict, char_id: str, ref_images: list[str],
         elif ct == "PulidFluxEvaClipLoader":
             eva_clip_node = nid
 
-    s = random.randint(1000, 9999)
+    s = next(_suffix_counter)
     new_load = f"pulid_ref2_{char_id}_{s}"
     new_apply = f"pulid_apply2_{char_id}_{s}"
 
@@ -483,7 +486,7 @@ def inject_lora(wf: dict, lora_path: str, strength: float = 0.7,
             clip_source = (find_first_node(wf, "DualCLIPLoader")
                            or find_first_node(wf, "CLIPLoader"))
 
-    lora_node_id = f"lora_{Path(lora_path).stem}_{random.randint(1000, 9999)}"
+    lora_node_id = f"lora_{Path(lora_path).stem}_{next(_suffix_counter)}"
     if not lora_name:
         lora_name = os.path.basename(lora_path)
 
