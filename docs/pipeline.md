@@ -27,12 +27,13 @@ flowchart TB
         direction TB
         sub["2.0 生成字幕 SRT"]
         loop["2.1 逐镜头循环<br/>TTS → 首帧 → 视频 → 口型同步"]
-        post["2.5 后期合成<br/>拼接 → 字幕 → 配乐 → 横转竖"]
-        sub --> loop --> post
+        sub --> loop
     end
 
-    subgraph S3["🎉 成片"]
+    subgraph S3["🎉 阶段 3 · 后期"]
+        post2["拼接 → 字幕 → 配乐 → 横转竖"]
         final["episode_01_final.mp4"]
+        post2 --> final
     end
 
     S0 ==> S1 ==> S2 ==> S3
@@ -67,6 +68,7 @@ flowchart LR
 | `drama generate characters -d "22岁温柔女生" -d "25岁帅气男生"` | 从描述生成角色 | LLM |
 | `drama generate scenes -d "现代简约客厅" -d "繁华商业街"` | 从描述生成场景 | LLM |
 | `drama generate all 1 -o outline.txt` | 一键全量生成 | LLM |
+| `drama generate bible 1` | 生成角色圣经（character bible） | LLM |
 
 **产出文件：**
 - `projects/<项目>/config/characters/*.yaml` — 角色配置（唯一数据源）
@@ -77,7 +79,7 @@ flowchart LR
 
 ## 阶段 1 · 准备
 
-> LLM 密集操作集中完成。运行一次后，生产管线 **零 LLM 调用**。
+> 批量翻译集中完成。运行一次后，生产管线 **零 LLM 调用**。角色圣经（character bible）已移至 `drama generate bible`。
 
 ```mermaid
 flowchart TB
@@ -147,11 +149,11 @@ flowchart LR
 
 ## 阶段 2 · 生产
 
-> 纯 GPU/本地执行，零 LLM 调用。逐镜头完成 TTS → 首帧 → 视频 → 口型同步。
+> 纯 GPU/本地执行，零 LLM 调用。逐镜头完成 TTS → 首帧 → 视频 → 口型同步。**不含后期合成**（后期由 `drama post` 独立处理）。
 
 ```mermaid
 flowchart TB
-    subgraph produce["drama produce 1 — 完整生产"]
+    subgraph produce["drama produce 1 — 镜头生产（不含后期）"]
         direction TB
 
         subgraph step0["2.0 生成字幕"]
@@ -170,26 +172,12 @@ flowchart TB
             end
         end
 
-        subgraph step5["2.5 后期合成"]
-            direction LR
-            p1["✂️ 拼接<br/>────<br/>synced.mp4 × N<br/>+ crossfade 转场"]
-            p2["📝 字幕叠加<br/>────<br/>SRT 烧录<br/>中英双语"]
-            p3["🎵 配乐混合<br/>────<br/>BGM.wav<br/>音量 0.15"]
-            p4["📱 横转竖 (可选)<br/>────<br/>9:16 裁剪<br/>人脸追踪"]
-            p1 --> p2 --> p3 --> p4
-        end
-
-        step0 ==> loop ==> step5
+        step0 ==> loop
     end
-
-    final["🎬 episode_01_final.mp4"]
-    step5 --> final
 
     style step0 fill:#1e293b,stroke:#334155,color:#94a3b8
     style loop fill:#0f172a,stroke:#059669,color:#e2e8f0
     style shot fill:#1e293b,stroke:#334155,color:#e2e8f0
-    style step5 fill:#1e293b,stroke:#d97706,color:#fcd34d
-    style final fill:#3b2e1b,stroke:#d97706,color:#fcd34d
 ```
 
 ### 单镜头四步详解
@@ -236,9 +224,8 @@ flowchart LR
 
 | 步骤 | 进度 | 说明 |
 |------|------|------|
-| 2.0 生成字幕 | 0-2% | 读分镜 dialogue → SRT 文件 |
-| 2.1 逐镜头循环 | 5-85% | 每个镜头: TTS → 首帧 → 视频 → 口型 |
-| 2.5 后期合成 | 90-100% | 拼接 → 字幕 → 配乐 → 横转竖 |
+| 2.0 生成字幕 | 0-5% | 读分镜 dialogue → SRT 文件 |
+| 2.1 逐镜头循环 | 5-100% | 每个镜头: TTS → 首帧 → 视频 → 口型 |
 
 ---
 
@@ -297,8 +284,7 @@ flowchart TB
         direction TB
         po_sub["字幕 SRT"]
         po_loop["逐镜头循环"]
-        po_post["后期合成"]
-        po_sub --> po_loop --> po_post
+        po_sub --> po_loop
     end
 
     subgraph post["drama post 1"]
@@ -308,7 +294,7 @@ flowchart TB
 
     subgraph all["drama all 1"]
         direction TB
-        a_pr["preview"]
+        a_pr["prepare"]
         a_po["produce"]
         a_pt["post"]
         a_pr --> a_po --> a_pt
@@ -323,9 +309,9 @@ flowchart TB
 | 命令 | 字幕 | 镜头循环 | 后期合成 | 用途 |
 |------|:----:|:--------:|:--------:|------|
 | `drama preview 1 draft` | ❌ | ✅ 低质量 | ❌ | 快速预览效果 |
-| `drama produce 1` | ✅ | ✅ 全质量 | ✅ | **完整生产** |
+| `drama produce 1` | ✅ | ✅ 全质量 | ❌ | **镜头生产**（不含后期） |
 | `drama post 1` | ❌ | ❌ | ✅ | 重做后期（换配乐/加竖屏） |
-| `drama all 1` | ✅ | ✅ | ✅ | 一键全流程 |
+| `drama all 1` | ✅ | ✅ | ✅ | 一键全流程（prepare → produce → post） |
 
 ---
 
@@ -524,16 +510,20 @@ flowchart LR
 ```bash
 # 首次使用
 drama generate all 1 -o outline.txt    # 从大纲生成全部素材
+drama generate bible 1                 # 生成角色圣经（character bible）
 drama prepare 1                        # 准备阶段（批量翻译）
 
 # 日常生产
-drama produce 1                        # 完整生产
-drama produce 1 --vertical             # 完整生产 + 横转竖
+drama produce 1                        # 镜头生产（TTS → 首帧 → 视频 → 口型）
 drama produce 1 --force                # 强制重新生成
+drama post 1                           # 后期合成（横屏）
+drama post 1 --vertical                # 后期合成 + 横转竖
+
+# 完整流程
+drama all 1                            # 一键: prepare → produce → post
 
 # 单独操作
 drama preview 1 draft                  # 快速预览
-drama post 1 --vertical                # 只做后期
 drama portraits                        # 只生成定妆照
 
 # 服务管理
