@@ -422,28 +422,30 @@ pulid_flux:
 
 ### 三阶段架构（推荐工作流）
 
+> 以下所有操作均通过 Web 工作台完成（http://localhost:8888）
+
 ```
-阶段0: drama generate all 1 -o outline.txt  ← LLM 生成内容（可选，已有素材可跳过）
+阶段0: 内容生成（可选，已有素材可跳过）
   ├─ 从大纲生成分镜表
   ├─ 自动生成引用的角色/场景配置
-  └─ 生成角色圣经（drama generate bible）
+  └─ 生成角色圣经
 
-阶段1: drama prepare 1     ← LLM 密集，运行一次（仅翻译）
+阶段1: 准备（LLM 密集，运行一次）
   └─ 批量翻译角色/场景/分镜 → 写入 YAML *_en 字段
 
-阶段2: drama produce 1     ← 纯 GPU/本地，零 LLM 调用，全速
+阶段2: 生产（纯 GPU/本地，零 LLM 调用，全速）
   ├─ TTS → 首帧 → 视频 → 口型同步
   └─ 直接读取预翻译字段，不等待 LLM
 
-阶段3: drama post 1        ← 纯本地
+阶段3: 后期（纯本地）
   └─ 拼接 → 字幕 → 配乐 → 横转竖
 
 资产准备（独立操作，按需执行）:
-  ├─ 定妆照 → Web 工作台「📸 定妆照」或 drama portraits
-  └─ 场景图 → Web 工作台「🏔️ 场景图」
+  ├─ 定妆照 → 「📸 定妆照」按钮
+  └─ 场景图 → 「🏔️ 场景图」按钮
 ```
 
-**收益**: prepare 跑完后，produce 完全不依赖 LLM，10 个镜头从 30-40 次 LLM 调用降为 0 次。
+**收益**: 准备跑完后，生产完全不依赖 LLM，10 个镜头从 30-40 次 LLM 调用降为 0 次。
 
 ---
 
@@ -457,33 +459,18 @@ drama worker -c 4                      # Worker 并发数 4
 drama status                           # 服务状态（Redis + Celery + ComfyUI + TTS）
 drama env                              # 环境信息（OS / Python / GPU / Redis）
 
-# 🤖 AI 内容生成（需要 LLM 服务）
-drama generate storyboard 1 --outline outline.txt   # 从大纲生成分镜表
-drama generate storyboard 1 --text "林夏独自在家..."  # 直接输入大纲
-drama generate storyboard 1 -o outline.md -d 120     # 指定时长 120 秒
-drama generate characters -d "22岁温柔女生，长发" -d "25岁帅气男生"  # 生成角色
-drama generate scenes -d "现代简约客厅，落地窗暖光" -d "繁华商业街"    # 生成场景
-drama generate all 1 -o outline.txt                  # 一键全量生成
-
-# 管线（通过 Celery 异步执行）
-drama prepare 1                        # 准备阶段（批量翻译）
-drama produce 1                        # 镜头生产（TTS → 首帧 → 视频 → 口型同步）
-drama post 1 --vertical                # 后期合成 + 横转竖
-drama all 1                            # 一键全流程（prepare → produce → post）
-drama preview 1 draft                  # 快速预览（draft/standard/high）
-drama portraits                        # 生成定妆照
-
-# 项目管理
-drama project list                     # 列出所有项目
-drama project new love_story           # 创建新项目
-drama project switch love_story        # 切换项目
-drama project current                  # 显示当前项目
-drama project delete love_story        # 删除项目（需确认）
+# 数据导入导出
+drama import plan.json                 # 从 JSON 导入剧本项目
+drama import batch2.json --append      # 追加导入（解决 LLM 截断）
+drama export 1                         # 导出分镜到 CSV
+drama export 1 -o output.csv           # 指定输出路径
 
 # 清理
 drama clean --logs                     # 清理日志
 drama clean --cache                    # 清理缓存
 ```
+
+> 所有生产操作（AI 生成、翻译、生产、后期、项目管理）均通过 Web 工作台完成。
 
 ---
 
@@ -879,8 +866,8 @@ ai-drama-pipeline-v2/
 | `ComfyUI 不可达` | ComfyUI 未启动或地址错误 | 确认 ComfyUI 已启动：`curl http://127.0.0.1:8188/system_stats`。安装：[ComfyUI](https://github.com/comfyanonymous/ComfyUI) |
 | `MIMO_API_KEY 未设置` | 缺少 TTS API Key | 在 `.env` 中填写 `MIMO_API_KEY=`（免费获取：https://api.xiaomimimo.com） |
 | `LLM 未启用` | LLM 配置未开启 | 在项目配置中设置 `llm.enabled: true`，或在 Web 设置页开启 |
-| `角色缺定妆照` | 未生成角色形象图 | Web 工作台「👤 角色」→「🎨 AI 生成定妆照」，或运行 `drama portraits` |
-| `请先执行: drama prepare` | 生产前未翻译 | 运行 `drama prepare 1` 生成英文 prompt |
+| `角色缺定妆照` | 未生成角色形象图 | Web 工作台「👤 角色」→「🎨 AI 生成定妆照」 |
+| `请先执行准备阶段` | 生产前未翻译 | Web 工作台「🎬 生产管线」→「🔧 准备阶段」 |
 
 ---
 

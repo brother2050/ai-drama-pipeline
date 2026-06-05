@@ -2,11 +2,8 @@
 
 模块结构：
   cli/__init__.py    — 主组 + 共享工具函数
-  cli/pipeline.py    — preview / prepare / produce / post / all / portraits
-  cli/generate.py    — generate 命令组（storyboard / characters / scenes / bible / all）
-  cli/project.py     — project 命令组（list / new / switch / current / delete）
   cli/io.py          — import / export
-  cli/system.py      — status / env / clean / serve / worker
+  cli/system.py      — serve / worker / status / env / clean
 """
 from __future__ import annotations
 
@@ -24,9 +21,6 @@ logger = logging.getLogger(__name__)
 from infra.config import get_root as _get_root
 
 ROOT = _get_root()
-
-# 共享 CLI 选项（消除 pipeline.py / generate.py 中 11 处重复声明）
-config_option = click.option("-c", "--config", "config_path", default=None, help="配置文件路径")
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -72,19 +66,6 @@ def _ensure_deps():
     _start_file_monitor()
 
 
-def _ensure_deps_no_db():
-    """启动前检查（仅 Redis，不要求 PostgreSQL）— 用于 local 模式"""
-    _load_env()
-    if not _ensure_redis():
-        sys.exit(1)
-    try:
-        from infra.globals import init_globals
-        init_globals()
-    except Exception as e:
-        logger.debug(f"全局资源初始化跳过: {e}")
-    _start_file_monitor()
-
-
 def _start_file_monitor():
     """启动文件系统监控（延迟初始化，需要活动项目目录）"""
     try:
@@ -113,7 +94,6 @@ def _ensure_redis() -> bool:
     if redis:
         subprocess.Popen([redis, "--daemonize", "yes"],
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        # 等待 Redis 启动（最多 3 秒）
         for _ in range(6):
             time.sleep(0.5)
             if _port_open(_redis_port()):
@@ -248,57 +228,6 @@ def _run_via_celery(task_name: str, first_arg, *args, result_handler=None, **kwa
         return _handle_celery_result(task, result_handler)
 
 
-def _get_llm(config_path: str | None = None):
-    _load_env()
-    cfg_file = _resolve_config(config_path)
-    from infra.config import Config
-    cfg = Config(cfg_file)
-
-    llm_cfg = cfg.get("llm", {})
-    if not llm_cfg.get("enabled"):
-        console.print("[red]❌ LLM 未启用[/red]")
-        console.print("\n  请在项目配置文件中启用 LLM:")
-        console.print(f"    文件: {cfg_file}")
-        console.print("    设置: [bold]llm.enabled: true[/bold]")
-        sys.exit(1)
-
-    from api.registry import Container
-    cont = Container(cfg.data)
-    try:
-        return cont.get("llm"), cfg, cfg_file
-    except Exception as e:
-        console.print(f"[red]❌ LLM 初始化失败: {e}[/red]")
-        sys.exit(1)
-
-
-def _print_shots_preview(shots: list[dict]):
-    from rich.table import Table
-    table = Table(title="分镜预览", show_lines=True)
-    table.add_column("#", style="dim", width=4)
-    table.add_column("场景", width=12)
-    table.add_column("角色", width=12)
-    table.add_column("动作", width=25)
-    table.add_column("台词", width=20)
-    table.add_column("景别", width=8)
-    table.add_column("情绪", width=8)
-    table.add_column("时长", width=4, justify="right")
-
-    for shot in shots[:20]:
-        table.add_row(
-            shot.get("shot_id", "?"),
-            shot.get("scene_id", ""),
-            shot.get("characters", ""),
-            (shot.get("action", "")[:22] + "...") if len(shot.get("action", "")) > 22 else shot.get("action", ""),
-            (shot.get("dialogue", "")[:17] + "...") if len(shot.get("dialogue", "")) > 17 else shot.get("dialogue", ""),
-            shot.get("shot_type", ""),
-            shot.get("emotion", ""),
-            str(shot.get("duration", "")),
-        )
-    if len(shots) > 20:
-        table.add_row("...", "", "", f"还有 {len(shots)-20} 个镜头", "", "", "", "")
-    console.print(table)
-
-
 # ── 主 CLI 组 ──────────────────────────────────────
 
 @click.group()
@@ -310,13 +239,7 @@ def cli() -> None:
 
 # 注册子命令组
 from cli.system import register_system_commands
-from cli.pipeline import register_pipeline_commands
-from cli.generate import register_generate_commands
-from cli.project import register_project_commands
 from cli.io import register_io_commands
 
 register_system_commands(cli)
-register_pipeline_commands(cli)
-register_generate_commands(cli)
-register_project_commands(cli)
 register_io_commands(cli)

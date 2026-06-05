@@ -62,13 +62,12 @@ flowchart LR
     style scenes fill:#1e293b,stroke:#334155,color:#e2e8f0
 ```
 
-| 命令 | 功能 | 依赖 |
-|------|------|------|
-| `drama generate storyboard 1 -o outline.txt` | 从大纲生成分镜表 | LLM |
-| `drama generate characters -d "22岁温柔女生" -d "25岁帅气男生"` | 从描述生成角色 | LLM |
-| `drama generate scenes -d "现代简约客厅" -d "繁华商业街"` | 从描述生成场景 | LLM |
-| `drama generate all 1 -o outline.txt` | 一键全量生成 | LLM |
-| `drama generate bible 1` | 生成角色圣经（character bible） | LLM |
+| 操作 | Web 工作台路径 | 依赖 |
+|------|----------------|------|
+| 生成分镜表 | 「📝 分镜表」→「🤖 AI 生成」 | LLM |
+| 生成角色配置 | 「👤 角色」→「🤖 AI 生成」 | LLM |
+| 生成场景配置 | 「🏔️ 场景」→「🤖 AI 生成」 | LLM |
+| 生成角色圣经 | 「📝 分镜表」→「🤖 AI 生成角色圣经」 | LLM |
 
 **产出文件：**
 - `projects/<项目>/config/characters/*.yaml` — 角色配置（唯一数据源）
@@ -114,11 +113,10 @@ flowchart TB
     style scenes_gen fill:#1e293b,stroke:#059669,color:#6ee7b7
 ```
 
-| 命令 | 功能 | 依赖 |
-|------|------|------|
-| `drama prepare 1` | 批量翻译 | LLM |
-| `drama prepare 1 --no-translate` | 无翻译（空操作） | — |
-| `drama prepare 1 --force` | 强制覆盖已有翻译 | LLM |
+| 操作 | Web 工作台路径 | 依赖 |
+|------|----------------|------|
+| 批量翻译 | 「🎬 生产管线」→「🔧 准备阶段」 | LLM |
+| 强制翻译（覆盖已有） | 同上，勾选「强制覆盖」 | LLM |
 
 > 定妆照和场景图通过 Web 工作台「📸 定妆照」「🏔️ 场景图」单独执行，支持单角色/单场景按需生成。
 
@@ -153,7 +151,7 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    subgraph produce["drama produce 1 — 镜头生产（不含后期）"]
+    subgraph produce["镜头生产 — Web 工作台「🎬 生产管线」→「▶ 生产」"]
         direction TB
 
         subgraph step0["2.0 生成字幕"]
@@ -229,9 +227,9 @@ flowchart LR
 
 ---
 
-## 阶段 3 · 后期（独立命令）
+## 阶段 3 · 后期
 
-> `drama post` 单独存在，用于**重做后期**而不重新生成镜头。
+> 后期合成通过 Web 工作台「🎬 生产管线」→「📦 后期合成」执行，用于**重做后期**而不重新生成镜头。
 
 ```mermaid
 flowchart LR
@@ -264,10 +262,10 @@ flowchart LR
     style output fill:#3b2e1b,stroke:#d97706,color:#fcd34d
 ```
 
-| 命令 | 功能 |
-|------|------|
-| `drama post 1` | 后期合成（横屏） |
-| `drama post 1 --vertical` | 后期合成 + 横转竖 |
+| 操作 | Web 工作台路径 |
+|------|----------------|
+| 后期合成（横屏） | 「🎬 生产管线」→「📦 后期合成」 |
+| 后期合成 + 横转竖 | 同上，勾选「横转竖」 |
 
 ---
 
