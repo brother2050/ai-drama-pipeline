@@ -111,7 +111,9 @@ class WorkflowBuilder:
         video_wf_name = self.registry.get_video_workflow(video_backend)
         if not video_wf_name:
             logger.warning(f"未知 video_backend '{video_backend}'，回退到 {default_video}")
-            video_wf_name = self.registry.get_video_workflow(default_video) or "02_img2video.json"
+            video_wf_name = self.registry.get_video_workflow(default_video)
+        if not video_wf_name:
+            raise ValueError(f"视频工作流未找到: video_backend='{video_backend}'，请检查 models_registry.yaml")
         self.video_wf = self._load_wf(video_wf_name)
         self.video_wf = resolve_node_aliases(self.video_wf, available_nodes)
 

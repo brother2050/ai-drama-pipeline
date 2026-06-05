@@ -54,23 +54,41 @@ def get_episodes_summary() -> dict:
         return {"episodes": []}
 
     result = []
+    # 从 DB 查询每集已完成的镜头（替代文件系统扫描）
+    done_by_ep: dict[int, set[str]] = {}
+    try:
+        from infra.database.generation import get_episode_statuses
+        for row in rows:
+            ep = row["episode"]
+            statuses = get_episode_statuses(_get_pool(), ep)
+            done_sids = set()
+            for s in statuses:
+                if s.get("stage") in ("first_frame", "video") and s.get("status") == "done":
+                    done_sids.add(s["shot_id"])
+            done_by_ep[ep] = done_sids
+    except Exception as e:
+        logger.warning(f"查询生成状态失败，回退到文件扫描: {e}")
+
     for row in rows:
         ep = row["episode"]
         shot_count = row["shots"]
         total_dur = int(row["duration"] or 0)
-        out_base = _paths().episode_dir(ep)
-        done_sids: set[str] = set()
-        if out_base.exists():
-            try:
-                for entry in os.scandir(out_base):
-                    if entry.is_dir() and entry.name.startswith("s"):
-                        sid = entry.name[1:]
-                        has_frame = os.path.isfile(os.path.join(entry.path, "frame.png"))
-                        has_video = os.path.isfile(os.path.join(entry.path, "video.mp4"))
-                        if has_frame or has_video:
-                            done_sids.add(sid)
-            except OSError as e:
-                logger.warning(f"扫描输出目录失败: {e}")
+        done_sids = done_by_ep.get(ep)
+        if done_sids is None:
+            # DB 查询失败时回退到文件系统扫描
+            out_base = _paths().episode_dir(ep)
+            done_sids = set()
+            if out_base.exists():
+                try:
+                    for entry in os.scandir(out_base):
+                        if entry.is_dir() and entry.name.startswith("s"):
+                            sid = entry.name[1:]
+                            has_frame = os.path.isfile(os.path.join(entry.path, "frame.png"))
+                            has_video = os.path.isfile(os.path.join(entry.path, "video.mp4"))
+                            if has_frame or has_video:
+                                done_sids.add(sid)
+                except OSError as e:
+                    logger.warning(f"扫描输出目录失败: {e}")
         done_count = len(done_sids)
         status = STATUS_DONE if done_count >= shot_count and shot_count > 0 else "progress" if done_count > 0 else "none"
         result.append({

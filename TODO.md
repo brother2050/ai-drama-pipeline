@@ -9,7 +9,6 @@
 
 | # | 文件:行号 | 问题 | 说明 |
 |---|-----------|------|------|
-| 1 | `engines/prompt.py:324` | `batch_translate_to_english` 回退调用 `translate_to_english(t, llm=None)` | LLM 部分翻译失败时，失败项回退到 `llm=None`，直接返回中文原文。应传入 `llm` 实例或改为单条重试 |
 | 2 | `engines/workflow_builder.py:114` | 视频工作流回退硬编码 `"02_img2video.json"` | `registry.get_video_workflow()` 返回空时直接硬编码文件名，违反零硬编码原则。应 raise 或从注册表兜底 |
 | 3 | `web/routers/storyboard.py:55-80` | 每次 episodes 列表 API 扫描文件系统 | `os.scandir` 遍历输出目录统计完成状态，高频调用时 I/O 开销大。可缓存或用 DB 记录完成状态 |
 
@@ -47,3 +46,4 @@
 | `scripts/ai_toolkit_api.py:172` | 训练日志行解析失败，正常回退 |
 | `post/vertical.py:108` | `_cy` 未使用 — `crop_h == h` 时无需垂直裁剪，无实际影响 |
 | `infra/concurrency_groups.py:79` | `Semaphore._value` 私有属性 — Python 无公开替代 API |
+| `engines/prompt.py:324` | `batch_translate_to_english(llm=None)` 早返回是预期行为；回退路径正确传入 `llm` |
