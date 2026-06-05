@@ -90,11 +90,13 @@ def test_schema_validation():
     from infra.models import ImportPlan
 
     plan = ImportPlan(**PLAN_JSON)
+    assert len(plan.characters) == 2
+    assert len(plan.scenes) == 2
+    assert len(plan.shots) == 4
     print("   ✅ ImportPlan 创建成功")
     print(f"   角色: {len(plan.characters)} 个")
     print(f"   场景: {len(plan.scenes)} 个")
     print(f"   分镜: {len(plan.shots)} 个")
-    return plan
 
 
 @pytest.mark.skip(reason="需要顺序执行，通过 __main__ 调用")
@@ -283,7 +285,9 @@ def test_error_cases():
 if __name__ == "__main__":
     print("🎬 剧本 JSON 导入 — 端到端测试\n")
 
-    plan = test_schema_validation()
+    from infra.models import ImportPlan
+    plan = ImportPlan(**PLAN_JSON)
+    test_schema_validation()
     ok = test_reference_validation(plan)
     if not ok:
         sys.exit(1)
