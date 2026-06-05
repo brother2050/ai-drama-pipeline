@@ -42,7 +42,7 @@ class TestTranslateLlmFallback:
         assert FakeLLM.called, "兜底翻译未调用 llm.chat()"
 
     def test_merge_fallback_none_llm_returns_original(self):
-        """llm=None 时兜底应返回原文"""
+        """llm=None 时兜底应返回空串"""
         from engines.prompt import _merge_translate_results
 
         results = [""]
@@ -54,7 +54,7 @@ class TestTranslateLlmFallback:
             "failed_batches": 1,
         }
         _merge_translate_results(results, batch_items, batch_result, llm=None)
-        assert results[0] == "你好", f"llm=None 兜底应返回原文，实际: {results[0]}"
+        assert results[0] == "", f"llm=None 兜底应返回空串，实际: {results[0]}"
 
     def test_merge_success_no_fallback(self):
         """批次成功时不应调用兜底翻译"""

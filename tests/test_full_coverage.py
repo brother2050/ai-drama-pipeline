@@ -332,10 +332,10 @@ class TestPromptTranslation:
         assert result == "Hello world"
 
     def test_translate_none_llm(self):
-        """llm=None 返回原文"""
+        """llm=None 返回空串"""
         from engines.prompt import translate_to_english
         result = translate_to_english("你好", llm=None)
-        assert result == "你好"
+        assert result == ""
 
     def test_batch_translate(self):
         """批量翻译"""

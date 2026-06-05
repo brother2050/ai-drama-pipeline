@@ -452,7 +452,7 @@ def _deserialize_numbered(raw: str, keys: list | None = None) -> dict | list:
 
 
 def _collect_bible_texts(char: dict, cid: str, all_texts: list[str],
-                         text_meta: list[tuple[str, str, str, str]]) -> None:
+                         text_meta: list[tuple[str, str, str, str]], force: bool = False) -> None:
     """收集角色 bible 段的待翻译文本"""
     bible = char.get("bible", {})
     if not isinstance(bible, dict):
@@ -461,7 +461,7 @@ def _collect_bible_texts(char: dict, cid: str, all_texts: list[str],
     # 简单字符串字段
     for field, en_field in [("core_traits", "core_traits_en"),
                             ("speech_patterns", "speech_patterns_en")]:
-        if bible.get(field) and not bible.get(en_field):
+        if bible.get(field) and (force or not bible.get(en_field)):
             all_texts.append(bible[field])
             text_meta.append(("character.bible", cid, field, en_field))
 
@@ -470,7 +470,7 @@ def _collect_bible_texts(char: dict, cid: str, all_texts: list[str],
                             ("emotional_range", "emotional_range_en"),
                             ("body_language", "body_language_en")]:
         data = bible.get(field, {})
-        if isinstance(data, dict) and data and not bible.get(en_field):
+        if isinstance(data, dict) and data and (force or not bible.get(en_field)):
             serialized = _serialize_dict_values(data)
             if serialized:
                 all_texts.append(serialized)
@@ -479,14 +479,14 @@ def _collect_bible_texts(char: dict, cid: str, all_texts: list[str],
     # list 字段
     for field, en_field in [("habits", "habits_en"), ("taboos", "taboos_en")]:
         items = bible.get(field, [])
-        if isinstance(items, list) and items and not bible.get(en_field):
+        if isinstance(items, list) and items and (force or not bible.get(en_field)):
             serialized = _serialize_list_items(items)
             if serialized:
                 all_texts.append(serialized)
                 text_meta.append(("character.bible_list", cid, field, en_field))
 
 
-def _collect_translation_texts(paths) -> tuple[list[str], list[tuple[str, str, str, str]]]:
+def _collect_translation_texts(paths, force: bool = False) -> tuple[list[str], list[tuple[str, str, str, str]]]:
     """收集所有待翻译文本 → (texts, meta)"""
     from infra.config import load_yaml_full
     all_texts: list[str] = []
@@ -505,16 +505,16 @@ def _collect_translation_texts(paths) -> tuple[list[str], list[tuple[str, str, s
             except Exception as e:
                 logger.warning(f"跳过损坏的角色配置 {f.name}: {e}")
                 continue
-            if char.get("appearance") and not char.get("appearance_prompt_en"):
+            if char.get("appearance") and (force or not char.get("appearance_prompt_en")):
                 all_texts.append(char["appearance"])
                 text_meta.append(("character", cid, "appearance", "appearance_prompt_en"))
             outfits = char.get("outfits", {})
             if isinstance(outfits, dict):
                 for okey, odata in outfits.items():
-                    if isinstance(odata, dict) and odata.get("description") and not odata.get("description_en"):
+                    if isinstance(odata, dict) and odata.get("description") and (force or not odata.get("description_en")):
                         all_texts.append(odata["description"])
                         text_meta.append(("character.outfits", f"{cid}.{okey}", "description", "description_en"))
-            _collect_bible_texts(char, cid, all_texts, text_meta)
+            _collect_bible_texts(char, cid, all_texts, text_meta, force)
 
     # 场景
     scene_dir = paths.scenes_dir
@@ -529,10 +529,10 @@ def _collect_translation_texts(paths) -> tuple[list[str], list[tuple[str, str, s
             except Exception as e:
                 logger.warning(f"跳过损坏的场景配置 {f.name}: {e}")
                 continue
-            if scene.get("description") and not scene.get("description_en"):
+            if scene.get("description") and (force or not scene.get("description_en")):
                 all_texts.append(scene["description"])
                 text_meta.append(("scene", sid, "description", "description_en"))
-            if scene.get("lighting") and not scene.get("lighting_en"):
+            if scene.get("lighting") and (force or not scene.get("lighting_en")):
                 all_texts.append(scene["lighting"])
                 text_meta.append(("scene", sid, "lighting", "lighting_en"))
 
@@ -655,14 +655,14 @@ def _generate_character_bibles(llm, paths) -> int:
     return generated
 
 
-def _collect_shot_texts(shots: list[dict], all_texts: list[str], text_meta: list) -> None:
+def _collect_shot_texts(shots: list[dict], all_texts: list[str], text_meta: list, force: bool = False) -> None:
     """补充待翻译的分镜文本（action/dialogue）"""
     for shot in shots:
         sid = shot.get("shot_id", "")
-        if shot.get("action") and not shot.get("action_en"):
+        if shot.get("action") and (force or not shot.get("action_en")):
             all_texts.append(shot["action"])
             text_meta.append(("shot", sid, "action", "action_en"))
-        if shot.get("dialogue") and shot.get("dialogue") != "......" and not shot.get("dialogue_en"):
+        if shot.get("dialogue") and shot.get("dialogue") != "......" and (force or not shot.get("dialogue_en")):
             all_texts.append(shot["dialogue"])
             text_meta.append(("shot", sid, "dialogue", "dialogue_en"))
 
@@ -699,9 +699,9 @@ def _ai_prepare_inner(self, config_path, episode, force, translate):
 
     # 1. 收集待翻译文本
     self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 10, "message": "扫描角色/场景/分镜..."})
-    all_texts, text_meta = _collect_translation_texts(paths)
+    all_texts, text_meta = _collect_translation_texts(paths, force)
     shots = load_storyboard(episode)
-    _collect_shot_texts(shots, all_texts, text_meta)
+    _collect_shot_texts(shots, all_texts, text_meta, force)
 
     if not all_texts:
         return {"status": STATUS_DONE, "message": "无需翻译（所有字段已有英文版）",

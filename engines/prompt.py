@@ -297,20 +297,20 @@ def _get_translate_system() -> str:
 
 
 def translate_to_english(text: str, llm: object = None) -> str:
-    """中文→英文翻译（LLM）"""
+    """中文→英文翻译（LLM）。失败返回空串，不回退到原文。"""
     if not text:
         return ""
     if is_ascii_only(text):
         return text
     if not llm:
-        logger.warning(f"LLM 不可用，中文描述将原样传入（可能无效）: {text[:50]}...")
-        return text
+        logger.warning(f"LLM 不可用，跳过翻译: {text[:50]}...")
+        return ""
     try:
         result = llm.chat(f"Translate to English: {text}", system=_get_translate_system())
-        return result.strip() if result and result.strip() else text
+        return result.strip() if result and result.strip() else ""
     except Exception as e:
         logger.warning(f"翻译失败: {e}")
-        return text
+        return ""
 
 
 def _get_batch_translate_system() -> str:
