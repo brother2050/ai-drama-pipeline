@@ -38,10 +38,15 @@ def postprocess_shots(shots: list[dict], episode: int, *, strict: bool = False) 
         if not isinstance(shot, dict):
             continue
 
-        # shot_id: 去重 + 格式校验
+        # shot_id: 格式校验 → 去重
         sid = shot.get("shot_id", "")
-        if not sid or not re.match(r"^\d{3}$", sid) or sid in used_ids:
+        if not sid or not re.match(r"^\d{3}$", sid):
             sid = f"{i + 1:03d}"
+        if sid in used_ids:
+            n = i + 2
+            while f"{n:03d}" in used_ids:
+                n += 1
+            sid = f"{n:03d}"
         shot["shot_id"] = sid
         used_ids.add(sid)
 

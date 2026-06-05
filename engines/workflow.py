@@ -88,16 +88,19 @@ def find_lora_nodes(wf: dict) -> list[tuple[str, str]]:
 
 
 def set_clip_text_prompts(wf: dict, positive: str, negative: str = "") -> dict:
-    # 先找出所有被当作 negative 输入使用的 CLIPTextEncode 节点 ID
+    # 收集 negative 和 positive 引用的 CLIPTextEncode 节点 ID
     negative_node_ids: set[str] = set()
+    positive_node_ids: set[str] = set()
     for nid, node in wf.items():
-        # 检查 guider/sampler 节点的 negative 引用
         ct = node.get("class_type", "")
         inp = node.get("inputs", {})
         if ct in ("KSampler", "KSamplerAdvanced"):
             neg_ref = inp.get("negative", [])
             if isinstance(neg_ref, list) and len(neg_ref) >= 1:
                 negative_node_ids.add(str(neg_ref[0]))
+            pos_ref = inp.get("positive", [])
+            if isinstance(pos_ref, list) and len(pos_ref) >= 1:
+                positive_node_ids.add(str(pos_ref[0]))
         if ct == "DualCFGGuider":
             neg_ref = inp.get("negative", [])
             if isinstance(neg_ref, list) and len(neg_ref) >= 1:
@@ -112,6 +115,7 @@ def set_clip_text_prompts(wf: dict, positive: str, negative: str = "") -> dict:
         if node.get("class_type") == "CLIPTextEncode":
             if nid in negative_node_ids:
                 node["inputs"]["text"] = negative
-            else:
+            elif nid in positive_node_ids:
                 node["inputs"]["text"] = positive
+            # 未被 KSampler 引用的 CLIPTextEncode 不修改（避免覆盖第三方节点）
     return wf

@@ -54,13 +54,15 @@ def append_storyboard(shots: list[dict], episode: int | None = None, pool=None) 
     pool = pool or _pool()
     count = 0
     for shot in shots:
-        ep = episode if episode is not None else int(shot.get("episode", 0) or 0)
+        ep = episode if episode is not None else shot.get("episode", 0)
         try:
             ep = int(ep)
         except (ValueError, TypeError):
+            logger.warning(f"跳过镜头 {shot.get('shot_id', '?')}: episode 无效 ({ep!r})")
             continue
         sid = shot.get("shot_id", "")
         if ep < 1 or not sid:
+            logger.warning(f"跳过镜头: episode={ep}, shot_id={sid!r}")
             continue
         upsert_shot(pool, ep, sid, shot)
         count += 1

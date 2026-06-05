@@ -106,6 +106,8 @@ class WorkflowBuilder:
         if not wf_name:
             raise ValueError(f"首帧工作流未找到: image_backend='{img_backend}'，请检查 models_registry.yaml")
         self.first_frame_wf = self._load_wf(wf_name)
+        if not self.first_frame_wf:
+            raise ValueError(f"首帧工作流文件为空或不存在: {wf_name}")
         self.first_frame_wf = resolve_node_aliases(self.first_frame_wf, available_nodes)
 
         # 视频工作流
@@ -117,6 +119,8 @@ class WorkflowBuilder:
         if not video_wf_name:
             raise ValueError(f"视频工作流未找到: video_backend='{video_backend}'，请检查 models_registry.yaml")
         self.video_wf = self._load_wf(video_wf_name)
+        if not self.video_wf:
+            raise ValueError(f"视频工作流文件为空或不存在: {video_wf_name}")
         self.video_wf = resolve_node_aliases(self.video_wf, available_nodes)
 
         # 应用 GPU 适配
@@ -302,7 +306,7 @@ class WorkflowBuilder:
                 self.comfyui.upload_image(ref_image, filename=upload_name)
                 ref_image = upload_name
             except Exception as e:
-                logger.warning(f"参考图上传失败: {e}，尝试本地路径")
+                raise RuntimeError(f"参考图上传到 ComfyUI 失败: {e}")
 
         # 设置 LoadImage 节点的输入图片
         load_nodes = [nid for nid, n in wf.items() if n.get("class_type") == "LoadImage"]

@@ -185,7 +185,7 @@ def _generate_entities(llm: object, descriptions: list[str], expected_ids: list[
         else:
             entities.extend([None] * batch_size)
 
-    failed_count = sum(1 for e in entities if e is None or not isinstance(e, dict))
+    failed_count = sum(1 for e in entities if not isinstance(e, dict) or not e)
     if failed_count:
         raise RuntimeError(f"{label}生成失败（{failed_count}/{len(descriptions)}）: 请检查 LLM 服务。")
 
