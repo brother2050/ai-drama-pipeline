@@ -5,7 +5,7 @@ import logging
 from dataclasses import dataclass, field
 
 from engines.shot_utils import postprocess_shots as _postprocess_shots
-from engines.prompt_compiler import get_compiler, tpl
+from engines.prompt_compiler import tpl
 
 
 @dataclass

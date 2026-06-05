@@ -13,7 +13,7 @@ import logging
 
 from infra.json_parse import llm_call_with_retry
 from engines.shot_utils import postprocess_shots as _postprocess_stage1
-from engines.prompt_compiler import get_compiler, tpl
+from engines.prompt_compiler import tpl
 
 logger = logging.getLogger(__name__)
 
