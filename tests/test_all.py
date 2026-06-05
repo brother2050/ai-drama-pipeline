@@ -291,32 +291,7 @@ def test_music():
     print("✅ 配乐生成正常")
 
 
-# ── post/distributor.py ──
 
-def test_distributor():
-    """测试分发"""
-    from post.distributor import distribute
-
-    results = distribute("/tmp/test.mp4", ["douyin", "bilibili"])
-    assert "douyin" in results
-    assert "bilibili" in results
-    assert results["douyin"]["preset"]["resolution"] == [1080, 1920]
-    assert results["bilibili"]["preset"]["resolution"] == [1920, 1080]
-    print("✅ 多平台分发正常")
-
-
-def test_distributor_compat():
-    """测试平台兼容性检查"""
-    from post.distributor import check_platform_compat, get_adapt_params
-
-    result = check_platform_compat("/nonexistent.mp4", "douyin")
-    assert not result["compatible"]
-
-    result = check_platform_compat("/tmp/test.mp4", "unknown_platform")
-    assert not result["compatible"]
-
-    params = get_adapt_params("/tmp/test.mp4", "douyin")
-    assert "ffmpeg_args" in params
     assert "needs_transcode" in params
     print("✅ 平台兼容性检查正常")
 
@@ -558,8 +533,6 @@ def run_all():
         test_subtitle,
         test_transitions,
         test_music,
-        test_distributor,
-        test_distributor_compat,
 
         test_web_schemas,
         test_registry,

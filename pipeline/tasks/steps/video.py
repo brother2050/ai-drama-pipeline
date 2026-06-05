@@ -6,7 +6,6 @@ import os
 import re
 from pathlib import Path
 
-from infra.constants import STATUS_DONE, STATUS_ERROR
 from pipeline.tasks.helpers import _skip, _err, _done, _validate_output
 
 logger = logging.getLogger(__name__)

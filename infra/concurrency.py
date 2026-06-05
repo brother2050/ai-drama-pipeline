@@ -20,7 +20,7 @@ from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["run_staggered_sync", "StaggeredExecutor"]
+__all__ = ["run_staggered_sync"]
 
 
 def run_staggered_sync(

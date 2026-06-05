@@ -17,12 +17,6 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["AdaptiveBatchProcessor", "estimate_tokens"]
 
-# ── 常量 ──
-
-HARD_CAP_TOKENS = 60000  # 无论模型支持多大上下文，每批 input 最多 60K
-MAX_BATCH_RETRIES = 2    # 单批次最大重试次数
-RETRY_BASE_DELAY = 3     # 重试基础延迟（秒），指数退避
-
 
 def estimate_tokens(text: str) -> int:
     """保守估算 token 数（宁可高估多分批，也不低估撞限制）

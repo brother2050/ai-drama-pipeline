@@ -52,14 +52,12 @@ music:
 server:
   port: 8888
   host: 0.0.0.0
-  cors_origin: '*'
 seko:
   api_key: ''
 post_production:
   transition: crossfade
   transition_duration: 0.5
   bgm_volume: 0.15
-  subtitle_platform: douyin
   # 双语字幕：中文+英文双行显示（需先运行 prepare 生成 dialogue_en）
   bilingual_subtitle: false
 # 角色面部一致性方案（与 image_backend 解耦，独立选择）
@@ -109,8 +107,6 @@ pulid_flux:
   end_at: 1.0
   # 融合方法: mean / concat / max / max_token / train_weight
   fusion: "mean"
-  # 灰度优化（边缘轮廓优化）
-  use_gray: true
 
 timeouts:
   comfyui: 900

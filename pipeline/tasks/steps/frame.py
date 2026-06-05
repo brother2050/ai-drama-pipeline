@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from engines.shot_utils import parse_char_ids
-from infra.constants import STATUS_DONE, STATUS_ERROR, ERR_NOT_PREPARED
+from infra.constants import ERR_NOT_PREPARED
 from pipeline.tasks.helpers import _skip, _err, _done, _validate_output
 
 logger = logging.getLogger(__name__)

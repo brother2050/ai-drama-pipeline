@@ -387,39 +387,6 @@ class TestStatusRecordRemoved:
 
 
 # ══════════════════════════════════════════════════════════
-#  10. post/distributor.py STATUS_DONE（4f4014d）
-# ══════════════════════════════════════════════════════════
-
-class TestDistributorStatus:
-    """验证 distribute() 使用 STATUS_DONE 而非硬编码 'ready'"""
-
-    def test_status_constants_imported(self):
-        """STATUS_DONE 和 STATUS_ERROR 都被正确导入"""
-        from post.distributor import STATUS_DONE, STATUS_ERROR
-        assert STATUS_DONE == "done"
-        assert STATUS_ERROR == "error"
-
-    def test_compatible_video_returns_done(self):
-        """兼容视频返回 STATUS_DONE（不是 'ready'）"""
-        from post.distributor import distribute
-        import tempfile
-        import os
-        # 创建一个假视频文件
-        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
-            f.write(b"\x00" * 100)
-            tmp = f.name
-        try:
-            result = distribute(tmp, platforms=["douyin"])
-            # douyin 预设存在
-            if "douyin" in result:
-                status = result["douyin"]["status"]
-                assert status in ("done", "needs_adapt"), f"状态应为 done 或 needs_adapt，实际: {status}"
-                assert status != "ready", "不应返回 'ready'"
-        finally:
-            os.unlink(tmp)
-
-
-# ══════════════════════════════════════════════════════════
 #  11. post/vertical.py 消除未使用变量（4f4014d）
 # ══════════════════════════════════════════════════════════
 

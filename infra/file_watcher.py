@@ -19,7 +19,7 @@ from typing import Callable
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["start_file_watcher", "stop_file_watcher", "get_file_watcher"]
+__all__ = ["start_file_watcher", "stop_file_watcher"]
 
 _watcher = None
 _lock = threading.Lock()

@@ -7,52 +7,38 @@
 ## P3 — 死代码清理（重构残留 / 未集成模块）
 
 > 经逐项审查，确认非缺陷，均为重构残留或未完成的功能模块。
+> D5/D6 保留（独立部署脚本），其余已清理。
 
-### 文件级死代码
+### 保留
 
 | # | 文件 | 描述 | 原因 |
 |---|------|------|------|
-| D1 | `pipeline/preview.py` | `run_preview()` 无任何导入 | CLI 在 `b7944d3` 移除后残留，函数孤立 |
-| D2 | `engines/shot_manager.py` | `ShotManager` 类仅测试引用 | `be5e595` 重构为直接加载，生产代码不再使用 |
-| D3 | `post/distributor.py` | `distribute()` 等函数仅测试引用 | 从 init 至今从未集成到生产管线 |
-| D4 | `config/platforms.yaml` | 仅被 D3 引用 | D3 的依赖，一并清理 |
-| D5 | `scripts/ai_toolkit_api.py` | 独立 REST API 服务器，主项目无导入 | 独立部署脚本，非项目组成部分 |
-| D6 | `scripts/musicgen_server.py` | 独立 REST API 服务器，主项目无导入 | 独立部署脚本，非项目组成部分 |
+| D5 | `scripts/ai_toolkit_api.py` | 独立 REST API 服务器 | 独立部署脚本，LoRA 训练服务用 |
+| D6 | `scripts/musicgen_server.py` | 独立 REST API 服务器 | 独立部署脚本，配乐生成服务用 |
 
-### 函数级死代码
+### 已清理
 
-| # | 文件 | 函数 | 描述 |
-|---|------|------|------|
-| D7 | `pipeline/tasks/helpers.py:56` | `_safe_int()` | 定义后从未调用，重构残留 |
-| D8 | `pipeline/tasks/helpers.py:349` | `_unique_hash_id()` | 定义后从未调用，委托给 `entity_utils` 的包装函数残留 |
-| D9 | `infra/database/_db.py:62` | `_set_project()` | `project_scope()` 引入后的残留，已被上下文管理器替代 |
-
-### 常量 / 字段级死代码
-
-| # | 文件 | 项 | 描述 |
-|---|------|----|------|
-| D10 | `infra/batch_processor.py:22-24` | `HARD_CAP_TOKENS` / `MAX_BATCH_RETRIES` / `RETRY_BASE_DELAY` | 模块级常量未引用，构造函数直接用参数默认值 `60000` / `2` / `3.0` |
-| D11 | `config/system.yaml:55` | `server.cors_origin` | 代码读 `CORS_ORIGINS` 环境变量，不读此配置 |
-| D12 | `config/system.yaml:62` | `post_production.subtitle_platform` | 代码中无任何引用 |
-| D13 | `config/system.yaml:113` | `pulid_flux.use_gray` | 代码中无任何引用 |
-
-### __all__ 导出清理
-
-| # | 文件 | 导出项 | 描述 |
-|---|------|--------|------|
-| D14 | `engines/portrait.py` | `_view_seed` / `_FIVE_VIEWS` / `_generating` / `_generating_lock` | 内部实现暴露在 `__all__`，下划线开头不应导出 |
-| D15 | `infra/hooks.py` | `on_init` / `clear_hooks` | `on_init` 仅文档示例使用，`clear_hooks` 仅测试使用 |
-| D16 | `infra/file_watcher.py` | `get_file_watcher` | 定义但从未导入 |
-| D17 | `infra/concurrency.py` | `StaggeredExecutor` | 仅文档示例使用，生产代码只用 `run_staggered_sync` |
-
-### 未使用的 import
-
-| # | 文件 | 导入项 | 描述 |
-|---|------|--------|------|
-| D18 | `pipeline/tasks/pipeline.py:14` | `_init_ctx` | 导入但未在该文件使用（其他文件有使用） |
-| D19 | `pipeline/tasks/steps/tts.py:8` | `STATUS_DONE` / `STATUS_ERROR` | 导入但使用 `_done()` / `_err()` 代替 |
-| D20 | `pipeline/tasks/steps/video.py:9` | `STATUS_DONE` / `STATUS_ERROR` | 同上 |
-| D21 | `pipeline/tasks/steps/frame.py:10` | `STATUS_DONE` / `STATUS_ERROR` | 同上 |
+| # | 项 | 清理内容 |
+|---|---|---------|
+| D1 | `pipeline/preview.py` | 删除文件 |
+| D2 | `engines/shot_manager.py` | 删除文件 |
+| D3 | `post/distributor.py` | 删除文件 |
+| D4 | `config/platforms.yaml` | 删除文件 |
+| D7 | `pipeline/tasks/helpers.py:_safe_int()` | 删除函数 |
+| D8 | `pipeline/tasks/helpers.py:_unique_hash_id()` | 删除函数 |
+| D9 | `infra/database/_db.py:_set_project()` | 删除函数 |
+| D10 | `infra/batch_processor.py` 常量 | 删除 `HARD_CAP_TOKENS` / `MAX_BATCH_RETRIES` / `RETRY_BASE_DELAY` |
+| D11 | `config/system.yaml` `server.cors_origin` | 删除字段 |
+| D12 | `config/system.yaml` `post_production.subtitle_platform` | 删除字段 |
+| D13 | `config/system.yaml` `pulid_flux.use_gray` | 删除字段 |
+| D14 | `engines/portrait.py` `__all__` | 移除内部变量导出 |
+| D15 | `infra/hooks.py` `__all__` | 移除 `on_init` / `clear_hooks` |
+| D16 | `infra/file_watcher.py` `__all__` | 移除 `get_file_watcher` |
+| D17 | `infra/concurrency.py` `__all__` | 移除 `StaggeredExecutor` |
+| D18 | `pipeline/tasks/pipeline.py` | 移除 `_init_ctx` 导入 |
+| D19 | `pipeline/tasks/steps/tts.py` | 移除 `STATUS_DONE` / `STATUS_ERROR` 导入 |
+| D20 | `pipeline/tasks/steps/video.py` | 移除 `STATUS_DONE` / `STATUS_ERROR` 导入 |
+| D21 | `pipeline/tasks/steps/frame.py` | 移除 `STATUS_DONE` / `STATUS_ERROR` 导入 |
 
 ---
 

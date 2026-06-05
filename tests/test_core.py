@@ -359,28 +359,5 @@ def test_prepare_rejects_path_traversal():
         pass  # Config 校验失败也是预期行为
 
 
-# ── A-07: load_yaml_entities 统一 ──
-
-def test_shot_manager_uses_shared_loader(tmp_dir):
-    """ShotManager 使用统一的 YAML 加载"""
-    import yaml
-    from engines.shot_manager import ShotManager
-
-    # ShotManager 接受项目根目录（非 config 目录）
-    cfg_dir = tmp_dir / "config"
-    chars_dir = cfg_dir / "characters"
-    scenes_dir = cfg_dir / "scenes"
-    chars_dir.mkdir(parents=True)
-    scenes_dir.mkdir(parents=True)
-    (tmp_dir / "output").mkdir(exist_ok=True)
-
-    (chars_dir / "test.yaml").write_text(yaml.dump({"character": {"id": "test_char", "name": "测试"}}), encoding="utf-8")
-    (scenes_dir / "test.yaml").write_text(yaml.dump({"scene": {"id": "test_scene", "name": "测试场景"}}), encoding="utf-8")
-
-    sm = ShotManager(str(tmp_dir))
-    assert "test_char" in sm.characters
-    assert "test_scene" in sm.scenes
-
-
 # ── D-03: YAML→DB 同步 ──
 

@@ -46,7 +46,7 @@ from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["on_init", "on_cleanup", "on_health_check", "on_cache_invalidate", "run_hooks", "clear_hooks"]
+__all__ = ["on_cleanup", "on_health_check", "on_cache_invalidate", "run_hooks"]
 
 
 @dataclass

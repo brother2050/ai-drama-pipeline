@@ -53,14 +53,6 @@ def _project_scope_from_config(config_path: str):
     return project_scope(project_name)
 
 
-def _safe_int(val, default=0) -> int:
-    """安全的 int 转换，处理空字符串和非数字值"""
-    try:
-        return int(val)
-    except (ValueError, TypeError):
-        return default
-
-
 def _load_shots(episode: int) -> list[dict]:
     """从 DB 加载指定集的镜头列表"""
     from engines.storyboard import load_storyboard
@@ -344,9 +336,3 @@ def _validate_output(path: str, step: str, *, min_size: int = 0) -> str | None:
 def _paths(config_path: str) -> "ProjectPaths":
     """获取统一路径管理对象"""
     return _get_config(config_path).paths
-
-
-def _unique_hash_id(prefix: str, name: str, existing: dict) -> str:
-    """基于名字生成确定性短 hash ID — 委托给 engines.entity_utils"""
-    from engines.entity_utils import unique_hash_id
-    return unique_hash_id(prefix, name, existing)

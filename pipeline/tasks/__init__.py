@@ -7,7 +7,7 @@ from pipeline.tasks.pipeline import shot_task, preview_task, produce_task, run_a
 # 单步执行（Web 工作台「单步执行」按钮调用）
 from pipeline.tasks.steps import step_tts, step_first_frame, step_video, step_lipsync
 
-# 核心逻辑（preview.py 复用）
+# 核心逻辑（测试复用）
 from pipeline.tasks.steps import tts_core, first_frame_core, video_core, lipsync_core
 
 # AI 生成

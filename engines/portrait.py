@@ -10,8 +10,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["ensure_portrait", "_view_seed", "_outfit_seed", "_generate_view",
-           "_FIVE_VIEWS", "_generating", "_generating_lock", "ViewGenParams"]
+__all__ = ["ensure_portrait", "ViewGenParams"]
 
 
 # 重入保护：正在生成中的角色，防止 build_first_frame → _get_character_refs → ensure_portrait 死循环

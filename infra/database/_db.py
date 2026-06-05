@@ -59,13 +59,6 @@ def _reset_project_cache():
         _project_mtime = 0.0
 
 
-def _set_project(project: str):
-    """手动设置项目名（用于清理不属于当前活动项目的记录）"""
-    global _project_cache
-    with _project_cache_lock:
-        _project_cache = project
-
-
 @contextmanager
 def project_scope(project: str):
     """临时切换项目上下文（线程安全，使用 threading.local）

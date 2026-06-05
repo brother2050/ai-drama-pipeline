@@ -613,38 +613,6 @@ class TestMusic:
 #  12. 平台分发
 # ══════════════════════════════════════════════════════════
 
-class TestDistributor:
-    """多平台分发"""
-
-    def test_platform_presets(self):
-        """平台预设加载"""
-        from post.distributor import get_platform_presets
-        presets = get_platform_presets()
-        assert "douyin" in presets
-        assert "bilibili" in presets
-        assert presets["douyin"]["aspect_ratio"] == "9:16"
-
-    def test_check_compat(self, tmp_dir):
-        """兼容性检查"""
-        from post.distributor import check_platform_compat
-        # 创建假视频
-        video = str(tmp_dir / "test.mp4")
-        with open(video, "wb") as f:
-            f.write(b"\x00" * 100)
-        result = check_platform_compat(video, "douyin")
-        assert "compatible" in result
-        assert "preset" in result
-
-    def test_invalid_platform(self, tmp_dir):
-        """无效平台"""
-        from post.distributor import check_platform_compat
-        video = str(tmp_dir / "test.mp4")
-        with open(video, "wb") as f:
-            f.write(b"\x00" * 100)
-        result = check_platform_compat(video, "nonexistent")
-        assert result["compatible"] is False
-
-
 # ══════════════════════════════════════════════════════════
 #  13. 质量门禁
 # ══════════════════════════════════════════════════════════
@@ -965,10 +933,3 @@ class TestConfigFiles:
         data = load_config(PROMPT_TEMPLATES_PATH)
         assert "first_frame_tag" in data
         assert "storyboard_system" in data
-
-    def test_platforms_yaml(self):
-        """platforms.yaml 可加载"""
-        from post.distributor import get_platform_presets
-        presets = get_platform_presets()
-        assert "douyin" in presets
-        assert "bilibili" in presets
