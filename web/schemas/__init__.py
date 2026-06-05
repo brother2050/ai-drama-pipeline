@@ -109,7 +109,7 @@ class SubtitleRequest(BaseModel):
 class PipelineRequest(BaseModel):
     """管线执行请求"""
     episode: int = Field(..., ge=1)
-    command: str = Field("produce", pattern=r"^(preview|produce|post)$")
+    command: str = Field("produce", pattern=r"^(preview|prepare|produce|post)$")
     level: str = Field("draft", pattern=r"^(draft|standard|high)$")
     vertical: bool = False
     force: bool = Field(False, description="强制覆盖已有文件")

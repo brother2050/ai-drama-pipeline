@@ -211,10 +211,11 @@ def batch_delete_storyboard_shots(episode: int, req: StoryboardBatchDeleteReques
 
 @router.post("/pipeline/run")
 def run_pipeline(req: PipelineRequest) -> dict:
-    from pipeline.tasks import preview_task, produce_task, post_task
+    from pipeline.tasks import preview_task, produce_task, post_task, ai_prepare_task
     cfg = _cfg_path()
     dispatch = {
         "preview": lambda: _submit_task(preview_task, cfg, req.episode, req.level, req.force),
+        "prepare": lambda: _submit_task(ai_prepare_task, cfg, req.episode, force=req.force),
         "produce": lambda: _submit_task(produce_task, cfg, req.episode, force=req.force),
         "post":    lambda: _submit_task(post_task, cfg, req.episode, req.vertical),
     }

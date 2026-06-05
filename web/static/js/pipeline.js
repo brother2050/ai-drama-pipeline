@@ -489,7 +489,7 @@ async function runAll() {
   if (!await modalConfirm(t('wb.run_all') + '?')) return;
   const statusEl = document.getElementById('wb-batch-status');
   statusEl.style.display = 'block';
-  const stages = ['preview', 'produce', 'post'];
+  const stages = ['prepare', 'produce', 'post'];
   for (let i = 0; i < stages.length; i++) {
     const cmd = stages[i];
     statusEl.innerHTML = `<div class="batch-progress"><div class="batch-bar"><div class="batch-fill" style="width:${(i / stages.length) * 100}%"></div></div>
