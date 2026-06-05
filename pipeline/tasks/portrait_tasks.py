@@ -167,8 +167,7 @@ def _outfits_batch_inner(self, config_path: str, char_id: str) -> dict:
     if not char_yaml.exists():
         return {"status": STATUS_ERROR, "reason": f"角色 {char_id} 不存在"}
 
-    with open(char_yaml, encoding="utf-8") as f:
-        data = load_yaml_full(f)
+    data = load_yaml_full(char_yaml)
     char = data.get("character", {})
     outfits = char.get("outfits", {})
 
