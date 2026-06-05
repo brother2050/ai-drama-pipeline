@@ -161,11 +161,11 @@ def _ensure_postgres() -> bool:
     except psycopg2.OperationalError as e:
         msg = str(e).strip()
         if "Connection refused" in msg or "could not connect" in msg:
-            console.print(f"[red]❌ PostgreSQL 连接被拒绝，请确认服务已启动[/red]")
+            console.print("[red]❌ PostgreSQL 连接被拒绝，请确认服务已启动[/red]")
         elif "authentication failed" in msg:
-            console.print(f"[red]❌ PostgreSQL 认证失败，请检查 DSN 中的用户名和密码[/red]")
+            console.print("[red]❌ PostgreSQL 认证失败，请检查 DSN 中的用户名和密码[/red]")
         elif "does not exist" in msg:
-            console.print(f"[red]❌ 数据库不存在，请先创建: CREATE DATABASE ai_drama;[/red]")
+            console.print("[red]❌ 数据库不存在，请先创建: CREATE DATABASE ai_drama;[/red]")
         else:
             console.print(f"[red]❌ PostgreSQL 连接失败: {msg[:120]}[/red]")
         return False
@@ -257,9 +257,9 @@ def _get_llm(config_path: str | None = None):
     llm_cfg = cfg.get("llm", {})
     if not llm_cfg.get("enabled"):
         console.print("[red]❌ LLM 未启用[/red]")
-        console.print(f"\n  请在项目配置文件中启用 LLM:")
+        console.print("\n  请在项目配置文件中启用 LLM:")
         console.print(f"    文件: {cfg_file}")
-        console.print(f"    设置: [bold]llm.enabled: true[/bold]")
+        console.print("    设置: [bold]llm.enabled: true[/bold]")
         sys.exit(1)
 
     from api.registry import Container

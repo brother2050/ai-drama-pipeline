@@ -94,7 +94,7 @@ def _cmd_storyboard(episode, outline, text, duration, config_path, append):
         save_storyboard(shots, episode)
 
     total_sec = sum(int(s.get("duration", 4)) for s in shots)
-    console.print(f"\n[bold green]✅ 生成完成！[/bold green]")
+    console.print("\n[bold green]✅ 生成完成！[/bold green]")
     console.print(f"  镜头数: {len(shots)}")
     console.print(f"  总时长: {total_sec} 秒 ({total_sec/60:.1f} 分钟)")
     _print_shots_preview(shots)
@@ -106,7 +106,7 @@ def _cmd_characters(desc, config_path):
     llm, cfg, cfg_file = _get_llm(config_path)
     from engines.llm_generator import generate_characters
 
-    console.print(f"\n[bold cyan]👤 生成角色配置[/bold cyan]")
+    console.print("\n[bold cyan]👤 生成角色配置[/bold cyan]")
     console.print(f"[dim]共 {len(desc)} 个角色描述[/dim]\n")
 
     try:
@@ -131,7 +131,7 @@ def _cmd_scenes(desc, config_path):
     llm, cfg, cfg_file = _get_llm(config_path)
     from engines.llm_generator import generate_scenes
 
-    console.print(f"\n[bold cyan]🏔️ 生成场景配置[/bold cyan]")
+    console.print("\n[bold cyan]🏔️ 生成场景配置[/bold cyan]")
     console.print(f"[dim]共 {len(desc)} 个场景描述[/dim]\n")
 
     try:
@@ -169,7 +169,7 @@ def _cmd_bible(config_path, outline):
         if p.exists():
             outline_text = p.read_text(encoding="utf-8")
 
-    console.print(f"\n[bold cyan]📖 生成角色圣经[/bold cyan]")
+    console.print("\n[bold cyan]📖 生成角色圣经[/bold cyan]")
     console.print(f"[dim]共 {len(chars)} 个角色[/dim]\n")
 
     bible = CharacterBible(str(paths))
@@ -181,10 +181,10 @@ def _cmd_bible(config_path, outline):
         result = generate_bible(llm, char, outline=outline_text, other_chars=chars)
         if result:
             bible.save(cid, result)
-            console.print(f"    ✅ 已保存")
+            console.print("    ✅ 已保存")
             generated += 1
         else:
-            console.print(f"    ⚠ 生成失败")
+            console.print("    ⚠ 生成失败")
 
     console.print(f"\n[bold green]✅ 生成 {generated}/{len(chars)} 个角色圣经[/bold green]")
 

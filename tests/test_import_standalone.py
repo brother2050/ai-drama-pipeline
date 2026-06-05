@@ -173,7 +173,7 @@ def test_shots_only_with_existing_project():
 
         errors = ImportValidator.validate_references(plan, project_dir=project_dir)
         assert errors == [], f"已有项目应能解析引用，实际: {errors}"
-        print(f"✅ shots-only + 已有项目通过 — 0 错误")
+        print("✅ shots-only + 已有项目通过 — 0 错误")
 
 
 def test_schema_errors():
@@ -187,7 +187,7 @@ def test_schema_errors():
         ])
         print("❌ 应该报错但没报")
     except ValidationError as e:
-        print(f"✅ Schema 校验通过 — shot_id 非法字符被拦截")
+        print("✅ Schema 校验通过 — shot_id 非法字符被拦截")
 
     # action 太短
     try:
@@ -196,7 +196,7 @@ def test_schema_errors():
         ])
         print("❌ 应该报错但没报")
     except ValidationError as e:
-        print(f"✅ Schema 校验通过 — action 太短被拦截")
+        print("✅ Schema 校验通过 — action 太短被拦截")
 
     # duration 超范围
     try:
@@ -205,7 +205,7 @@ def test_schema_errors():
         ])
         print("❌ 应该报错但没报")
     except ValidationError as e:
-        print(f"✅ Schema 校验通过 — duration=15 超范围被拦截")
+        print("✅ Schema 校验通过 — duration=15 超范围被拦截")
 
 
 @pytest.mark.skip(reason="需要文件路径参数，通过 __main__ 调用")

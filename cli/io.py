@@ -69,7 +69,7 @@ def register_io_commands(cli):
             console.print(f"  场景:   {len(data.get('scenes', []))} 个")
         console.print(f"  分镜:   {len(data.get('shots', []))} 个")
         if append:
-            console.print(f"  模式:   [yellow]追加（不覆盖已有数据）[/yellow]")
+            console.print("  模式:   [yellow]追加（不覆盖已有数据）[/yellow]")
         console.print()
 
         if not _run_via_celery("pipeline_import_json", data, result_handler=_handle_import_result):
@@ -113,7 +113,7 @@ def _handle_import_result(result) -> bool:
     if isinstance(result, dict) and result.get("status") == STATUS_DONE:
         mode = result.get("mode", "full")
         if mode == "append":
-            console.print(f"\n[bold green]✅ 追加导入成功！[/bold green]")
+            console.print("\n[bold green]✅ 追加导入成功！[/bold green]")
             console.print(f"  项目: {result.get('project_name', '?')}")
             added_c = result.get("added_characters", 0)
             added_s = result.get("added_scenes", 0)
@@ -124,7 +124,7 @@ def _handle_import_result(result) -> bool:
                 console.print(f"  新增场景: {added_s} 个")
             console.print(f"  追加分镜: {added_sh} 个")
         else:
-            console.print(f"\n[bold green]✅ 导入成功！[/bold green]")
+            console.print("\n[bold green]✅ 导入成功！[/bold green]")
             console.print(f"  项目: {result.get('project_name', '?')}")
             console.print(f"  角色: {result.get('characters', 0)} 个")
             console.print(f"  场景: {result.get('scenes', 0)} 个")
@@ -133,10 +133,10 @@ def _handle_import_result(result) -> bool:
         translation = result.get("translation", {})
         if translation:
             if translation.get("complete"):
-                console.print(f"  翻译: [green]✅ 完整 — 可直接进入生产管线[/green]")
+                console.print("  翻译: [green]✅ 完整 — 可直接进入生产管线[/green]")
             else:
                 console.print(f"  翻译: [yellow]⚠ {translation['summary']}[/yellow]")
-                console.print(f"         运行 [bold]drama prepare[/bold] 补全后可进入生产管线")
+                console.print("         运行 [bold]drama prepare[/bold] 补全后可进入生产管线")
         return True
     if isinstance(result, dict) and result.get("status") == STATUS_ERROR:
         console.print(f"\n[red]❌ {result.get('reason', '导入失败')}[/red]")

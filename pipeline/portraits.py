@@ -64,7 +64,7 @@ def run_portraits(
 
         logger.info(f"  角色: {char.get('name', char_id)} ({char_id})")
         if not cont:
-            logger.warning(f"    ⚠ 无 ComfyUI 连接，跳过")
+            logger.warning("    ⚠ 无 ComfyUI 连接，跳过")
             continue
 
         try:
@@ -72,9 +72,9 @@ def run_portraits(
             result = ensure_portrait(char_id, cfg.data, container=cont, force=force)
             if result:
                 generated += 1
-                logger.info(f"    ✅ 定妆照完成")
+                logger.info("    ✅ 定妆照完成")
             else:
-                logger.warning(f"    ⚠ 定妆照未生成")
+                logger.warning("    ⚠ 定妆照未生成")
 
             # 写回 YAML（ensure_portrait 已更新 reference_images）
             if write_db and result:
@@ -82,7 +82,7 @@ def run_portraits(
                 # 重新读取最新数据（ensure_portrait 可能已修改）
                 latest = load_yaml_full(f)
                 save_yaml(f, latest)
-                logger.info(f"    📝 已更新 YAML")
+                logger.info("    📝 已更新 YAML")
 
         except Exception as e:
             logger.error(f"    ❌ 失败: {e}", exc_info=True)

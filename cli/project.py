@@ -42,7 +42,7 @@ def register_project_commands(cli):
                 console.print("\n[bold cyan]🎨 视觉风格 (--style)[/bold cyan]")
                 for k, v in presets.get("styles", {}).items():
                     console.print(f"  [green]{k:20s}[/green] {v}")
-                console.print(f"\n[bold cyan]🎭 题材类型 (--genre)[/bold cyan]")
+                console.print("\n[bold cyan]🎭 题材类型 (--genre)[/bold cyan]")
                 for k, v in presets.get("genres", {}).items():
                     console.print(f"  [green]{k:20s}[/green] {v}")
             else:

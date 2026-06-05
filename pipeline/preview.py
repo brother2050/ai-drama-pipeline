@@ -96,7 +96,7 @@ def _process_shot(shot: dict, container, cfg, shot_out: Path, preset: dict, *, f
         # 1) TTS 语音合成
         tts_result = tts_core(shot_id, shot, cfg, container, shot_out, force=force)
         if tts_result.get("status") == STATUS_DONE:
-            logger.info(f"    ✅ TTS: audio.wav")
+            logger.info("    ✅ TTS: audio.wav")
         elif tts_result.get("status") == STATUS_ERROR:
             logger.warning(f"    ⚠ TTS 失败: {tts_result.get('reason', '')}")
 
@@ -106,21 +106,21 @@ def _process_shot(shot: dict, container, cfg, shot_out: Path, preset: dict, *, f
             shot_id=shot_id, shot=shot, cfg=cfg, cont=container,
             out_dir=shot_out, force=force))
         if ff_result.get("status") == STATUS_DONE:
-            logger.info(f"    ✅ 首帧: frame.png")
+            logger.info("    ✅ 首帧: frame.png")
         elif ff_result.get("status") == STATUS_ERROR:
             logger.warning(f"    ⚠ 首帧失败: {ff_result.get('reason', '')}")
 
         # 3) 视频生成
         vid_result = video_core(shot_id, cfg, container, shot_out, shot=shot, force=force)
         if vid_result.get("status") == STATUS_DONE:
-            logger.info(f"    ✅ 视频: video.mp4")
+            logger.info("    ✅ 视频: video.mp4")
         elif vid_result.get("status") == STATUS_ERROR:
             logger.warning(f"    ⚠ 视频失败: {vid_result.get('reason', '')}")
 
         # 4) 口型同步
         ls_result = lipsync_core(shot_id, container, shot_out, force=force)
         if ls_result.get("status") == STATUS_DONE:
-            logger.info(f"    ✅ 口型同步: synced.mp4")
+            logger.info("    ✅ 口型同步: synced.mp4")
         elif ls_result.get("status") == STATUS_ERROR:
             logger.warning(f"    ⚠ 口型同步失败: {ls_result.get('reason', '')}")
     finally:

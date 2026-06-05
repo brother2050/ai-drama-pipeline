@@ -90,7 +90,7 @@ def test_schema_validation():
     from infra.models import ImportPlan
 
     plan = ImportPlan(**PLAN_JSON)
-    print(f"   ✅ ImportPlan 创建成功")
+    print("   ✅ ImportPlan 创建成功")
     print(f"   角色: {len(plan.characters)} 个")
     print(f"   场景: {len(plan.scenes)} 个")
     print(f"   分镜: {len(plan.shots)} 个")
@@ -111,7 +111,7 @@ def test_reference_validation(plan):
             print(f"      • {e}")
         return False
     else:
-        print(f"   ✅ 引用一致性校验通过")
+        print("   ✅ 引用一致性校验通过")
         return True
 
 
@@ -141,7 +141,7 @@ def test_project_builder(plan):
 
         # project.yaml
         assert paths.project_yaml.exists(), "project.yaml 不存在"
-        print(f"   ✅ project.yaml 已创建")
+        print("   ✅ project.yaml 已创建")
 
         # 角色 YAML
         for char in plan.characters:
@@ -170,19 +170,19 @@ def test_project_builder(plan):
             char_data = yaml.safe_load(f)
         assert char_data["character"]["name"] == "林夏"
         assert "outfits" in char_data["character"]
-        print(f"   ✅ 角色数据内容正确（含 outfits）")
+        print("   ✅ 角色数据内容正确（含 outfits）")
 
         with open(paths.scene_yaml("living_room"), encoding="utf-8") as f:
             scene_data = yaml.safe_load(f)
         assert scene_data["scene"]["name"] == "客厅"
-        print(f"   ✅ 场景数据内容正确")
+        print("   ✅ 场景数据内容正确")
 
         # 验证活动项目已设置
         active_file = ROOT / "projects" / ".active"
         assert active_file.exists()
         active_content = active_file.read_text().strip()
         assert safe_name in active_content, f"活动项目不匹配: 期望含 '{safe_name}', 实际 '{active_content}'"
-        print(f"   ✅ 已设为活动项目")
+        print("   ✅ 已设为活动项目")
 
         return result_dir
 
@@ -202,14 +202,14 @@ def test_project_cleanup(project_dir):
         shutil.rmtree(project_dir)
         print(f"   ✅ 测试项目已删除: {project_dir.name}")
     else:
-        print(f"   ⚠ 项目目录不存在，跳过清理")
+        print("   ⚠ 项目目录不存在，跳过清理")
 
     # 恢复 default 为活动项目
     active_file = ROOT / "projects" / ".active"
     default_dir = ROOT / "projects" / "default"
     if default_dir.exists():
         active_file.write_text(str(default_dir), encoding="utf-8")
-        print(f"   ✅ 活动项目已恢复为 default")
+        print("   ✅ 活动项目已恢复为 default")
 
 
 def test_error_cases():
@@ -244,7 +244,7 @@ def test_error_cases():
     )
     errors = ImportValidator.validate_references(plan)
     assert any("guchen" in e for e in errors)
-    print(f"   ✅ 引用不存在角色被检出")
+    print("   ✅ 引用不存在角色被检出")
 
     # 5d. shot_id 重复
     plan2 = ImportPlan(
@@ -258,7 +258,7 @@ def test_error_cases():
     )
     errors2 = ImportValidator.validate_references(plan2)
     assert any("重复" in e for e in errors2)
-    print(f"   ✅ shot_id 重复被检出")
+    print("   ✅ shot_id 重复被检出")
 
     # 5e. duration 超范围
     try:

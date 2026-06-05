@@ -16,7 +16,6 @@
 
 | # | 文件 | 描述 |
 |---|------|------|
-| 104 | `engines/workflow_inject.py` | suffix 用 `random.randint` 理论可能碰撞 |
 | 131 | `web/routers/deps.py` | `_safe_path` URL 解码可能破坏含 `%` 的文件名 |
 
 ---
@@ -49,6 +48,7 @@
 | 61 | `infra/database/schema.py` | `9789cce` — shots 表添加 updated_at 列 |
 | 102 | `engines/workflow_builder.py` | `7b2bee6` — sampler_types 构建提到 load_workflows |
 | 113 | `pipeline/tasks/helpers.py` | `eb10f12` — _db_record_step 异常日志提升为 warning |
+| 104 | `engines/workflow_inject.py` | `e04ef1c` — suffix 改为原子计数器 |
 
 ### 验证为非问题（审查中确认）
 

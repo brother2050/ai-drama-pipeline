@@ -209,7 +209,7 @@ def create_project(name: str, root: Path, console, style: str = "cinematic", gen
     if name == DEFAULT_PROJECT:
         from config.default_storyboard import DEFAULT_CHARACTERS, DEFAULT_SCENES, DEFAULT_SHOTS
         console.print(f"[dim]  已生成: {len(DEFAULT_CHARACTERS)} 角色 + {len(DEFAULT_SCENES)} 场景 + {len(DEFAULT_SHOTS)} 分镜[/dim]")
-    console.print(f"[dim]  下一步: drama serve 启动工作台[/dim]")
+    console.print("[dim]  下一步: drama serve 启动工作台[/dim]")
 
 
 def switch_project(name: str, root: Path, console):

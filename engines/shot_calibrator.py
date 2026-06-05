@@ -65,7 +65,7 @@ def calibrate_storyboard(llm: object, params: object) -> list[dict]:
     enriched = _enrich_stage(llm, shots, _tpl("shot_stage2_system"), "视觉描述", required_fields=["action", "dialogue"])
     if enriched:
         shots = enriched
-        logger.info(f"  ✅ 视觉描述完成")
+        logger.info("  ✅ 视觉描述完成")
     else:
         logger.warning("  ⚠ 视觉描述失败，使用骨架数据继续")
 
@@ -76,7 +76,7 @@ def calibrate_storyboard(llm: object, params: object) -> list[dict]:
     enriched = _enrich_stage(llm, shots, _tpl("shot_stage3_system"), "AI 绘图", required_fields=["image_prompt_en"])
     if enriched:
         shots = enriched
-        logger.info(f"  ✅ AI 绘图 Prompt 完成")
+        logger.info("  ✅ AI 绘图 Prompt 完成")
     else:
         logger.warning("  ⚠ AI 绘图 Prompt 失败（不影响生产，prepare 阶段会补充）")
 
@@ -99,7 +99,7 @@ def _build_context(outline: str, characters: list[dict], scenes: list[dict], tar
             info.append(f"视觉风格: {style}")
         if genre:
             info.append(f"题材类型: {genre}")
-        parts.append(f"\n=== 创作方向 ===\n" + "，".join(info))
+        parts.append("\n=== 创作方向 ===\n" + "，".join(info))
 
     if characters:
         mapping = []
@@ -110,7 +110,7 @@ def _build_context(outline: str, characters: list[dict], scenes: list[dict], tar
             oi = f"，服装: {'/'.join(keys)}" if keys else ""
             traits = (c.get("bible") or {}).get("core_traits", "")
             mapping.append(f"  {cid} → {cname}（{traits}）{oi}")
-        parts.append(f"\n=== 角色 ===\n" + "\n".join(mapping))
+        parts.append("\n=== 角色 ===\n" + "\n".join(mapping))
 
     if scenes:
         info = "\n".join(f"- {s.get('id', '?')}（{s.get('name', '?')}）: {s.get('description', '')[:60]}" for s in scenes)

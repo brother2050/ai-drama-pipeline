@@ -118,7 +118,7 @@ class MusicGenAPI:
             try:
                 Path(output).write_bytes(base64.b64decode(audio_data))
             except Exception:
-                raise RuntimeError(f"MusicGen 响应中 audio 字段不是有效 base64")
+                raise RuntimeError("MusicGen 响应中 audio 字段不是有效 base64")
         else:
             raise RuntimeError(f"MusicGen 响应中无音频数据: {data}")
 

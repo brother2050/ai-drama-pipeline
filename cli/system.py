@@ -159,7 +159,7 @@ def register_system_commands(cli):
                 conn.close()
                 console.print(f"[cyan]PG:[/cyan]     ✅ {pg_dsn.split('@')[-1]}")
             except Exception:
-                console.print(f"[cyan]PG:[/cyan]     ❌ 连接失败")
+                console.print("[cyan]PG:[/cyan]     ❌ 连接失败")
         else:
             console.print("[cyan]PG:[/cyan]     ❌ 未配置 AI_DRAMA_DB_DSN")
         try:
