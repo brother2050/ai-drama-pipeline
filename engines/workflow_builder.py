@@ -294,7 +294,11 @@ class WorkflowBuilder:
         """
         ref_image = self._find_ref_image(shot)
         if not ref_image:
-            logger.warning("img2img 后端无参考图，将按 denoise=1 纯文本生成")
+            char_ids = parse_char_ids(shot)
+            if char_ids:
+                logger.warning("img2img 后端无参考图（角色缺定妆照），将按 denoise=1 纯文本生成")
+            else:
+                logger.info("img2img 后端无角色参考图，将按 denoise=1 纯文本生成")
             return
 
         # 上传到 ComfyUI
