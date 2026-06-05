@@ -460,21 +460,25 @@ def inject_lora(wf: dict, lora_path: str, strength: float = 0.7,
     if not ksampler:
         logger.warning("未找到 KSampler 节点，无法注入 LoRA")
         return wf
-    model_source = _resolve_model_source(wf, ksampler)
+
+    # 追踪当前 KSampler 的实际 model/clip 来源（可能是前一个 LoRA 的输出）
+    model_ref = wf[ksampler].get("inputs", {}).get("model")
+    if isinstance(model_ref, list) and len(model_ref) == 2:
+        model_source = model_ref[0]
+    else:
+        model_source = _resolve_model_source(wf, ksampler)
     if not model_source:
         logger.warning("未找到模型加载节点，无法注入 LoRA")
         return wf
 
-    clip_source = None
-    clip_output_idx = 0
-    if wf.get(model_source, {}).get("class_type") == "CheckpointLoaderSimple":
-        clip_source = model_source
-        clip_output_idx = 1
+    clip_ref = wf[ksampler].get("inputs", {}).get("clip")
+    if isinstance(clip_ref, list) and len(clip_ref) == 2:
+        clip_source, clip_output_idx = clip_ref[0], clip_ref[1]
     else:
-        # 追踪 KSampler.clip 的实际来源
-        clip_ref = wf[ksampler].get("inputs", {}).get("clip")
-        if isinstance(clip_ref, list) and len(clip_ref) == 2:
-            clip_source = clip_ref[0]
+        clip_source, clip_output_idx = None, 0
+        if wf.get(model_source, {}).get("class_type") == "CheckpointLoaderSimple":
+            clip_source = model_source
+            clip_output_idx = 1
         else:
             clip_source = (find_first_node(wf, "DualCLIPLoader")
                            or find_first_node(wf, "CLIPLoader"))

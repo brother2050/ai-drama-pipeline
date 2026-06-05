@@ -54,11 +54,15 @@ def postprocess_shots(shots: list[dict], episode: int, *, strict: bool = False) 
         except (ValueError, TypeError):
             shot["duration"] = 4
 
-        # 清理引号
+        # 清理引号（含中文引号）
         for k in ("dialogue", "action_en", "dialogue_en"):
             val = shot.get(k, "")
-            if val and len(val) >= 2 and val[0] in "\"'" and val[-1] == val[0]:
-                shot[k] = val[1:-1]
+            if val and len(val) >= 2:
+                pairs = [("\"", "\""), ("'", "'"), (""", """), ("「", "」")]
+                for open_q, close_q in pairs:
+                    if val[0] == open_q and val[-1] == close_q:
+                        shot[k] = val[1:-1]
+                        break
 
         # emotion 校验
         if shot.get("emotion", "neutral") not in VALID_EMOTIONS:
