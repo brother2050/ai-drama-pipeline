@@ -61,8 +61,10 @@ class CogVideoX(_ComfyUIVideoBase):
 
 def _f(config): return AnimateDiff(config)
 registry.register(BackendMeta(name="animatediff", service_type="video", factory=_f,
-    description="AnimateDiff 视频生成（via ComfyUI）", priority=10, tags=["api"]))
+    description="AnimateDiff 视频生成（via ComfyUI）", priority=10, tags=["api"],
+    module="api.backends.video.animatediff"))
 
 def _f2(config): return CogVideoX(config)
 registry.register(BackendMeta(name="cogvideox", service_type="video", factory=_f2,
-    description="CogVideoX 视频生成（via ComfyUI）", priority=50, tags=["api"]))
+    description="CogVideoX 视频生成（via ComfyUI）", priority=50, tags=["api"],
+    module="api.backends.video.animatediff"))

@@ -180,4 +180,5 @@ def _extract_error(r) -> str:
 
 def _f(config): return ComfyUI(config)
 registry.register(BackendMeta(name="comfyui", service_type="image", factory=_f,
-    description="ComfyUI 图片/视频生成", priority=10, tags=["api"]))
+    description="ComfyUI 图片/视频生成", priority=10, tags=["api"],
+    module="api.backends.image.comfyui"))
