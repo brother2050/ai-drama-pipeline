@@ -542,7 +542,11 @@ def _run_quality_gate(paths, result: dict) -> None:
         issues = check_quality("after_prepare", str(paths.root))
         if issues:
             for w in [i for i in issues if i["severity"] == "warning"]:
-                logger.warning(f"⚠ 质量检查: {w['name']} — {w['message']}")
+                details = w.get("details", [])
+                if details:
+                    logger.warning(f"⚠ 质量检查: {w['name']} — {w['message']}（{'; '.join(details[:5])}）")
+                else:
+                    logger.warning(f"⚠ 质量检查: {w['name']} — {w['message']}")
             result["quality_issues"] = issues
     except Exception as e:
         logger.debug(f"质量门禁跳过: {e}")

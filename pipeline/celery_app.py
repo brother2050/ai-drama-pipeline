@@ -6,14 +6,42 @@ import os
 
 from celery import Celery
 from celery.signals import task_failure
+from celery import Task as _CeleryTask
 
 logger = logging.getLogger(__name__)
+
+
+class _SuppressDefaultSuccess(logging.Filter):
+    """过滤 Celery 默认的成功日志（含高精度 runtime），由 DramaTask 替代
+
+    Celery 格式: "Task <name>[<uuid>] succeeded in <float>s: <result>"
+    DramaTask 格式: "Task <uuid> succeeded in <float>s: <result>"
+    匹配关键词 '[…] succeeded in' 即可精确区分。
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage()
+        # Celery 默认日志含 [uuid] 方括号，DramaTask 不含
+        return "] succeeded in" not in msg
+
+
+class DramaTask(_CeleryTask):
+    """自定义 Task 基类 — 统一成功日志格式（耗时 3 位小数）"""
+
+    def on_success(self, retval, task_id, args, kwargs):
+        runtime = self.request.get("runtime", 0)
+        logger.info(f"Task {task_id} succeeded in {runtime:.3f}s: {retval}")
+
+
+# 抑制 Celery 默认的成功日志（DramaTask 已替代，避免重复输出）
+logging.getLogger("celery.worker.request").addFilter(_SuppressDefaultSuccess())
 
 broker = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 backend = os.environ.get("REDIS_BACKEND_URL", broker.replace("/0", "/1"))
 
 app = Celery("drama", broker=broker, backend=backend,
-             include=["pipeline.tasks"])
+             include=["pipeline.tasks"],
+             task_cls=DramaTask)
 
 app.conf.update(
     task_serializer="json",
