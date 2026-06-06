@@ -31,14 +31,15 @@ class GptSovits:
         Path(output).parent.mkdir(parents=True, exist_ok=True)
         if emotion != "neutral":
             logger.debug(f"GPT-SoVITS 不支持 emotion 参数，已忽略 (emotion={emotion})")
-        r = self._client.post(f"{self._url}/tts", json={
+        with self._client.stream("POST", f"{self._url}/tts", json={
             "text": text, "text_language": language,
             "refer_audio_path": ref_audio,
             "prompt_text": voice_config.get("prompt_text", ""),
-        })
-        r.raise_for_status()
+        }) as r:
+            r.raise_for_status()
+            content = b"".join(r.iter_bytes())
         from infra.config import atomic_write_bytes
-        atomic_write_bytes(output, r.content)
+        atomic_write_bytes(output, content)
         return output
 
     def health_check(self) -> tuple[bool, str]:

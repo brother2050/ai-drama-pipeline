@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import logging
 
+import psycopg2
+
 from infra.constants import STATUS_DONE
 
 logger = logging.getLogger(__name__)
@@ -18,13 +20,13 @@ def get_episode_status(project_dir: str, episode: int) -> dict:
 
     try:
         pool = get_pool()
-    except Exception:
+    except psycopg2.Error:
         return {"episode": episode, "status": "not_started", "shots": 0}
 
     # 分镜数据
     try:
         shots = get_episode_shots(pool, episode)
-    except Exception:
+    except psycopg2.Error:
         shots = []
 
     if not shots:
@@ -33,7 +35,7 @@ def get_episode_status(project_dir: str, episode: int) -> dict:
     # 生成状态
     try:
         statuses = get_episode_statuses(pool, episode)
-    except Exception:
+    except psycopg2.Error:
         statuses = []
 
     # 按 shot_id 聚合状态

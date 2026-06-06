@@ -127,13 +127,15 @@ class Container:
                 cfg_key = reg.get_service_cfg_key(svc_type)
                 cls._TYPE_KEY[svc_type] = cfg_key
         except Exception:
-            # 兜底：硬编码（注册表不可用时）
-            cls._TYPE_KEY = {
-                "tts": "tts_backend", "lipsync": "lip_sync_backend",
-                "image": "image_backend", "video": "video_backend",
-                "music": "music_backend", "llm": "llm_backend",
-                "training": "training_backend",
-            }
+            # 兜底：从 models_registry.yaml 的 defaults.config_paths 读取（单一数据源）
+            try:
+                from infra.config import load_config, REGISTRY_PATH
+                reg_data = load_config(REGISTRY_PATH)
+                cfg_paths = reg_data.get("defaults", {}).get("config_paths", {})
+                for svc_type, cfg_key in cfg_paths.items():
+                    cls._TYPE_KEY[svc_type] = cfg_key
+            except Exception:
+                logger.warning("模型注册表不可用，Container 类型映射为空")
         return cls._TYPE_KEY
 
     def __init__(self, config: dict):

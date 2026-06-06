@@ -24,14 +24,15 @@ class CosyVoice:
                    emotion: str = "neutral", language: str = "zh") -> str:
         voice_config = voice_config or {}
         Path(output).parent.mkdir(parents=True, exist_ok=True)
-        r = self._client.post(f"{self._url}/api/tts", json={
+        with self._client.stream("POST", f"{self._url}/api/tts", json={
             "text": text, "language": language,
             "speaker": voice_config.get("speaker", "default"),
             "emotion": emotion,
-        })
-        r.raise_for_status()
+        }) as r:
+            r.raise_for_status()
+            content = b"".join(r.iter_bytes())
         from infra.config import atomic_write_bytes
-        atomic_write_bytes(output, r.content)
+        atomic_write_bytes(output, content)
         return output
 
     def health_check(self) -> tuple[bool, str]:

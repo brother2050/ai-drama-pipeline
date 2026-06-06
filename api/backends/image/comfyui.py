@@ -48,7 +48,7 @@ class ComfyUI:
             r = self._fast_client.get(f"{self._url}/view", params=params,
                                       headers=self._headers())
             return r.status_code == 200
-        except Exception:
+        except httpx.HTTPError:
             return False
 
     def upload_image(self, filepath: str, overwrite: bool = True, filename: str | None = None) -> dict:
@@ -77,12 +77,12 @@ class ComfyUI:
         if r.status_code != 200:
             try:
                 detail = _extract_error(r)
-            except Exception:
+            except (ValueError, KeyError):
                 detail = r.text[:500]
             raise RuntimeError(f"ComfyUI /prompt 提交失败 (HTTP {r.status_code}): {detail}")
         try:
             resp = r.json()
-        except Exception:
+        except ValueError:
             raise RuntimeError(f"ComfyUI /prompt 返回非 JSON 响应 (HTTP {r.status_code}): {r.text[:200]}")
         if "error" in resp:
             raise RuntimeError(f"ComfyUI 工作流提交失败: {resp['error']}")
@@ -128,7 +128,7 @@ class ComfyUI:
         """检查 /history 响应，完成时返回文件列表，未完成返回 None"""
         try:
             history = r.json()
-        except Exception:
+        except ValueError:
             logger.warning(f"GET /history/{prompt_id} 返回非 JSON (len={len(r.text)}): {r.text[:200]}")
             return None
         if prompt_id not in history:
@@ -177,14 +177,14 @@ class ComfyUI:
         try:
             r = self._client.get(f"{self._url}/system_stats", headers=self._headers())
             return True, f"ComfyUI reachable (HTTP {r.status_code})"
-        except Exception as e:
+        except httpx.HTTPError as e:
             return False, f"ComfyUI unreachable: {e}"
 
 def _extract_error(r) -> str:
     """从 ComfyUI 错误响应中提取详细信息"""
     try:
         err_body = r.json()
-    except Exception:
+    except ValueError:
         return r.text[:500]
     try:
         err = err_body.get("error")
@@ -193,7 +193,7 @@ def _extract_error(r) -> str:
         if node_errors:
             detail += f" | node_errors: {node_errors}"
         return detail or r.text[:500]
-    except Exception:
+    except (AttributeError, TypeError):
         return str(err_body)[:500]
 
 

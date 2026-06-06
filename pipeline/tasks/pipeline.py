@@ -97,8 +97,9 @@ def _run_shot_steps(self, config_path, episode, shot_id, force, ctx):
             logger.warning(f"[{shot_id}] {name}: 跳过（前置步骤 {', '.join(failed_deps)} 失败）")
             continue
 
-        self.update_state(state="PROGRESS", meta={"step": name, "shot_id": shot_id,
-            "progress": int((i + 1) / len(steps) * 100), "message": f"[{shot_id}] {name} ({i+1}/{len(steps)})"})
+        if self:
+            self.update_state(state="PROGRESS", meta={"step": name, "shot_id": shot_id,
+                "progress": int((i + 1) / len(steps) * 100), "message": f"[{shot_id}] {name} ({i+1}/{len(steps)})"})
         try:
             t0 = time.time()
             result = fn(config_path, episode, shot_id, force=force, **ctx)
@@ -134,8 +135,19 @@ def _iterate_shots(self, config_path: str, episode: int, shots: list[dict], prog
     return results
 
 
+def _run_shot_direct(config_path: str, episode: int, shot: dict, force: bool) -> dict:
+    """直接执行 shot_task 逻辑（绕过 Celery 队列，避免 worker 阻塞死锁）"""
+    shot_id = shot.get("shot_id", "")
+    if not shot_id:
+        return {"shot_id": "", "status": STATUS_ERROR, "reason": "镜头数据缺少 shot_id"}
+    project_name = Path(config_path).resolve().parent.parent.name
+    from infra.database._db import project_scope
+    with project_scope(project_name):
+        return _shot_task_inner(None, config_path, episode, shot, shot_id, force)
+
+
 def _run_serial(self, config_path, episode, shots, force, progress_base, progress_range):
-    """串行执行所有镜头"""
+    """串行执行所有镜头（直接调用，不经过 Celery 队列）"""
     total = len(shots)
     results, failed_indices = [], []
     for i, shot in enumerate(shots):
@@ -144,7 +156,7 @@ def _run_serial(self, config_path, episode, shots, force, progress_base, progres
             "progress": int(progress_base + i / total * progress_range), "current": i + 1, "total": total,
             "message": f"[{i+1}/{total}] 镜头 {shot_id}"})
         try:
-            result = shot_task.apply_async(args=[config_path, episode, shot], kwargs={"force": force}).get(timeout=1800)
+            result = _run_shot_direct(config_path, episode, shot, force)
             results.append(result)
             if result.get("errors"):
                 failed_indices.append(i)
@@ -155,7 +167,7 @@ def _run_serial(self, config_path, episode, shots, force, progress_base, progres
 
 
 def _run_concurrent(self, config_path, episode, shots, force, progress_base, progress_range):
-    """错开并发执行所有镜头"""
+    """错开并发执行所有镜头（直接调用，不经过 Celery 队列）"""
     from infra.concurrency import run_staggered_sync
     total = len(shots)
     results, failed_indices = [], []
@@ -166,7 +178,7 @@ def _run_concurrent(self, config_path, episode, shots, force, progress_base, pro
             self.update_state(state="PROGRESS", meta={"step": "shot", "shot_id": shot_id,
                 "progress": int(progress_base + i / total * progress_range), "current": i + 1, "total": total,
                 "message": f"[{i+1}/{total}] 镜头 {shot_id}"})
-            return shot_task.apply_async(args=[config_path, episode, shot], kwargs={"force": force}).get(timeout=1800)
+            return _run_shot_direct(config_path, episode, shot, force)
         return _run
 
     tasks = [_make_task(i, shot) for i, shot in enumerate(shots)]
@@ -177,7 +189,6 @@ def _run_concurrent(self, config_path, episode, shots, force, progress_base, pro
                       "message": f"[{c}/{t}] {m}"}))
     except Exception as e:
         logger.error(f"并发执行器异常: {e}", exc_info=True)
-        # 降级：所有镜头标记失败
         for i, shot in enumerate(shots):
             shot_id = shot.get("shot_id", f"{i+1:03d}")
             results.append({"shot_id": shot_id, "error": f"并发执行器异常: {e}"})
@@ -211,7 +222,7 @@ def _retry_failed(self, config_path, episode, shots, results, failed_indices, pr
             "progress": int(progress_base + retry_idx / len(failed_indices) * progress_range),
             "message": f"重试镜头 {shot_id} ({retry_idx+1}/{len(failed_indices)})..."})
         try:
-            result = shot_task.apply_async(args=[config_path, episode, shot], kwargs={"force": True}).get(timeout=1800)
+            result = _run_shot_direct(config_path, episode, shot, force=True)
             results[i] = result
             logger.info(f"  镜头 {shot_id} 重试完成: done={result.get('done', [])}, errors={result.get('errors', [])}")
         except Exception as e:

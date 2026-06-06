@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -10,6 +11,9 @@ from infra.constants import ERR_NOT_PREPARED, STATUS_DONE
 from pipeline.tasks.helpers import _skip, _err
 
 logger = logging.getLogger(__name__)
+
+# 共享线程池：所有 shot 复用，避免每 shot 创建新线程池（max_workers=4 限制上传并发）
+_upload_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="upload")
 
 
 @dataclass
@@ -63,10 +67,9 @@ def _check_lora_availability(wf: dict, paths, cfg, comfyui) -> list[str]:
 
 
 def _upload_reference_images(wf: dict, shot: dict, wb, comfyui, paths) -> dict:
-    """并行上传参考图到 ComfyUI 服务器，更新工作流节点引用"""
+    """并行上传参考图到 ComfyUI 服务器，更新工作流节点引用（复用共享线程池）"""
     from engines.workflow import find_character_load_image_nodes as _find_char_nodes
     from infra.asset_tracker import comfyui_asset_name
-    from concurrent.futures import ThreadPoolExecutor, as_completed
 
     _char_node_set = set(_find_char_nodes(wf))
     upload_map = wb.build_upload_map(shot, wf)
@@ -89,23 +92,22 @@ def _upload_reference_images(wf: dict, shot: dict, wb, comfyui, paths) -> dict:
         except Exception as e:
             return node_id, "", f"上传失败: {e}"
 
-    with ThreadPoolExecutor(max_workers=min(len(upload_map), 4)) as pool:
-        futures = {pool.submit(_upload_one, nid, fp): nid for nid, fp in upload_map.items()}
-        failed_char_refs = []
-        for future in as_completed(futures):
-            node_id, remote_name, err = future.result()
-            if err:
-                if node_id in _char_node_set:
-                    failed_char_refs.append(f"[{node_id}] {err}")
-                    logger.error(f"角色参考图上传失败 [{node_id}]: {err}")
-                else:
-                    logger.warning(f"场景图上传失败 [{node_id}]: {err}")
-            elif node_id in wf and remote_name:
-                cls = wf[node_id].get("class_type", "")
-                if cls in ("LoadImage", "LoadImageFromPath", "ImageLoad"):
-                    wf[node_id]["inputs"]["image"] = remote_name
-        if failed_char_refs:
-            raise RuntimeError(f"角色参考图上传失败（{len(failed_char_refs)} 个）: {'; '.join(failed_char_refs)}")
+    futures = {_upload_pool.submit(_upload_one, nid, fp): nid for nid, fp in upload_map.items()}
+    failed_char_refs = []
+    for future in as_completed(futures):
+        node_id, remote_name, err = future.result()
+        if err:
+            if node_id in _char_node_set:
+                failed_char_refs.append(f"[{node_id}] {err}")
+                logger.error(f"角色参考图上传失败 [{node_id}]: {err}")
+            else:
+                logger.warning(f"场景图上传失败 [{node_id}]: {err}")
+        elif node_id in wf and remote_name:
+            cls = wf[node_id].get("class_type", "")
+            if cls in ("LoadImage", "LoadImageFromPath", "ImageLoad"):
+                wf[node_id]["inputs"]["image"] = remote_name
+    if failed_char_refs:
+        raise RuntimeError(f"角色参考图上传失败（{len(failed_char_refs)} 个）: {'; '.join(failed_char_refs)}")
     return wf
 
 

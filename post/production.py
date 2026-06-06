@@ -56,14 +56,14 @@ def _concat_videos(videos: list[Path], concat_out: Path, transition: str, durati
                       transition=transition, duration=duration)
         logger.info(f"拼接完成: {concat_out}")
         return True
-    except Exception as e:
+    except RuntimeError as e:
         logger.error(f"拼接失败: {e}", exc_info=True)
     # 回退：简单拼接（无转场）
     try:
         FFmpeg.concat([str(v) for v in videos], str(concat_out), transition="none")
         logger.info(f"简单拼接完成: {concat_out}")
         return True
-    except Exception as e2:
+    except RuntimeError as e2:
         logger.error(f"简单拼接也失败: {e2}，跳过后期合成", exc_info=True)
         return False
 
@@ -77,7 +77,7 @@ def _add_subtitles(concat_out: Path, srt_path: Path, episode: int, out_dir: Path
         FFmpeg.add_subtitle(str(concat_out), str(srt_path), str(subtitled_out))
         logger.info(f"字幕添加完成: {subtitled_out}")
         return subtitled_out
-    except Exception as e:
+    except RuntimeError as e:
         logger.warning(f"字幕添加失败（跳过）: {e}")
         return concat_out
 
@@ -106,7 +106,7 @@ def _generate_and_mix_bgm(concat_out: Path, shots: list[dict], cfg: Config,
                          video_vol=1.0, audio_vol=bgm_volume)
         logger.info(f"配乐混合完成: {bgm_out}")
         return bgm_out
-    except Exception as e:
+    except RuntimeError as e:
         logger.warning(f"配乐混合失败（跳过）: {e}")
         return concat_out
 
@@ -183,7 +183,7 @@ def run_post(config_path: str, episode: int, vertical: bool = False, cfg=None) -
             td = cfg.get("post_production.transition_duration", 0.5)
             generate_srt(shots, str(srt_path), transition_duration=td, bilingual=bilingual)
             logger.info(f"SRT 已重新生成: {srt_path}" + ("（双语）" if bilingual else ""))
-        except Exception as e:
+        except (OSError, ValueError, KeyError) as e:
             logger.warning(f"SRT 重新生成失败（使用已有文件）: {e}")
 
     # 拼接
