@@ -193,20 +193,21 @@ def get_view_appearance(char: dict, shot_type: str, *, view_key: str = "") -> st
 
 # 视角前缀（引导 AI 绘图模型理解视角方向）
 # 每个视角使用详细的英文描述，避免模型"偷懒"照着正面生成
+# 关键：将视角指令放在最前面（权重最高），用 "only" 强调可见部分
 _VIEW_PREFIX = {
-    "front": "front view, facing directly at camera, looking into camera, centered face",
-    "left_side": "strict left side profile view, facing left, head turned 90 degrees left, only left side of face visible, no right side visible, side profile",
-    "right_side": "strict right side profile view, facing right, head turned 90 degrees right, only right side of face visible, no left side visible, side profile",
-    "back": "back view, seen from behind, facing away from viewer, back of head and body visible, no face visible, rear view",
-    "three_quarter": "three-quarter view, head angled 45 degrees, one ear partially visible, slight turn from front",
+    "front": "front view, facing directly at camera, looking into camera, centered face, full frontal, both eyes visible, symmetrical face",
+    "left_side": "left side profile view, facing left, head turned 90 degrees to the left, camera positioned to the left of the subject, only the left side of the face is visible, right side of face not visible, left ear visible, nose pointing left, looking left, side profile portrait, from the left",
+    "right_side": "right side profile view, facing right, head turned 90 degrees to the right, camera positioned to the right of the subject, only the right side of the face is visible, left side of face not visible, right ear visible, nose pointing right, looking right, side profile portrait, from the right",
+    "back": "back view, rear view, seen from behind, facing away from viewer, camera behind the subject, back of head visible, back of body visible, no face visible, facing away, looking away from camera, back of shoulders visible, hair seen from behind",
+    "three_quarter": "three-quarter view, head angled 45 degrees, one ear partially visible, slight turn from front, both eyes partially visible",
 }
 
-# 视角负面提示（防止模型生成错误视角）
+# 视角负面提示（防止模型生成错误视角）— 用 BREAK 分隔提升 ComfyUI 注意力
 _VIEW_NEGATIVE = {
-    "left_side": "front view, facing camera, both sides of face, looking at viewer",
-    "right_side": "front view, facing camera, both sides of face, looking at viewer",
-    "back": "front view, facing camera, face visible, looking at viewer, side view",
-    "three_quarter": "front view, straight on, back view",
+    "left_side": "BREAK front view, facing camera, both sides of face visible, looking at viewer, symmetrical face, forward facing, straight on",
+    "right_side": "BREAK front view, facing camera, both sides of face visible, looking at viewer, symmetrical face, forward facing, straight on",
+    "back": "BREAK front view, facing camera, face visible, looking at viewer, side view, profile, eyes visible, nose visible, mouth visible",
+    "three_quarter": "BREAK front view, straight on, back view",
 }
 
 
@@ -231,10 +232,9 @@ def build_view_prompt(base_en: str, body_features: str, view: str) -> str:
             features = _filter_back_features(features)
         parts.append(features)
 
-    # 非正面视角：追加负面引导词到 prompt 末尾（部分模型支持）
-    neg = _VIEW_NEGATIVE.get(view)
-    if neg:
-        parts.append(f"no {neg}")
+    # 非正面视角：负面引导词不应追加到正向 prompt（CLIP/T5 会把 "no X" 当作正向条件）
+    # 正确做法是注入到 ComfyUI 的 negative prompt 字段，但 build_view_prompt 只返回正向文本。
+    # 视角区分已通过 _VIEW_PREFIX 的详细描述实现。
 
     return ", ".join(parts)
 

@@ -437,7 +437,11 @@ class WorkflowBuilder:
                                if self._get_character_refs(cid, outfit=outfit, _no_auto_gen=self.no_auto_gen)]
             missing = set(chars_without_lora) - set(chars_with_refs)
             for cid in missing:
-                logger.warning(f"角色 '{cid}' 无定妆照，跳过一致性注入")
+                # 定妆照生成阶段（no_auto_gen=True）无参考图是预期行为，降级为 debug
+                if self.no_auto_gen:
+                    logger.debug(f"角色 '{cid}' 定妆照生成中，暂无参考图（一致性将在首帧生产时注入）")
+                else:
+                    logger.warning(f"角色 '{cid}' 无定妆照，跳过一致性注入")
 
             if chars_with_refs:
                 wf = self._inject_consistency_method(wf, consistency, chars_with_refs, outfit)
