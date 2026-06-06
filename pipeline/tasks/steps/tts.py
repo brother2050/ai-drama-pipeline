@@ -16,13 +16,19 @@ _GENDER_VOICE_DESC = {
     "female": "年轻女声，声音温柔甜美",
 }
 
-# 匹配 "角色名：台词内容" 或 "角色名:台词内容"（中英文冒号）
-_SPEAKER_PREFIX_RE = re.compile(r"^[^：:]+[：:]\s*")
+# 匹配 "名字：内容" 或 "名字:内容"（中英文冒号），名字部分 ≥1 字符
+_SPEAKER_PREFIX_RE = re.compile(r"^(.{1,10})[：:]\s*(.*)", re.DOTALL)
 
 
-def _strip_speaker_prefix(text: str) -> str:
-    """去掉台词中的说话人前缀（如 '张老板：你好' → '你好'）"""
-    return _SPEAKER_PREFIX_RE.sub("", text, count=1)
+def _strip_speaker_prefix(text: str, char_names: set[str]) -> str:
+    """去掉台词中的角色名前缀（如 '张老板：你好' → '你好'）。
+
+    只在冒号前的文字匹配已知角色名/ID 时才剥离，避免误伤含冒号的普通台词。
+    """
+    m = _SPEAKER_PREFIX_RE.match(text)
+    if m and m.group(1) in char_names:
+        return m.group(2)
+    return text
 
 
 # 文件变化时清除 TTS 角色缓存（YAML 修改后自动生效）
@@ -38,7 +44,7 @@ def _clear_tts_char_cache():
 def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
              force: bool = False, characters: dict | None = None) -> dict:
     """TTS 核心逻辑 — 合成台词为音频（带看门狗跟踪 + 并发组限流）"""
-    dialogue = _strip_speaker_prefix(shot.get("dialogue", "").strip())
+    dialogue = shot.get("dialogue", "").strip()
     if not dialogue or set(dialogue) <= {".", "…"}:
         return _skip(shot_id, "tts", "无台词")
 
@@ -62,6 +68,18 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
 
     if char_ids and not char_data:
         logger.warning(f"[{shot_id}] 角色 {char_ids[0]} 不存在，使用默认声音")
+
+    # 清理台词中的角色名前缀（基于已知角色名精确匹配）
+    if dialogue and characters is not None:
+        char_names = {c.get("name", "") for c in characters.values()} | set(characters.keys())
+        dialogue = _strip_speaker_prefix(dialogue, char_names)
+    elif dialogue and hasattr(tts_core, "_chars"):
+        char_names = {c.get("name", "") for c in tts_core._chars.values()} | set(tts_core._chars.keys())
+        dialogue = _strip_speaker_prefix(dialogue, char_names)
+
+    if not dialogue:
+        return _skip(shot_id, "tts", "无台词（清理角色名后为空）")
+
     core_traits = (char_data.get("bible") or {}).get("core_traits", "")
     voice_config = {"core_traits": core_traits} if core_traits else {}
     # 角色级 voice 参数覆盖（reference_audio/speaker/reference_id 等）
