@@ -273,10 +273,11 @@ class QualityGate:
         """检查口型同步完整：有音频的镜头都有 synced.mp4"""
         if episode is None:
             return {"ok": True}
-        from infra.config import ProjectPaths, load_storyboard
+        from infra.config import ProjectPaths
+        from engines.storyboard import load_storyboard
         paths = ProjectPaths(project_dir)
         shots = load_storyboard(episode)
-        out_dir = paths.episode_output(episode)
+        out_dir = paths.episode_dir(episode)
         missing = []
         for shot in shots:
             sid = shot.get("shot_id", "")
