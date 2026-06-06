@@ -212,7 +212,7 @@ def seko_import_proposal(req: SekoImportRequest) -> dict:
 def save_training_trigger(char_id: str, trigger: str = "") -> dict:
     """保存角色的 LoRA 触发词到 YAML"""
     _check_id(char_id, "角色 ID")
-    from infra.config import load_yaml_full, save_yaml
+    from infra.config import save_yaml
     char_yaml = _paths().character_yaml(char_id)
     if not char_yaml.exists():
         raise HTTPException(404, f"角色 {char_id} 不存在")
@@ -342,11 +342,10 @@ def get_import_prompt_template(params: ImportPromptParams = Depends()):
 
     prompt = tpl.get("template", "")
     # 单次替换：用 re.sub 一次性替换所有 ${key}，避免二次替换
-    import re as _re
     def _replace_var(m):
         var_name = m.group(1)
         return replacements.get(var_name, m.group(0))
-    prompt = _re.sub(r'\$\{(\w+)\}', _replace_var, prompt)
+    prompt = re.sub(r'\$\{(\w+)\}', _replace_var, prompt)
 
     project_stats = _get_project_stats()
     return {

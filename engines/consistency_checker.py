@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import logging
 
+from engines.shot_utils import parse_char_ids
+
 logger = logging.getLogger(__name__)
 
 __all__ = ["ConsistencyChecker", "check_consistency"]
@@ -90,7 +92,6 @@ class ConsistencyChecker:
 
     def _check_outfit_continuity(self, shots: list[dict]) -> list[str]:
         """检查服装连续性：同场景内相邻镜头服装不应突变"""
-        from engines.shot_utils import parse_char_ids
         errors = []
         for i in range(1, len(shots)):
             prev = shots[i - 1]
@@ -117,7 +118,6 @@ class ConsistencyChecker:
         """检查角色存在性：引用的角色必须存在"""
         errors = []
         char_ids = {c.get("id", "") for c in characters}
-        from engines.shot_utils import parse_char_ids
         for shot in shots:
             sid = shot.get("shot_id", "?")
             for cid in parse_char_ids(shot):

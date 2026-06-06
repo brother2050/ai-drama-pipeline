@@ -9,7 +9,9 @@ Stage 3: AI 绘图 prompt — image_prompt_en（自然语言风格）
 """
 from __future__ import annotations
 
+import json
 import logging
+import re
 
 from infra.json_parse import llm_call_with_retry
 from engines.shot_utils import postprocess_shots as _postprocess_stage1
@@ -137,7 +139,6 @@ def _enrich_stage(llm: object, shots: list[dict], system: str, label: str, requi
                 slim[key] = s[key]
         slim_shots.append(slim)
 
-    import json
     prompt = json.dumps(slim_shots, ensure_ascii=False, indent=1)
     result = llm_call_with_retry(llm, prompt, system, label, max_tokens=4096)
 
@@ -158,7 +159,6 @@ def _enrich_stage(llm: object, shots: list[dict], system: str, label: str, requi
                 try:
                     sid = f"{int(sid):03d}"
                 except (ValueError, TypeError):
-                    import re
                     digits = re.search(r'\d+', str(sid))
                     if digits:
                         sid = f"{int(digits.group()):03d}"

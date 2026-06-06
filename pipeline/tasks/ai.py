@@ -4,6 +4,8 @@ from __future__ import annotations
 from infra.constants import STATUS_DONE, STATUS_ERROR
 import json
 import logging
+import re
+from itertools import zip_longest
 
 from pipeline.celery_app import app
 from pipeline.tasks.helpers import _init_ctx, _project_scope_from_config
@@ -295,8 +297,6 @@ def _deserialize_numbered(raw: str, keys: list | None = None, originals: dict | 
         keys: dict 的 key 列表（None 则返回 list）
         originals: 原始值 dict（key→原文），LLM 未翻译的 key 保留原文
     """
-    import re
-    from itertools import zip_longest
     lines = []
     for line in raw.strip().splitlines():
         m = re.match(r"^\d+\s*[.)]\s*(.+)", line.strip())
