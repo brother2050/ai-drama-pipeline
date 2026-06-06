@@ -109,11 +109,14 @@ class ConcurrencyGroups:
                 lock.release()
 
     def is_available(self, group: str) -> bool:
-        """检查组是否有空闲槽位（非阻塞）"""
+        """检查组是否有空闲槽位（非阻塞，仅用于诊断/监控）
+
+        注意：返回值是瞬时快照，可能在调用返回后立即变化（TOCTOU）。
+        不要将此方法用作 acquire() 的前置判断 — 直接使用 acquire() 上下文管理器。
+        """
         lock = self._locks.get(group)
         if lock is None:
             return True
-        # 非阻塞 acquire + release：成功说明有空闲槽位
         if lock.acquire(blocking=False):
             lock.release()
             return True

@@ -112,7 +112,7 @@ class AssetTracker:
             mark(get_pool(), server_url.rstrip("/"), asset_type, filename,
                  project=self._project)
         except Exception as e:
-            logger.debug(f"AssetTracker mark 失败: {e}")
+            logger.warning(f"AssetTracker mark 失败（下次会重新上传）: {e}")
 
     def _unmark(self, server_url: str, asset_type: str, filename: str) -> None:
         try:

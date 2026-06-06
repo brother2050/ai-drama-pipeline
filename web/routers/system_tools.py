@@ -575,7 +575,17 @@ def get_task(task_id: str) -> dict:
         "message": info.get("message", "") if isinstance(info, dict) else "",
     }
     if result.state == "SUCCESS":
-        task_info["result"] = result.result
+        raw = result.result
+        if isinstance(raw, dict):
+            # 只返回安全字段，避免暴露内部路径和配置细节
+            safe_keys = {"status", "episode", "count", "shots", "message",
+                         "characters", "scenes", "generated_characters", "generated_scenes",
+                         "total_duration", "done", "skipped", "errors", "details",
+                         "results", "quality_issues", "translation_warnings",
+                         "removed_shots", "cleared_files", "preset"}
+            task_info["result"] = {k: v for k, v in raw.items() if k in safe_keys}
+        else:
+            task_info["result"] = raw
     elif result.state == "FAILURE":
         raw = result.result
         if isinstance(raw, dict) and raw.get("reason"):

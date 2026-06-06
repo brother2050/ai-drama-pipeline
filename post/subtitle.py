@@ -45,10 +45,12 @@ def generate_srt(shots: list[dict], output: str, *,
 
 
 def _safe_duration(shot: dict) -> float:
+    from infra.constants import clip_duration
     try:
-        return float(shot.get("duration", 4))
+        raw = float(shot.get("duration", 4))
     except (ValueError, TypeError):
-        return 4.0
+        raw = 4.0
+    return float(clip_duration(raw))
 
 
 def _build_subtitle_text(shot: dict, bilingual: bool) -> str:
