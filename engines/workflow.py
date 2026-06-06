@@ -139,3 +139,30 @@ def set_clip_text_prompts(wf: dict, positive: str, negative: str = "") -> dict:
                 node["inputs"]["text"] = positive
             # 未被 KSampler 引用的 CLIPTextEncode 不修改（避免覆盖第三方节点）
     return wf
+
+
+def append_negative_prompt(wf: dict, extra_negative: str) -> None:
+    """向工作流的 negative prompt 追加内容（就地修改）
+
+    用于视角五视图生成时注入视角专属负面提示，
+    防止模型生成错误视角（如背面视图生成正面人脸）。
+    """
+    if not extra_negative:
+        return
+    negative_node_ids: set[str] = set()
+    for nid, node in wf.items():
+        ct = node.get("class_type", "")
+        inp = node.get("inputs", {})
+        if ct in ("KSampler", "KSamplerAdvanced"):
+            neg_ref = inp.get("negative", [])
+            if isinstance(neg_ref, list) and len(neg_ref) >= 1:
+                negative_node_ids.add(str(neg_ref[0]))
+        if ct == "DualCFGGuider":
+            for key in ("negative", "cfg_cond2_negative"):
+                neg_ref = inp.get(key, [])
+                if isinstance(neg_ref, list) and len(neg_ref) >= 1:
+                    negative_node_ids.add(str(neg_ref[0]))
+    for nid, node in wf.items():
+        if node.get("class_type") == "CLIPTextEncode" and nid in negative_node_ids:
+            existing = node["inputs"].get("text", "")
+            node["inputs"]["text"] = f"{existing}, {extra_negative}" if existing else extra_negative

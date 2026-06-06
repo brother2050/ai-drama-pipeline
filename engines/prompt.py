@@ -232,9 +232,8 @@ def build_view_prompt(base_en: str, body_features: str, view: str) -> str:
             features = _filter_back_features(features)
         parts.append(features)
 
-    # 非正面视角：负面引导词不应追加到正向 prompt（CLIP/T5 会把 "no X" 当作正向条件）
-    # 正确做法是注入到 ComfyUI 的 negative prompt 字段，但 build_view_prompt 只返回正向文本。
-    # 视角区分已通过 _VIEW_PREFIX 的详细描述实现。
+    # 非正面视角的负面引导词通过 append_negative_prompt 注入到 ComfyUI negative prompt 节点
+    # （不应追加到正向 prompt — CLIP/T5 会把 "no X" 当作正向条件）
 
     return ", ".join(parts)
 

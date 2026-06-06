@@ -115,6 +115,13 @@ def _generate_view(params: ViewGenParams) -> str:
 
     _inject_ref_image(wf, p.ref_image, p.char_id, p.project_dir, p.comfyui, raise_on_error=True)
 
+    # 注入视角专属负面提示（防止背面视图生成正面人脸等）
+    from engines.prompt import _VIEW_NEGATIVE
+    view_neg = _VIEW_NEGATIVE.get(p.view_key, "")
+    if view_neg:
+        from engines.workflow import append_negative_prompt
+        append_negative_prompt(wf, view_neg)
+
     files = p.comfyui.generate(wf, str(p.portrait_dir))
     if not files:
         return ""
