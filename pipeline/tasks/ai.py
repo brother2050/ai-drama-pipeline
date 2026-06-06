@@ -544,7 +544,9 @@ def _run_quality_gate(paths, result: dict) -> None:
             for w in [i for i in issues if i["severity"] == "warning"]:
                 details = w.get("details", [])
                 if details:
-                    logger.warning(f"⚠ 质量检查: {w['name']} — {w['message']}（{'; '.join(details[:5])}）")
+                    shown = "; ".join(details[:5])
+                    suffix = f"（还有 {len(details) - 5} 项）" if len(details) > 5 else ""
+                    logger.warning(f"⚠ 质量检查: {w['name']} — {w['message']}（{shown}{suffix}）")
                 else:
                     logger.warning(f"⚠ 质量检查: {w['name']} — {w['message']}")
             result["quality_issues"] = issues

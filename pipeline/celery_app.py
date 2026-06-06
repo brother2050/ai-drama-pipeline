@@ -29,8 +29,12 @@ class DramaTask(_CeleryTask):
     """自定义 Task 基类 — 统一成功日志格式（耗时 3 位小数）"""
 
     def on_success(self, retval, task_id, args, kwargs):
-        runtime = self.request.get("runtime", 0)
-        logger.info(f"Task {task_id} succeeded in {runtime:.3f}s: {retval}")
+        super().on_success(retval, task_id, args, kwargs)
+        runtime = getattr(self.request, "runtime", None)
+        if runtime is not None:
+            logger.info(f"Task {task_id} succeeded in {runtime:.3f}s: {retval}")
+        else:
+            logger.info(f"Task {task_id} succeeded: {retval}")
 
 
 # 抑制 Celery 默认的成功日志（DramaTask 已替代，避免重复输出）
