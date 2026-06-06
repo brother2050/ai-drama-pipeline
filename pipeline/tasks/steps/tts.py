@@ -96,30 +96,32 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
         emotion = shot.get("emotion", "neutral")
         language = shot.get("language", "zh")
 
-        for i, line in enumerate(lines):
-            char_data = _resolve_char(line.speaker, all_chars)
-            if line.speaker and not char_data:
-                logger.warning(f"[{shot_id}] 角色 '{line.speaker}' 不存在，使用默认声音")
-            voice_config = _build_voice_config(char_data)
-            seg_path = str(out_dir / f"seg_{i:03d}.wav")
+        try:
+            for i, line in enumerate(lines):
+                char_data = _resolve_char(line.speaker, all_chars)
+                if line.speaker and not char_data:
+                    logger.warning(f"[{shot_id}] 角色 '{line.speaker}' 不存在，使用默认声音")
+                voice_config = _build_voice_config(char_data)
+                seg_path = str(out_dir / f"seg_{i:03d}.wav")
 
-            def _do_seg(seg=seg_path, text=line.text, vc=voice_config):
-                with groups.acquire("tts"):
-                    with wd.track(f"{shot_id}:tts_{i}", backend="tts"):
-                        tts_inst, _ = cont.get_with_fallback("tts")
-                        tts_inst.synthesize(text, seg, voice_config=vc,
-                                            emotion=emotion, language=language)
+                def _do_seg(seg=seg_path, text=line.text, vc=voice_config):
+                    with groups.acquire("tts"):
+                        with wd.track(f"{shot_id}:tts_{i}", backend="tts"):
+                            tts_inst, _ = cont.get_with_fallback("tts")
+                            tts_inst.synthesize(text, seg, voice_config=vc,
+                                                emotion=emotion, language=language)
 
-            try:
-                safe_run(_do_seg, retries=2, base_delay=1.0, task_id=f"{shot_id}:tts_{i}")
-            except Exception as e:
-                return _err(shot_id, "tts", f"TTS 合成失败 (line {i}): {e}")
-            seg_paths.append(seg_path)
+                try:
+                    safe_run(_do_seg, retries=2, base_delay=1.0, task_id=f"{shot_id}:tts_{i}")
+                except Exception as e:
+                    return _err(shot_id, "tts", f"TTS 合成失败 (line {i}): {e}")
+                seg_paths.append(seg_path)
 
-        concat_wav(seg_paths, audio_path)
-        # 清理临时分段文件
-        for p in seg_paths:
-            Path(p).unlink(missing_ok=True)
+            concat_wav(seg_paths, audio_path)
+        finally:
+            # 清理临时分段文件（无论成功或失败）
+            for p in seg_paths:
+                Path(p).unlink(missing_ok=True)
 
     err = _validate_output(audio_path, "tts", min_size=1000)
     if err:

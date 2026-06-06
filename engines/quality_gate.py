@@ -177,7 +177,7 @@ class QualityGate:
         return {"ok": True}
 
     def _check_portrait_quality(self, project_dir: str, episode: int | None) -> dict:
-        """检查定妆照质量：文件大小 > 50KB"""
+        """检查定妆照质量：文件大小 > 50KB + PNG 完整性"""
         from infra.config import ProjectPaths, load_yaml_entities
         paths = ProjectPaths(project_dir)
         issues = []
@@ -192,6 +192,15 @@ class QualityGate:
                 size_kb = cover.stat().st_size / 1024
                 if size_kb < 50:
                     issues.append(f"角色 {char.get('name', cid)} 定妆照过小 ({size_kb:.0f}KB)")
+                else:
+                    # 校验 PNG 文件头（magic bytes）
+                    try:
+                        with open(cover, "rb") as f:
+                            magic = f.read(8)
+                        if magic[:4] != b'\x89PNG':
+                            issues.append(f"角色 {char.get('name', cid)} 定妆照文件损坏（非有效 PNG）")
+                    except OSError:
+                        issues.append(f"角色 {char.get('name', cid)} 定妆照读取失败")
 
         if issues:
             return {"ok": False, "message": f"{len(issues)} 个定妆照质量不足", "details": issues}

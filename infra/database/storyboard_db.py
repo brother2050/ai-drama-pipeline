@@ -23,7 +23,7 @@ __all__ = ["get_episode_shots", "get_all_episodes", "get_episodes_summary", "get
 STORYBOARD_FIELDNAMES = [
     "episode", "shot_id", "scene_id", "characters", "action", "dialogue",
     "camera", "shot_type", "duration", "outfit", "emotion",
-    "action_en", "dialogue_en", "language",
+    "action_en", "dialogue_en", "language", "image_prompt_en",
 ]
 
 # ── SQL 模板（INSERT/UPDATE 共用）──
@@ -31,6 +31,7 @@ _INSERT_COLS = (
     "project", "episode", "shot_id", "scene_id", "characters",
     "action", "dialogue", "action_en", "dialogue_en",
     "camera", "shot_type", "duration", "emotion", "outfit", "language",
+    "image_prompt_en",
 )
 _UPSERT_SET = ", ".join(
     f"{c}=EXCLUDED.{c}" for c in _INSERT_COLS if c not in ("project", "episode", "shot_id")
@@ -46,6 +47,7 @@ def _values(project: str, episode: int, shot: dict) -> tuple:
         shot.get("camera", ""), shot.get("shot_type", ""),
         safe_float(shot.get("duration", 4)), shot.get("emotion", ""),
         shot.get("outfit", ""), shot.get("language", "zh"),
+        shot.get("image_prompt_en", ""),
     )
 
 
@@ -112,12 +114,13 @@ def save_episode_shots(pool, episode: int, shots: list[dict]) -> int:
         try:
             for shot in valid_shots:
                 cur.execute(sql, _values(project, episode, shot))
-            if new_ids:
+            # 仅在有有效镜头时才清理旧数据，防止空列表误删全集
+            if valid_shots and new_ids:
                 cur.execute(
                     "DELETE FROM shots WHERE project = %s AND episode = %s AND NOT (shot_id = ANY(%s))",
                     (project, episode, new_ids))
-            else:
-                cur.execute("DELETE FROM shots WHERE project = %s AND episode = %s", (project, episode))
+            elif not valid_shots:
+                logger.warning(f"所有镜头均无效，跳过删除（防止误清空第{episode}集）")
             conn.commit()
             return len(valid_shots)
         except Exception:

@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS shots (
     emotion TEXT DEFAULT 'neutral',
     outfit TEXT DEFAULT 'default',
     language TEXT DEFAULT 'zh',
+    image_prompt_en TEXT DEFAULT '',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (project, episode, shot_id)

@@ -53,6 +53,15 @@ def _ai_storyboard_inner(self, config_path, episode, outline, duration, append):
         from engines.entity_utils import remap_shot_ids
         remap_shot_ids(shots, id_remap)
     self.update_state(state="PROGRESS", meta={"step": "ai_storyboard", "progress": 90, "message": "正在保存..."})
+    # 写入前验证分镜数据完整性
+    from engines.storyboard import validate_shot
+    invalid_shots = []
+    for s in shots:
+        errs = validate_shot(s)
+        if errs:
+            invalid_shots.append(f"shot_id={s.get('shot_id', '?')}: {', '.join(errs)}")
+    if invalid_shots:
+        logger.warning(f"分镜数据校验: {len(invalid_shots)} 个镜头有问题: {'; '.join(invalid_shots[:5])}")
     (append_storyboard if append else save_storyboard)(shots, episode)
 
     result = {"status": STATUS_DONE, "episode": episode, "count": len(shots),

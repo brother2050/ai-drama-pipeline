@@ -263,7 +263,7 @@ async function editShot(idx) {
     <div class="edit-field-row">
       <div class="edit-field"><label>${t('edit.camera')}</label><select id="ed-camera">${_selectOpts(_cameras(), s.camera, _CAMERA_KEYS)}</select></div>
       <div class="edit-field"><label>${t('edit.shot_type')}</label><select id="ed-shottype">${_selectOpts(_shotTypes(), s.shot_type, _SHOTTYPE_KEYS)}</select></div>
-      <div class="edit-field"><label>${t('edit.duration')}</label><input id="ed-dur" type="number" value="${s.duration || 4}" min="1" max="30"></div>
+      <div class="edit-field"><label>${t('edit.duration')}</label><input id="ed-dur" type="number" value="${s.duration || 4}" min="2" max="8"></div>
       <div class="edit-field"><label>${t('edit.emotion')}</label><select id="ed-emo">${_selectOpts(EMOTIONS, s.emotion)}</select></div>
       <div class="edit-field"><label>${t('edit.language')}</label><select id="ed-lang">${LANGUAGES.map(l => `<option value="${l.value}" ${(s.language || 'zh') === l.value ? 'selected' : ''}>${l.label}</option>`).join('')}</select></div>
     </div>
@@ -293,7 +293,7 @@ function _collectShotFields(idx) {
   for (const [k, id] of _SHOT_FIELDS)
     s[k] = document.getElementById(id)?.value || _defaults[k] || '';
   // duration 必须是有效正整数
-  s.duration = Math.max(1, Math.min(30, parseInt(s.duration) || 4));
+  s.duration = Math.max(2, Math.min(8, parseInt(s.duration) || 4));
   return s;
 }
 

@@ -321,6 +321,7 @@ class StoryboardShotData(BaseModel):
     emotion: str = Field("", max_length=30)
     outfit: str = Field("", max_length=50)
     language: str = Field("zh", max_length=5)
+    image_prompt_en: str = Field("", max_length=4000, description="AI 生成的英文图像 prompt")
 
     @field_validator("shot_id")
     @classmethod
