@@ -310,10 +310,14 @@ class WorkflowBuilder:
             except Exception as e:
                 raise RuntimeError(f"参考图上传到 ComfyUI 失败: {e}")
 
-        # 设置 LoadImage 节点的输入图片
-        load_nodes = [nid for nid, n in wf.items() if n.get("class_type") == "LoadImage"]
-        if load_nodes:
-            wf[load_nodes[0]]["inputs"]["image"] = Path(ref_image).name
+        # 设置 LoadImage 节点的输入图片（排除 IP-Adapter/PuLID 一致性节点）
+        all_load = [nid for nid, n in wf.items() if n.get("class_type") == "LoadImage"]
+        plain_load = [nid for nid in all_load
+                      if not nid.startswith("ipadapter_ref")
+                      and not nid.startswith("pulid_ref")]
+        target_node = plain_load[0] if plain_load else all_load[0] if all_load else None
+        if target_node:
+            wf[target_node]["inputs"]["image"] = Path(ref_image).name
 
     def _find_ref_image(self, shot: dict) -> str | None:
         """查找镜头的参考图（定妆照或 outfit 参考图）"""

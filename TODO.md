@@ -25,16 +25,6 @@
 
 ## 🟢 低优先级
 
-### 3. img2img 盲选第一个 LoadImage 节点
-**文件**: `engines/workflow_builder.py:189-190`
-**问题**: `_setup_img2img` 用 `load_nodes[0]` 注入参考图，未验证是否为 img2img 专用节点。模板变更可能注入到错误节点。
-**修复**: 通过节点命名或 class_type 区分 img2img 和 IP-Adapter 的 LoadImage。
-
-### 4. import_json 接受原始 dict 无 Schema 校验
-**文件**: `web/routers/imports.py:433`
-**问题**: `import_json(plan_data: dict)` 接受任意 JSON，不合规数据导致运行时异常而非 422。
-**修复**: 使用 `ImportPlan` 或中间 Schema 校验。
-
 ### 5. 测试 XSS 检测过于宽松
 **文件**: `tests/test_e2e.py:~130`
 **问题**: 检查 `innerHTML` 存在但仅全局搜索 `esc()` 函数，非逐行验证。
@@ -69,6 +59,8 @@
 | 48 | `pipeline/scene_images.py` | lambda 赋值改为 def（E731） | `本轮` |
 | 49 | `web/app.py` | 模糊变量名 `l` → `loc_part`（E741） | `本轮` |
 | 50 | `pipeline/tasks/training_tasks.py` | 模糊变量名 `l` → `loc_part`（E741） | `本轮` |
+| 51 | `engines/workflow_builder.py` | `_setup_img2img` 盲选 LoadImage 节点，排除 IP-Adapter/PuLID 节点 | `本轮` |
+| 52 | `web/routers/imports.py` | `import_json` 接受 raw dict 改为 `ImportPlan` Schema 校验（422 而非运行时异常） | `本轮` |
 
 ---
 

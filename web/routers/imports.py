@@ -1,6 +1,7 @@
 """API 路由 — 项目管理 / 导入 / Seko / 训练"""
 from __future__ import annotations
 from infra.config import load_yaml_full
+from infra.models import ImportPlan
 
 import logging
 import re
@@ -430,10 +431,10 @@ def list_import_prompt_templates() -> dict:
 
 
 @router.post("/import/json")
-def import_json(plan_data: dict = Body(..., description="ImportPlan JSON")):
+def import_json(plan_data: ImportPlan = Body(..., description="ImportPlan JSON")):
     from pipeline.tasks import import_json_task
     try:
-        return _submit_task(import_json_task, plan_data)
+        return _submit_task(import_json_task, plan_data.model_dump())
     except HTTPException:
         raise
     except Exception as e:
