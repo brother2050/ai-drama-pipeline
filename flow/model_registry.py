@@ -443,16 +443,26 @@ class ModelRegistry:
         return self._lookup_static_limits(model_name)
 
     def _lookup_static_limits(self, model_name: str) -> dict:
-        """从 llm_models 段查找（精确匹配 → prefix 匹配 → _default）"""
+        """从 llm_models 段查找（精确匹配 → prefix 匹配 → _default）
+
+        Returns:
+            {"context_window": int, "max_output": int, "max_items_per_batch": int (可选)}
+        """
         models = self._data.get("llm_models", {})
         if not models:
             return {"context_window": 8192, "max_output": 4096}
 
+        def _extract(entry: dict) -> dict:
+            result = {"context_window": entry.get("context_window", 8192),
+                      "max_output": entry.get("max_output", 4096)}
+            if "max_items_per_batch" in entry:
+                result["max_items_per_batch"] = entry["max_items_per_batch"]
+            return result
+
         # 精确匹配
         m = model_name
         if m in models:
-            return {"context_window": models[m].get("context_window", 8192),
-                    "max_output": models[m].get("max_output", 4096)}
+            return _extract(models[m])
 
         # prefix 匹配（按 key 长度降序，长 key 优先）
         m_lower = m.lower()
@@ -461,13 +471,10 @@ class ModelRegistry:
             key=len, reverse=True)
         for key in sorted_keys:
             if m_lower.startswith(key.lower()):
-                return {"context_window": models[key].get("context_window", 8192),
-                        "max_output": models[key].get("max_output", 4096)}
+                return _extract(models[key])
 
         # 兜底
-        default = models.get("_default", {})
-        return {"context_window": default.get("context_window", 8192),
-                "max_output": default.get("max_output", 4096)}
+        return _extract(models.get("_default", {}))
 
     @classmethod
     def cache_discovered_limits(cls, model_name: str, limits: dict) -> None:

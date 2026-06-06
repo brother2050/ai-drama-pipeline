@@ -1,6 +1,6 @@
-"""自适应批处理器 — 双重约束分批 + 容错隔离 + 错误驱动学习
+"""自适应批处理器 — 三重约束分批 + 容错隔离 + 错误驱动学习
 
-- 双重约束分批（input token + output token）
+- 三重约束分批（input token + output token + 最大项数防超时）
 - 60K token 硬上限防 Lost-in-the-Middle
 - 单批次失败不影响其他批次（容错隔离）
 - 单批次重试（指数退避）
@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import logging
-
+import re
 import time
 from typing import Any, Callable
 
@@ -21,13 +21,20 @@ __all__ = ["AdaptiveBatchProcessor", "estimate_tokens"]
 def estimate_tokens(text: str) -> int:
     """保守估算 token 数（宁可高估多分批，也不低估撞限制）
 
-    中文约 1 token/汉字，CJK 标点约 1 token/字符，英文约 1 token/4 字符。
+    估算策略：
+    - CJK 汉字/标点：约 1 token/字
+    - 英文单词：约 1 token/word（平均 4-5 chars/word）
+    - 数字/标点/空格等：约 1 token/字符
     """
     cjk = sum(1 for c in text if '\u4e00' <= c <= '\u9fff'  # CJK 统一汉字
               or '\u3000' <= c <= '\u303f'  # CJK 标点符号
               or '\uff00' <= c <= '\uffef')  # 全角标点
-    other = len(text) - cjk
-    return max(1, int(cjk + other / 4))
+    # 英文单词（每个单词约 1 token）
+    english_words = len(re.findall(r'[a-zA-Z]+', text))
+    # 其他字符（数字、标点、空格等）：约 1 token/字符
+    english_chars = sum(1 for c in text if 'a' <= c.lower() <= 'z')
+    other = len(text) - cjk - english_chars
+    return max(1, cjk + english_words + other)
 
 
 def _execute_batches(processor, batches, build_prompts, parse_result, on_progress) -> dict:
@@ -92,6 +99,9 @@ class AdaptiveBatchProcessor:
         limits = self._get_limits(llm)
         self._input_budget = min(int(limits["context_window"] * 0.6), hard_cap_tokens)
         self._output_budget = int(limits["max_output"] * 0.8)  # 留 20% 给格式开销
+        # 最大批内项数：防止 LLM 生成太慢导致 HTTP 超时
+        # 默认 15 项/批（翻译任务约 80 output tokens/项，15 项 ≈ 1200 tokens，约 30-60s）
+        self._max_items_per_batch = limits.get("max_items_per_batch", 15)
         self._last_error: Exception | None = None
 
     def _get_limits(self, llm) -> dict:
@@ -136,7 +146,8 @@ class AdaptiveBatchProcessor:
         logger.info(
             f"自适应分批: {len(items)} 项 → {len(batches)} 批 ({[len(b) for b in batches]}), "
             f"估算 input≈{total_input} output≈{total_output}, "
-            f"预算 input={self._input_budget} output={self._output_budget}")
+            f"预算 input={self._input_budget} output={self._output_budget} "
+            f"max_items={self._max_items_per_batch}")
         if on_progress:
             on_progress(0, len(batches), f"开始处理 {len(batches)} 批...")
 
@@ -153,10 +164,11 @@ class AdaptiveBatchProcessor:
         get_input: Callable, get_output: Callable,
         system_tokens: int,
     ) -> list[list[Any]]:
-        """双重约束贪心分组
+        """三重约束贪心分组
 
         约束 1: system_tokens + sum(item_input) ≤ input_budget
         约束 2: sum(item_output) ≤ output_budget
+        约束 3: len(batch) ≤ max_items_per_batch（防 HTTP 超时）
 
         单个超预算项独立成批（宁可超限也不丢弃，由重试机制兜底）。
         """
@@ -182,8 +194,9 @@ class AdaptiveBatchProcessor:
 
             exceed_input = cur_input + item_in > self._input_budget
             exceed_output = cur_output + item_out > self._output_budget
+            exceed_count = len(current) >= self._max_items_per_batch
 
-            if current and (exceed_input or exceed_output):
+            if current and (exceed_input or exceed_output or exceed_count):
                 batches.append(current)
                 current = []
                 cur_input = system_tokens

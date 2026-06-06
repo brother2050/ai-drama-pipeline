@@ -451,4 +451,4 @@ llm_models:
   "phi-3":                        { context_window: 128000,  max_output: 4096  }
   "internlm":                     { context_window: 32768,   max_output: 8192  }
   # ── 默认兜底 ──
-  "_default":                     { context_window: 8192,    max_output: 4096  }
+  "_default":                     { context_window: 8192,    max_output: 4096,  max_items_per_batch: 10 }
