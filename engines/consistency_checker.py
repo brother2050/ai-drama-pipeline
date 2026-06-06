@@ -71,6 +71,10 @@ class ConsistencyChecker:
         # 1. 服装连续性
         errors.extend(self._check_outfit_continuity(shots))
 
+        # 1.5 服装存在性
+        if characters:
+            errors.extend(self._check_outfit_exists(shots, characters))
+
         # 2. 角色存在性
         if characters:
             errors.extend(self._check_character_exists(shots, characters))
@@ -111,6 +115,33 @@ class ConsistencyChecker:
                     errors.append(
                         f"镜头 {curr.get('shot_id', '?')}: 同场景同角色内服装突变 "
                         f"({prev_outfit} → {curr_outfit})"
+                    )
+        return errors
+
+    def _check_outfit_exists(self, shots: list[dict], characters: list[dict]) -> list[str]:
+        """检查服装存在性：引用的 outfit 必须在角色的 outfits 字典中"""
+        errors = []
+        char_outfits: dict[str, set[str]] = {}
+        for char in characters:
+            cid = char.get("id", "")
+            if not cid:
+                continue
+            outfits = char.get("outfits", {})
+            if isinstance(outfits, dict):
+                char_outfits[cid] = set(outfits.keys())
+            else:
+                char_outfits[cid] = set()
+
+        for shot in shots:
+            outfit = shot.get("outfit", "").strip()
+            if not outfit:
+                continue
+            for cid in parse_char_ids(shot):
+                available = char_outfits.get(cid)
+                if available is not None and outfit not in available:
+                    errors.append(
+                        f"镜头 {shot.get('shot_id', '?')}: 角色 '{cid}' 无服装 '{outfit}' "
+                        f"(可用: {', '.join(sorted(available)) or '无'})"
                     )
         return errors
 

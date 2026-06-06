@@ -72,7 +72,9 @@ class QualityGate:
                         "details": result.get("details", []),
                     })
             except Exception as e:
-                logger.debug(f"质量检查 {check_id} 异常: {e}")
+                logger.warning(f"质量检查 {check_id} 异常: {e}")
+                issues.append({"id": check_id, "name": name, "severity": "warning",
+                               "message": f"检查异常: {e}"})
 
         return issues
 
@@ -105,27 +107,34 @@ class QualityGate:
     def _check_translation_complete(self, project_dir: str, episode: int | None) -> dict:
         """检查翻译完整性：所有角色/场景/分镜都有英文版"""
         from infra.config import ProjectPaths, load_yaml_entities
+        from infra.constants import is_ascii_only
         paths = ProjectPaths(project_dir)
         missing = []
 
         # 角色
         chars = load_yaml_entities(paths.characters_dir, "character")
         for char in chars:
-            if not char.get("appearance_prompt_en"):
+            prompt_en = char.get("appearance_prompt_en", "")
+            if not prompt_en:
                 missing.append(f"角色 {char.get('name', char.get('id', '?'))} 缺英文外貌 prompt")
+            elif not is_ascii_only(prompt_en):
+                missing.append(f"角色 {char.get('name', char.get('id', '?'))} 的 appearance_prompt_en 仍为中文")
 
         # 场景
         scenes = load_yaml_entities(paths.scenes_dir, "scene")
         for scene in scenes:
-            if not scene.get("description_en"):
+            desc_en = scene.get("description_en", "")
+            if not desc_en:
                 missing.append(f"场景 {scene.get('name', scene.get('id', '?'))} 缺英文描述")
+            elif not is_ascii_only(desc_en):
+                missing.append(f"场景 {scene.get('name', scene.get('id', '?'))} 的 description_en 仍为中文")
 
         if missing:
             return {"ok": False, "message": f"{len(missing)} 项未翻译", "details": missing}
         return {"ok": True}
 
     def _check_prompt_valid(self, project_dir: str, episode: int | None) -> dict:
-        """检查 Prompt 有效性：角色 prompt 长度 > 20 字符"""
+        """检查 Prompt 有效性：角色 prompt 长度 > 50 字符"""
         from infra.config import ProjectPaths, load_yaml_entities
         paths = ProjectPaths(project_dir)
         issues = []
@@ -133,8 +142,11 @@ class QualityGate:
         chars = load_yaml_entities(paths.characters_dir, "character")
         for char in chars:
             prompt_en = char.get("appearance_prompt_en", "")
-            if prompt_en and len(prompt_en) < 20:
-                issues.append(f"角色 {char.get('name', '?')} prompt 过短 ({len(prompt_en)} 字符)")
+            name = char.get("name", char.get("id", "?"))
+            if not prompt_en:
+                issues.append(f"角色 {name} 无英文 prompt")
+            elif len(prompt_en) < 50:
+                issues.append(f"角色 {name} prompt 过短 ({len(prompt_en)} 字符)")
 
         if issues:
             return {"ok": False, "message": f"{len(issues)} 个 prompt 质量不足", "details": issues}
