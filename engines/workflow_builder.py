@@ -566,6 +566,8 @@ class WorkflowBuilder:
                 strength = gl.get("strength", 0.7)
                 wf = _inject_lora(wf, name, strength=strength, lora_name=name)
                 logger.info(f"使用全局 LoRA: {name} (strength={strength})")
+        elif self.models.get("global_loras"):
+            logger.debug("无角色镜头，跳过全局 LoRA 注入")
 
         # 6. Seed 控制
         if seed is not None:

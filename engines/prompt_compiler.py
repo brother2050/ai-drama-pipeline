@@ -215,9 +215,16 @@ class PromptCompiler:
         emotion = shot.get("emotion", "neutral")
         shot_type = shot.get("shot_type", "中景")
         camera = shot.get("camera", "固定")
+        # 无角色时清空 emotion/action — 避免 "neutral expression" 诱导生成人脸
+        if not full_character:
+            emotion = ""
+            emotion_desc = ""
+            action = ""
+        else:
+            emotion_desc = EMOTION_MAP.get(emotion, EMOTION_MAP.get("neutral", ""))
         variables = _build_first_frame_vars(
             style, genre, scene_desc, full_character, action,
-            emotion, EMOTION_MAP.get(emotion, EMOTION_MAP.get("neutral", "")),
+            emotion, emotion_desc,
             shot_type, SHOT_TYPE_MAP.get(shot_type, "medium shot"),
             camera, CAMERA_MAP.get(camera, "static camera"))
 
@@ -227,17 +234,15 @@ class PromptCompiler:
 
     @staticmethod
     def _strip_character_sentence(text: str) -> str:
-        """移除模板中角色/情绪相关句子（无角色镜头用）
+        """移除模板中角色/情绪相关残留（无角色镜头兜底清理）
 
-        模板格式: "... Set in {scene}. {character} {action}, with a {emotion} expression. ..."
-        无角色时 character/action/emotion 为空，产生 "... with a neutral expression. ..."
-        此方法移除这类残留句子。
+        模板 literal "with a ${emotion} expression" 在 emotion 为空时
+        变成 "with a expression"，此方法移除这类残留。
         """
-        # 移除 "with a/an ... expression" 整个句子（含前导句号）
-        text = re.sub(r'\.\s*with an?\s+[\w\s]+\s+expression\s*\.', '.', text)
-        # 移除孤立的 "with a ... expression"（在句首或中间）
-        text = re.sub(r'\s*with an?\s+[\w\s]+\s+expression\.?\s*', ' ', text)
-        # 清理多余空格和标点
+        # 移除 "with a/an ... expression" 模式
+        text = re.sub(r'\.\s*with an?\s+[\w\s]*expression\s*\.', '.', text)
+        text = re.sub(r'\s*with an?\s+[\w\s]*expression\.?\s*', ' ', text)
+        # 清理多余标点
         text = re.sub(r'\.\s*\.', '.', text)
         text = re.sub(r'  +', ' ', text)
         text = re.sub(r'\.\s*,', '.', text)
@@ -261,7 +266,9 @@ class PromptCompiler:
             val = variables.get(key, "")
             if val:
                 parts.append(val)
-        parts.append(variables.get("emotion_desc", "neutral expression"))
+        # 无角色时跳过 emotion（避免场景图带 "neutral expression" tag）
+        if variables.get("character"):
+            parts.append(variables.get("emotion_desc", "neutral expression"))
         parts.append(variables.get("shot_type_desc", "medium shot"))
         parts.append(variables.get("camera_desc", "static camera"))
         return ", ".join(parts)
@@ -273,9 +280,8 @@ class PromptCompiler:
         if template:
             result = self.compile_text(template, variables)
             if result:
-                # 无角色时移除角色/情绪句子，避免 "with a neutral expression" 诱导生成人脸
-                character = variables.get("character", "")
-                if not character:
+                # 无角色时清理残留的 "with a expression" 等模板字面量
+                if not variables.get("character"):
                     result = self._strip_character_sentence(result)
                 return result
 
