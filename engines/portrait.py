@@ -195,13 +195,14 @@ def ensure_portrait(char_id: str, config: dict, container=None, force: bool = Fa
     paths = ProjectPaths(project_dir)
     portrait_dir = paths.character_asset_dir(char_id)
 
-    # 检查五视图是否齐全
-    all_views_exist = all((portrait_dir / fname).exists() for fname, *_ in _FIVE_VIEWS)
-    if all_views_exist:
-        auto_outfit = config.get("portraits", {}).get("auto_outfit", False)
-        if auto_outfit and container:
-            _ensure_outfit_images(char_id, config, container, project_dir, portrait_dir)
-        return str(portrait_dir / "cover.png")
+    # 检查五视图是否齐全（force 时跳过，强制重新生成）
+    if not force:
+        all_views_exist = all((portrait_dir / fname).exists() for fname, *_ in _FIVE_VIEWS)
+        if all_views_exist:
+            auto_outfit = config.get("portraits", {}).get("auto_outfit", False)
+            if auto_outfit and container:
+                _ensure_outfit_images(char_id, config, container, project_dir, portrait_dir)
+            return str(portrait_dir / "cover.png")
 
     # 重入保护（检查 + 标记必须在同一把锁内，避免间隙导致重复生成）
     import time
