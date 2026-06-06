@@ -483,7 +483,7 @@ def inject_lora(wf: dict, lora_path: str, strength: float = 0.7,
                            or find_first_node(wf, "CLIPLoader"))
             clip_output_idx = 0
             if not clip_source:
-                logger.warning(f"inject_lora: 未找到 CLIP 来源节点，LoRA clip 将指向 model 节点（可能不正确）")
+                logger.warning("inject_lora: 未找到 CLIP 来源节点，LoRA clip 将指向 model 节点（可能不正确）")
 
     lora_node_id = f"lora_{Path(lora_path).stem}_{next(_suffix_counter)}"
     if not lora_name:
