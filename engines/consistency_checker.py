@@ -72,15 +72,15 @@ class ConsistencyChecker:
         errors.extend(self._check_outfit_continuity(shots))
 
         # 1.5 服装存在性
-        if characters:
+        if characters is not None:
             errors.extend(self._check_outfit_exists(shots, characters))
 
         # 2. 角色存在性
-        if characters:
+        if characters is not None:
             errors.extend(self._check_character_exists(shots, characters))
 
         # 3. 场景存在性
-        if scenes:
+        if scenes is not None:
             errors.extend(self._check_scene_exists(shots, scenes))
 
         # 4. 时长合理性
@@ -91,6 +91,9 @@ class ConsistencyChecker:
 
         # 6. 情绪逻辑过渡
         errors.extend(self._check_emotion_transition(shots))
+
+        # 7. 英文翻译完整性
+        errors.extend(self._check_translation_fields(shots))
 
         return errors
 
@@ -234,4 +237,19 @@ class ConsistencyChecker:
                     f"镜头 {shots[i].get('shot_id', '?')}: 情绪跳变 "
                     f"({prev_emotion} → {emotion})，建议添加过渡镜头"
                 )
+        return errors
+
+    def _check_translation_fields(self, shots: list[dict]) -> list[str]:
+        """检查英文翻译字段完整性：action_en/dialogue_en 应与中文字段对应"""
+        errors = []
+        for shot in shots:
+            sid = shot.get("shot_id", "?")
+            action = shot.get("action", "").strip()
+            action_en = shot.get("action_en", "").strip()
+            dialogue = shot.get("dialogue", "").strip()
+            dialogue_en = shot.get("dialogue_en", "").strip()
+            if action and not action_en:
+                errors.append(f"镜头 {sid}: 有动作描述但缺少 action_en 翻译")
+            if dialogue and not dialogue_en and set(dialogue) > {".", "…", " "}:
+                errors.append(f"镜头 {sid}: 有台词但缺少 dialogue_en 翻译")
         return errors

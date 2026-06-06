@@ -95,6 +95,7 @@ class QualityGate:
                 ("all_audio", "音频完整", "warning", self._check_all_audio),
             ],
             "after_post": [
+                ("lipsync_complete", "口型同步完整", "warning", self._check_all_lipsync),
                 ("final_video", "最终成片", "error", self._check_final_video),
             ],
         }
@@ -267,6 +268,27 @@ class QualityGate:
     # ══════════════════════════════════════════════════════════
     #  after_post 检查
     # ══════════════════════════════════════════════════════════
+
+    def _check_all_lipsync(self, project_dir: str, episode: int | None) -> dict:
+        """检查口型同步完整：有音频的镜头都有 synced.mp4"""
+        if episode is None:
+            return {"ok": True}
+        from infra.config import ProjectPaths, load_storyboard
+        paths = ProjectPaths(project_dir)
+        shots = load_storyboard(episode)
+        out_dir = paths.episode_output(episode)
+        missing = []
+        for shot in shots:
+            sid = shot.get("shot_id", "")
+            dialogue = shot.get("dialogue", "").strip()
+            if not sid or not dialogue or set(dialogue) <= {".", "…", " ", "-", "—", "~"}:
+                continue
+            synced = out_dir / f"s{sid}" / "synced.mp4"
+            if not synced.exists():
+                missing.append(sid)
+        if missing:
+            return {"ok": False, "message": f"{len(missing)} 个有台词镜头缺口型同步视频", "details": missing}
+        return {"ok": True}
 
     def _check_final_video(self, project_dir: str, episode: int | None) -> dict:
         """检查最终成片"""

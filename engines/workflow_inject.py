@@ -50,6 +50,10 @@ def inject_character_refs(builder: object, wf: dict, char_ids: list[str],
     """
     if not char_ids:
         return wf
+    weight = ip_config.get("weight", 0.75)
+    if weight <= 0:
+        logger.info(f"IP-Adapter weight={weight}，跳过注入")
+        return wf
 
     primary_id = char_ids[0]
     primary_refs = builder._get_character_refs(primary_id, outfit=outfit)
@@ -134,6 +138,9 @@ def inject_ip_adapter_plus(wf: dict, char_id: str, ref_images: list[str],
 def _build_ip_adapter_nodes(wf: dict, ksampler: str, model_source: str,
                             ref_image: str, config: dict, weight: float, suffix: int) -> dict:
     """创建 IP-Adapter 节点子图并连接到 KSampler"""
+    if model_source not in wf:
+        logger.warning(f"model_source '{model_source}' 不在工作流中，跳过 IP-Adapter 构建")
+        return wf
     ip_model_name = config.get("model", "ip-adapter-plus-face_sd15.safetensors")
     clip_vision_name = config.get("clip_vision", "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors")
 
@@ -246,6 +253,10 @@ def inject_pulid_flux(builder: object, wf: dict, char_ids: list[str],
 
     if not char_ids:
         return wf
+    weight = pulid_config.get("weight", 0.9)
+    if weight <= 0:
+        logger.info(f"PuLID-Flux weight={weight}，跳过注入")
+        return wf
 
     ksampler = find_first_node(wf, "KSampler")
     if not ksampler:
@@ -256,7 +267,6 @@ def inject_pulid_flux(builder: object, wf: dict, char_ids: list[str],
         logger.warning("未找到模型加载节点，无法注入 PuLID-Flux")
         return wf
 
-    weight = pulid_config.get("weight", 0.9)
     primary_injected = False
 
     for char_id in char_ids:

@@ -149,6 +149,9 @@ def _generate_five_views(comfyui, wb, char_id: str, portrait_dir: Path,
         if result:
             generated_urls.append(f"/api/assets/characters/{char_id}/{filename}")
             logger.info(f"  ✅ {label}视图: {filename} (seed={view_seed})")
+            # 正面生成成功后更新 cover_path，供后续视图引用
+            if i == 0 and not cover_path.exists():
+                cover_path = portrait_dir / filename
         else:
             logger.warning(f"  ⚠ {label}视图生成失败")
 
