@@ -7,11 +7,16 @@ comfyui:
 # 适合有本地模型的用户，无网络也能工作
 local_first: false
 models:
-  image_backend: cosmos
+  image_backend: flux
   video_backend: cosmos-video
   tts_backend: mimo-voicedesign
   lip_sync_backend: musetalk
   music_backend: template
+  # 全局 LoRA：所有首帧生成时自动注入（不需要训练，直接用）
+  # 格式：- {name: "文件名.safetensors", strength: 权重}
+  # 文件放入 ComfyUI/models/loras/
+  global_loras:
+    - {name: "comfyui_portrait_lora64.safetensors", strength: 1.0}  # ACE++ Portrait（角色一致性）
   gpt_sovits:
     api_url: http://127.0.0.1:9880
   musetalk:
@@ -70,7 +75,7 @@ post_production:
 #   pulid_flux:  PuLID-Flux（需要 Flux 后端 + ComfyUI-PuLID-Flux 自定义节点）
 #   ip_adapter:  IP-Adapter Plus（需要 SD1.5/SDXL 后端 + ComfyUI_IPAdapter_plus 自定义节点）
 #   none:        不使用一致性方案（仅靠 LoRA + seed）
-consistency_method: auto
+consistency_method: pulid_flux
 
 ip_adapter:
   enabled: true

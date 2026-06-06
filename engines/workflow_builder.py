@@ -530,6 +530,15 @@ class WorkflowBuilder:
                                        lora_name=os.path.basename(style_lora))
                 logger.info(f"使用风格 LoRA: {genre} → {style_lora}")
 
+        # 5b. 注入全局 LoRA（用户手动放入 ComfyUI/models/loras/ 的通用 LoRA）
+        for gl in self.models.get("global_loras", []):
+            name = gl.get("name", "")
+            if not name:
+                continue
+            strength = gl.get("strength", 0.7)
+            wf = _inject_lora(wf, name, strength=strength, lora_name=name)
+            logger.info(f"使用全局 LoRA: {name} (strength={strength})")
+
         # 6. Seed 控制
         if seed is not None:
             self._set_seed(wf, seed)
