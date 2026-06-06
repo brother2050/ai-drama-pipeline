@@ -60,11 +60,23 @@ def _load_shots(episode: int) -> list[dict]:
 
 
 def _find_shot(episode: int, shot_id: str) -> dict | None:
-    """查找单个镜头（DB 查询）"""
-    for s in _load_shots(episode):
-        if s.get("shot_id") == shot_id:
-            return s
-    return None
+    """查找单个镜头（直接 SQL 查询，避免加载全部镜头）"""
+    try:
+        from infra.database.pool import get_pool, placeholder
+        from infra.database._db import query, row_to_dict, _get_project
+        project = _get_project()
+        with query(get_pool(), dict_mode=True, commit=False) as cur:
+            cur.execute(
+                f"SELECT * FROM shots WHERE project = {placeholder()} AND episode = {placeholder()} AND shot_id = {placeholder()}",
+                (project, episode, shot_id))
+            row = cur.fetchone()
+            return row_to_dict(row) if row else None
+    except Exception:
+        # DB 不可用时回退到全量加载
+        for s in _load_shots(episode):
+            if s.get("shot_id") == shot_id:
+                return s
+        return None
 
 
 def _shot_dir(config_path: str, episode: int, shot_id: str) -> Path:

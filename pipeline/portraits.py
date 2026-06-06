@@ -52,12 +52,12 @@ def run_portraits(
     generated = 0
     for f in char_files:
         try:
-            data = load_yaml_full(f)
+            from infra.config import load_character
+            char = load_character(chars_dir, f.stem)
         except Exception as e:
             logger.warning(f"角色 YAML 格式错误 {f}: {e}")
             continue
 
-        char = data.get("character", {})
         char_id = char.get("id", "")
         if not char_id:
             continue

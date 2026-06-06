@@ -57,8 +57,8 @@ def _count_training_images(char_assets_dir: Path) -> int:
 def _resolve_trigger_word(char_yaml: Path, char_id: str) -> str:
     """解析 trigger_word，优先读 YAML 中的 lora_trigger，否则从角色名推导"""
     try:
-        data = load_yaml_full(char_yaml)
-        char = data.get("character", {})
+        from infra.config import load_character
+        char = load_character(char_yaml.parent, char_id)
         # 优先使用用户配置的 lora_trigger
         stored = char.get("lora_trigger", "")
         if stored:

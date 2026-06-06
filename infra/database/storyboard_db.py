@@ -111,8 +111,11 @@ def save_episode_shots(pool, episode: int, shots: list[dict]) -> int:
     with pool.connection() as conn:
         cur = conn.cursor()
         try:
-            for shot in valid_shots:
-                cur.execute(sql, _values(project, episode, shot))
+            # 批量插入（execute_values 比逐行 execute 快 5-10x）
+            from psycopg2.extras import execute_values
+            values = [_values(project, episode, shot) for shot in valid_shots]
+            if values:
+                execute_values(cur, sql, values, page_size=100)
             # 仅在有有效镜头时才清理旧数据，防止空列表误删全集
             if valid_shots and new_ids:
                 cur.execute(

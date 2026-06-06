@@ -21,6 +21,7 @@ class ComfyUI:
         self._timeout = config.get("timeouts", {}).get("comfyui", 900)
         self._api_key = config.get("api_key", "")
         self._client = get_client(timeout=self._timeout)
+        self._fast_client = get_client(timeout=10)
 
     @property
     def name(self): return "comfyui"
@@ -44,8 +45,8 @@ class ComfyUI:
             params = {"filename": filename, "type": asset_type}
             if subfolder:
                 params["subfolder"] = subfolder
-            r = self._client.get(f"{self._url}/view", params=params,
-                                 headers=self._headers())
+            r = self._fast_client.get(f"{self._url}/view", params=params,
+                                      headers=self._headers())
             return r.status_code == 200
         except Exception:
             return False

@@ -44,6 +44,15 @@ class QualityGate:
     - after_post: 最终成片
     """
 
+    @staticmethod
+    def _paths(project_dir: str):
+        return ProjectPaths(project_dir)
+
+    @staticmethod
+    def _load_chars_scenes(project_dir: str):
+        from infra.config import load_project_entities
+        return load_project_entities(project_dir)
+
     def check(self, stage: str, project_dir: str, *, episode: int | None = None) -> list[dict]:
         """执行质量检查
 
@@ -107,23 +116,18 @@ class QualityGate:
 
     def _check_translation_complete(self, project_dir: str, episode: int | None) -> dict:
         """检查翻译完整性：所有角色/场景/分镜都有英文版"""
-        from infra.config import ProjectPaths, load_yaml_entities
         from infra.constants import is_ascii_only
-        paths = ProjectPaths(project_dir)
+        chars, scenes = self._load_chars_scenes(project_dir)
         missing = []
 
-        # 角色
-        chars = load_yaml_entities(paths.characters_dir, "character")
-        for char in chars:
+        for char in chars.values():
             prompt_en = char.get("appearance_prompt_en", "")
             if not prompt_en:
                 missing.append(f"角色 {char.get('name', char.get('id', '?'))} 缺英文外貌 prompt")
             elif not is_ascii_only(prompt_en):
                 missing.append(f"角色 {char.get('name', char.get('id', '?'))} 的 appearance_prompt_en 仍为中文")
 
-        # 场景
-        scenes = load_yaml_entities(paths.scenes_dir, "scene")
-        for scene in scenes:
+        for scene in scenes.values():
             desc_en = scene.get("description_en", "")
             if not desc_en:
                 missing.append(f"场景 {scene.get('name', scene.get('id', '?'))} 缺英文描述")
@@ -136,12 +140,10 @@ class QualityGate:
 
     def _check_prompt_valid(self, project_dir: str, episode: int | None) -> dict:
         """检查 Prompt 有效性：角色 prompt 长度 > 50 字符"""
-        from infra.config import ProjectPaths, load_yaml_entities
-        paths = ProjectPaths(project_dir)
+        chars, _ = self._load_chars_scenes(project_dir)
         issues = []
 
-        chars = load_yaml_entities(paths.characters_dir, "character")
-        for char in chars:
+        for char in chars.values():
             prompt_en = char.get("appearance_prompt_en", "")
             name = char.get("name", char.get("id", "?"))
             if not prompt_en:
@@ -159,12 +161,11 @@ class QualityGate:
 
     def _check_portrait_exists(self, project_dir: str, episode: int | None) -> dict:
         """检查定妆照存在：所有角色都有 cover.png"""
-        from infra.config import ProjectPaths, load_yaml_entities
-        paths = ProjectPaths(project_dir)
+        paths = self._paths(project_dir)
+        chars, _ = self._load_chars_scenes(project_dir)
         missing = []
 
-        chars = load_yaml_entities(paths.characters_dir, "character")
-        for char in chars:
+        for char in chars.values():
             cid = char.get("id", "")
             if not cid:
                 continue
@@ -178,12 +179,11 @@ class QualityGate:
 
     def _check_portrait_quality(self, project_dir: str, episode: int | None) -> dict:
         """检查定妆照质量：文件大小 > 50KB + PNG 完整性"""
-        from infra.config import ProjectPaths, load_yaml_entities
-        paths = ProjectPaths(project_dir)
+        paths = self._paths(project_dir)
+        chars, _ = self._load_chars_scenes(project_dir)
         issues = []
 
-        chars = load_yaml_entities(paths.characters_dir, "character")
-        for char in chars:
+        for char in chars.values():
             cid = char.get("id", "")
             if not cid:
                 continue
@@ -214,8 +214,7 @@ class QualityGate:
         """检查首帧完整：所有镜头都有 frame.png"""
         if episode is None:
             return {"ok": True}
-        from infra.config import ProjectPaths
-        paths = ProjectPaths(project_dir)
+        paths = self._paths(project_dir)
         out_dir = paths.episode_dir(episode)
         if not out_dir.exists():
             return {"ok": False, "message": f"第{episode}集输出目录不存在"}
@@ -233,8 +232,7 @@ class QualityGate:
         """检查视频完整：所有镜头都有 video.mp4"""
         if episode is None:
             return {"ok": True}
-        from infra.config import ProjectPaths
-        paths = ProjectPaths(project_dir)
+        paths = self._paths(project_dir)
         out_dir = paths.episode_dir(episode)
         if not out_dir.exists():
             return {"ok": False, "message": f"第{episode}集输出目录不存在"}
@@ -252,9 +250,8 @@ class QualityGate:
         """检查音频完整：有台词的镜头都有 audio.wav"""
         if episode is None:
             return {"ok": True}
-        from infra.config import ProjectPaths
         from engines.storyboard import load_storyboard
-        paths = ProjectPaths(project_dir)
+        paths = self._paths(project_dir)
         out_dir = paths.episode_dir(episode)
         if not out_dir.exists():
             return {"ok": True}  # 目录不存在时跳过（produce 未开始）
@@ -282,9 +279,8 @@ class QualityGate:
         """检查口型同步完整：有音频的镜头都有 synced.mp4"""
         if episode is None:
             return {"ok": True}
-        from infra.config import ProjectPaths
         from engines.storyboard import load_storyboard
-        paths = ProjectPaths(project_dir)
+        paths = self._paths(project_dir)
         shots = load_storyboard(episode)
         out_dir = paths.episode_dir(episode)
         missing = []
@@ -304,8 +300,7 @@ class QualityGate:
         """检查最终成片"""
         if episode is None:
             return {"ok": True}
-        from infra.config import ProjectPaths
-        paths = ProjectPaths(project_dir)
+        paths = self._paths(project_dir)
         final = paths.episode_final(episode)
         if not final.exists():
             return {"ok": False, "message": f"第{episode}集成片不存在"}

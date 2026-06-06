@@ -391,8 +391,8 @@ def _collect_translation_texts(paths, force: bool = False) -> tuple[list[str], l
             if f.stem.endswith(".example"):
                 continue
             try:
-                data = load_yaml_full(f)
-                char = data.get("character", {})
+                from infra.config import load_character
+                char = load_character(char_dir, f.stem)
                 cid = char.get("id", f.stem)
             except Exception as e:
                 logger.warning(f"跳过损坏的角色配置 {f.name}: {e}")

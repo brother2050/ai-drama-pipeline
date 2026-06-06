@@ -167,8 +167,8 @@ def _outfits_batch_inner(self, config_path: str, char_id: str) -> dict:
     if not char_yaml.exists():
         return {"status": STATUS_ERROR, "reason": f"角色 {char_id} 不存在"}
 
-    data = load_yaml_full(char_yaml)
-    char = data.get("character", {})
+    from infra.config import load_character
+    char = load_character(paths, char_id)
     outfits = char.get("outfits", {})
 
     if not isinstance(outfits, dict) or not outfits:
