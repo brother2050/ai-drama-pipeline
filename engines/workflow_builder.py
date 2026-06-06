@@ -507,7 +507,8 @@ class WorkflowBuilder:
 
     def build_first_frame(self, shot: dict, character_desc: str = "",
                           scene_desc: str = "", multi_char_prompt: str = "",
-                          seed: int | None = None) -> tuple[dict, dict]:
+                          seed: int | None = None,
+                          skip_global_loras: bool = False) -> tuple[dict, dict]:
         """构建首帧工作流
 
         Args:
@@ -516,6 +517,7 @@ class WorkflowBuilder:
             scene_desc: 场景英文描述
             multi_char_prompt: 多角色合并 prompt
             seed: 指定 seed（None 则随机，用于定妆照一致性控制）
+            skip_global_loras: 跳过全局 LoRA 注入（场景图生成用，避免 Portrait LoRA 污染）
 
         Returns:
             (prompt_dict, workflow_dict) 元组
@@ -552,17 +554,20 @@ class WorkflowBuilder:
                 logger.info(f"使用风格 LoRA: {genre} → {style_lora}")
 
         # 5b. 注入全局 LoRA（用户手动放入 ComfyUI/models/loras/ 的通用 LoRA）
-        for gl in self.models.get("global_loras", []):
-            name = gl.get("name", "")
-            if not name:
-                continue
-            # 检查 LoRA 文件是否存在于 ComfyUI models 目录
-            if not self._lora_file_exists(name):
-                logger.warning(f"全局 LoRA 文件不存在，跳过: {name}（请放入 ComfyUI/models/loras/）")
-                continue
-            strength = gl.get("strength", 0.7)
-            wf = _inject_lora(wf, name, strength=strength, lora_name=name)
-            logger.info(f"使用全局 LoRA: {name} (strength={strength})")
+        # 仅在有角色时注入 — 全局 LoRA 通常是人物肖像类（如 ACE++ Portrait），
+        # 注入到纯场景图会导致场景被人像特征污染。
+        if char_ids:
+            for gl in self.models.get("global_loras", []):
+                name = gl.get("name", "")
+                if not name:
+                    continue
+                # 检查 LoRA 文件是否存在于 ComfyUI models 目录
+                if not self._lora_file_exists(name):
+                    logger.warning(f"全局 LoRA 文件不存在，跳过: {name}（请放入 ComfyUI/models/loras/）")
+                    continue
+                strength = gl.get("strength", 0.7)
+                wf = _inject_lora(wf, name, strength=strength, lora_name=name)
+                logger.info(f"使用全局 LoRA: {name} (strength={strength})")
 
         # 6. Seed 控制
         if seed is not None:
