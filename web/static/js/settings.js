@@ -195,37 +195,23 @@ async function testTtsPreview() {
   try {
     const r = await api('/tools/tts', { method: 'POST', body: { text, language: 'zh' } });
     if (r.task_id) {
-      // 轮询任务
-      const poll = async () => {
-        for (let i = 0; i < 60; i++) {
-          await new Promise(res => setTimeout(res, 1000));
-          let info;
-          try { info = await api(`/tasks/${r.task_id}`); } catch { continue; }
-          if (info.status === 'success') {
-            const audioPath = info.result?.path || info.result?.audio || info.result?.output;
-            if (audioPath) {
-              const audio = new Audio(`/api/project-file/${audioPath}`);
-              audio.play().catch(() => {});
-              if (resultEl) resultEl.innerHTML = `<span style="color:#22c55e">✅ 播放中...</span>`;
-            } else {
-              if (resultEl) resultEl.innerHTML = `<span style="color:#22c55e">✅ 完成</span>`;
-            }
-            toast(t('toast.tts_preview_done'));
-            if (btn) btn.disabled = false;
-            return;
-          }
-          if (info.status === 'failed' || info.status === 'cancelled') {
-            if (resultEl) resultEl.innerHTML = `<span style="color:#ef4444">❌ ${esc(info.error || info.reason || info.status)}</span>`;
-            toast(`❌ TTS: ${info.error || info.reason || info.status}`, 'error');
-            if (btn) btn.disabled = false;
-            return;
-          }
+      const info = await pollTask(r.task_id);
+      if (info.status === 'success') {
+        const audioPath = info.result?.path || info.result?.audio || info.result?.output;
+        if (audioPath) {
+          const audio = new Audio(`/api/project-file/${audioPath}`);
+          audio.play().catch(() => {});
+          if (resultEl) resultEl.innerHTML = `<span style="color:#22c55e">✅ 播放中...</span>`;
+        } else {
+          if (resultEl) resultEl.innerHTML = `<span style="color:#22c55e">✅ 完成</span>`;
         }
-        if (resultEl) resultEl.innerHTML = `<span style="color:#eab308">⏰ 超时</span>`;
-        if (btn) btn.disabled = false;
-      };
-      poll();
-      return; // 不在下方 re-enable，由 poll 管理
+        toast(t('toast.tts_preview_done'));
+      } else {
+        if (resultEl) resultEl.innerHTML = `<span style="color:#ef4444">❌ ${esc(info.error || info.reason || info.status)}</span>`;
+        toast(`❌ TTS: ${info.error || info.reason || info.status}`, 'error');
+      }
+      if (btn) btn.disabled = false;
+      return;
     }
   } catch (e) {
     if (resultEl) resultEl.innerHTML = `<span style="color:#ef4444">❌ ${esc(e.message)}</span>`;

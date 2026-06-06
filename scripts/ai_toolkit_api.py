@@ -159,18 +159,13 @@ def _run_training(task_id: str, config_path: Path, task_dir: Path):
 
 
 def _parse_progress(task_id: str, line: str) -> None:
-    """从训练日志中解析进度"""
-    if "step" not in line.lower() or "/" not in line:
-        return
-    try:
-        for p in line.split():
-            if "/" in p and p.replace("/", "").isdigit():
-                nums = p.split("/")
-                current, total = int(nums[0]), int(nums[1])
-                _update_task(task_id, progress=int(current / total * 100), message=f"Step {current}/{total}")
-                break
-    except (ValueError, IndexError):
-        pass
+    """从训练日志中解析进度（正则匹配多种格式）"""
+    import re
+    m = re.search(r'(\d+)\s*/\s*(\d+)', line)
+    if m:
+        current, total = int(m.group(1)), int(m.group(2))
+        if total > 0:
+            _update_task(task_id, progress=int(current / total * 100), message=f"Step {current}/{total}")
 
 
 def _finalize_training(task_id: str, task_dir: Path, returncode: int) -> None:

@@ -30,16 +30,6 @@
 **问题**: 检查 `innerHTML` 存在但仅全局搜索 `esc()` 函数，非逐行验证。
 **修复**: 逐行检查每个 `innerHTML` 赋值是否有转义。
 
-### 6. ai_toolkit_api.py 进度解析依赖脆弱的日志格式
-**文件**: `scripts/ai_toolkit_api.py:~110`
-**问题**: 通过空格分割查找 `X/Y` 格式，AI Toolkit 更新日志格式后静默失效。
-**修复**: 使用正则匹配多种格式。
-
-### 7. testTtsPreview 自建轮询未复用 pollTask
-**文件**: `web/static/js/settings.js:~180-215`
-**问题**: 独立实现 60 次轮询循环，重复了 core.js 的 pollTask 逻辑。
-**修复**: 改用 `pollTask()`。
-
 ---
 
 ## ✅ 已修复（本轮审查）
@@ -61,6 +51,8 @@
 | 50 | `pipeline/tasks/training_tasks.py` | 模糊变量名 `l` → `loc_part`（E741） | `本轮` |
 | 51 | `engines/workflow_builder.py` | `_setup_img2img` 盲选 LoadImage 节点，排除 IP-Adapter/PuLID 节点 | `本轮` |
 | 52 | `web/routers/imports.py` | `import_json` 接受 raw dict 改为 `ImportPlan` Schema 校验（422 而非运行时异常） | `本轮` |
+| 53 | `scripts/ai_toolkit_api.py` | 进度解析从空格分割改为正则匹配 `(\d+)\s*/\s*(\d+)` | `本轮` |
+| 54 | `web/static/js/settings.js` | `testTtsPreview` 30 行手写轮询改为 `pollTask()` | `本轮` |
 
 ---
 
