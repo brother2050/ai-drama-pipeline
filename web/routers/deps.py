@@ -260,3 +260,20 @@ def yaml_batch_delete(yaml_dir: str, entity_ids: list[str], label: str) -> dict:
         except Exception as e:
             errors.append({"id": eid, "error": str(e)})
     return {"status": "ok", "deleted": deleted, "errors": errors}
+
+
+def _check_entity_exists(yaml_dir: str, entity_id: str, label: str) -> None:
+    """检查实体 YAML 是否存在，不存在则抛 404"""
+    path = _paths().config_entity_yaml(yaml_dir, entity_id)
+    if not path.exists():
+        raise HTTPException(404, f"{label} {entity_id} 不存在")
+
+
+def _submit_entity_task(yaml_dir: str, entity_id: str, label: str,
+                         task_fn, *args, require_comfyui: bool = False, **kwargs) -> dict:
+    """通用实体生成任务提交：检查存在 → 可选检查 ComfyUI → 提交任务"""
+    _check_id(entity_id, f"{label} ID")
+    _check_entity_exists(yaml_dir, entity_id, label)
+    if require_comfyui:
+        require_tool("comfyui")
+    return _submit_task(task_fn, _cfg_path(), entity_id, *args, **kwargs)

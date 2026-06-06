@@ -3,12 +3,11 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from web.routers.deps import (
-    _cfg_path, _paths,
-    _check_id, _submit_task,
     yaml_list, yaml_save, parse_entity, yaml_delete, yaml_batch_delete,
+    _submit_entity_task,
 )
 
 logger = logging.getLogger(__name__)
@@ -31,6 +30,7 @@ def save_scene(req: SceneData) -> dict:
 
 @router.delete("/scenes/{scene_id}")
 def delete_scene(scene_id: str) -> dict:
+    from web.routers.deps import _check_id
     _check_id(scene_id, "场景 ID")
     yaml_delete("scenes", scene_id, "场景")
     return {"status": "ok", "id": scene_id}
@@ -42,10 +42,6 @@ def batch_delete_scenes(req: BatchDeleteRequest) -> dict:
 
 
 @router.post("/scenes/{scene_id}/generate-image")
-def generate_scene_image(scene_id: str):
-    _check_id(scene_id, "场景 ID")
-    scene_yaml_path = _paths().scene_yaml(scene_id)
-    if not scene_yaml_path.exists():
-        raise HTTPException(404, f"场景 {scene_id} 不存在")
+def generate_scene_image(scene_id: str) -> dict:
     from pipeline.tasks import scene_image_single_task
-    return _submit_task(scene_image_single_task, _cfg_path(), scene_id)
+    return _submit_entity_task("scenes", scene_id, "场景", scene_image_single_task)

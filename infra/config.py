@@ -250,7 +250,11 @@ class ProjectPaths:
 
 
 def cfg_get(cfg: dict, dotted_key: str, default=""):
-    """从嵌套 dict 中按点分路径取值，如 'models.gpt_sovits.api_url'"""
+    """从嵌套 dict 中按点分路径取值，如 'models.gpt_sovits.api_url'
+
+    默认返回空字符串（适合直接用于字符串拼接/f-string）。
+    与 Config.get() 不同：Config.get() 默认返回 None（适合判断"是否配置"）。
+    """
     parts = dotted_key.split(".")
     cur = cfg
     for p in parts:

@@ -3,13 +3,11 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
 from web.routers.deps import (
-    _cfg_path, _paths,
-    _check_id, _submit_task,
-    require_tool,
     yaml_list, yaml_save, parse_entity, yaml_delete, yaml_batch_delete,
+    _submit_entity_task,
 )
 
 logger = logging.getLogger(__name__)
@@ -32,6 +30,7 @@ def save_character(req: CharacterData) -> dict:
 
 @router.delete("/characters/{char_id}")
 def delete_character(char_id: str) -> dict:
+    from web.routers.deps import _check_id
     _check_id(char_id, "角色 ID")
     yaml_delete("characters", char_id, "角色")
     return {"status": "ok", "id": char_id}
@@ -44,30 +43,17 @@ def batch_delete_characters(req: BatchDeleteRequest) -> dict:
 
 @router.post("/characters/{char_id}/generate-portrait")
 def generate_character_portrait(char_id: str) -> dict:
-    _check_id(char_id, "角色 ID")
-    char_yaml_path = _paths().character_yaml(char_id)
-    if not char_yaml_path.exists():
-        raise HTTPException(404, f"角色 {char_id} 不存在")
-    require_tool("comfyui")
     from pipeline.tasks import portrait_single_task
-    return _submit_task(portrait_single_task, _cfg_path(), char_id)
+    return _submit_entity_task("characters", char_id, "角色", portrait_single_task, require_comfyui=True)
 
 
 @router.post("/characters/{char_id}/generate-outfit")
 def generate_character_outfit(char_id: str, outfit_key: str = "default") -> dict:
-    _check_id(char_id, "角色 ID")
-    char_yaml_path = _paths().character_yaml(char_id)
-    if not char_yaml_path.exists():
-        raise HTTPException(404, f"角色 {char_id} 不存在")
     from pipeline.tasks import outfit_single_task
-    return _submit_task(outfit_single_task, _cfg_path(), char_id, outfit_key)
+    return _submit_entity_task("characters", char_id, "角色", outfit_single_task, outfit_key)
 
 
 @router.post("/characters/{char_id}/generate-outfits")
 def generate_character_outfits(char_id: str) -> dict:
-    _check_id(char_id, "角色 ID")
-    char_yaml_path = _paths().character_yaml(char_id)
-    if not char_yaml_path.exists():
-        raise HTTPException(404, f"角色 {char_id} 不存在")
     from pipeline.tasks import outfits_batch_task
-    return _submit_task(outfits_batch_task, _cfg_path(), char_id)
+    return _submit_entity_task("characters", char_id, "角色", outfits_batch_task)
