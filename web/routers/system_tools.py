@@ -10,8 +10,8 @@ from fastapi import APIRouter, HTTPException
 
 from web.routers.deps import (
     _merged_cfg, _merged_cfg_public, _cfg_path, _paths,
-    _check_uuid,
-    _check_tool, _submit_task,
+    _check_uuid, _check_episode, _check_id,
+    _check_tool, _submit_task, raise_not_found,
 )
 from infra.config import cfg_get as _cfg_get, deep_merge as _deep_merge
 
@@ -510,7 +510,7 @@ def run_step_shot(req: StepRequest):
     from pipeline.tasks import shot_task
     shot = _find_shot_for_api(req.episode, req.shot_id)
     if not shot:
-        raise HTTPException(404, f"镜头 {req.shot_id} 不存在")
+        raise_not_found("镜头", req.shot_id)
     return _submit_task(shot_task, _cfg_path(), req.episode, shot, req.force)
 
 

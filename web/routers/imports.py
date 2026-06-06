@@ -11,7 +11,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 
 from web.routers.deps import (
     ROOT, _merged_cfg, _cfg_path, _paths, _check_id, _submit_task, _reset_proj_cache,
-    _safe_path,
+    _safe_path, raise_not_found,
 )
 
 logger = logging.getLogger(__name__)
@@ -215,7 +215,7 @@ def save_training_trigger(char_id: str, trigger: str = "") -> dict:
     from infra.config import save_yaml
     char_yaml = _paths().character_yaml(char_id)
     if not char_yaml.exists():
-        raise HTTPException(404, f"角色 {char_id} 不存在")
+        raise_not_found("角色", char_id)
     data = load_yaml_full(char_yaml)
     data.setdefault("character", {})["lora_trigger"] = trigger
     save_yaml(char_yaml, data)
@@ -227,7 +227,7 @@ def train_lora(req: TrainingRequest) -> dict:
     _check_id(req.char_id, "角色 ID")
     char_yaml_path = _paths().character_yaml(req.char_id)
     if not char_yaml_path.exists():
-        raise HTTPException(404, f"角色 {req.char_id} 不存在")
+        raise_not_found("角色", req.char_id)
     cfg = _cfg_path()
     from pipeline.tasks import train_lora_task
     return _submit_task(train_lora_task, cfg, req.char_id,

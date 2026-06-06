@@ -266,7 +266,13 @@ def _check_entity_exists(yaml_dir: str, entity_id: str, label: str) -> None:
     """检查实体 YAML 是否存在，不存在则抛 404"""
     path = _paths().config_entity_yaml(yaml_dir, entity_id)
     if not path.exists():
-        raise HTTPException(404, f"{label} {entity_id} 不存在")
+        raise_not_found(label, entity_id)
+
+
+def raise_not_found(entity_type: str, entity_id: str = "") -> None:
+    """统一的 404 错误消息格式"""
+    msg = f"{entity_type} {entity_id} 不存在" if entity_id else f"{entity_type} 不存在"
+    raise HTTPException(404, msg)
 
 
 def _submit_entity_task(yaml_dir: str, entity_id: str, label: str,

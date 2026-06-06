@@ -11,7 +11,7 @@ from fastapi import APIRouter, HTTPException
 from web.routers.deps import (
     _cfg_path, _paths, _proj,
     _check_id, _check_filename, _check_episode,
-    _safe_path, _submit_task,
+    _safe_path, _submit_task, raise_not_found,
 )
 
 logger = logging.getLogger(__name__)
@@ -110,7 +110,7 @@ def delete_episode(episode: int) -> dict:
     p = _paths()
     ep_dir = p.episode_dir(episode)
     if not ep_dir.exists():
-        raise HTTPException(404, f"第 {episode} 集不存在")
+        raise_not_found("第{episode}集")
     # DB 先删（失败则中止，避免文件删了 DB 残留孤儿记录）
     removed_shots = 0
     try:
