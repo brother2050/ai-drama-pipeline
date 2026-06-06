@@ -52,15 +52,19 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
     if not force and Path(audio_path).exists():
         return _skip(shot_id, "tts", "音频已存在")
 
-    # 加载角色数据（带缓存）
+    # 加载角色数据（带缓存，线程安全）
     if characters:
         all_chars = characters
     else:
         config_dir = str(cfg.paths.config_dir)
-        if not hasattr(tts_core, "_chars") or tts_core._chars_dir != config_dir:
-            from infra.config import load_yaml_entities
-            tts_core._chars = {c["id"]: c for c in load_yaml_entities(cfg.paths.characters_dir, "character")}
-            tts_core._chars_dir = config_dir
+        if not hasattr(tts_core, "_cache_lock"):
+            import threading
+            tts_core._cache_lock = threading.Lock()
+        with tts_core._cache_lock:
+            if not hasattr(tts_core, "_chars") or tts_core._chars_dir != config_dir:
+                from infra.config import load_yaml_entities
+                tts_core._chars = {c["id"]: c for c in load_yaml_entities(cfg.paths.characters_dir, "character")}
+                tts_core._chars_dir = config_dir
         all_chars = tts_core._chars
 
     from infra.globals import get_watchdog, get_concurrency_groups

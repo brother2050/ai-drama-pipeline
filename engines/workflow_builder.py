@@ -51,6 +51,9 @@ class WorkflowBuilderConfig:
     no_auto_gen: bool = False  # 禁止自动触发定妆照生成（防止递归）
 
 
+_wf_cache: dict[str, dict] = {}  # 工作流 JSON 缓存（进程级，按文件路径 key）
+
+
 class WorkflowBuilder:
     """ComfyUI 工作流构建器"""
 
@@ -138,18 +141,25 @@ class WorkflowBuilder:
             self._apply_gpu(self.video_wf, "video", gpu_cfg, sampler_types)
 
     def _load_wf(self, name: str) -> dict:
+        # 进程级缓存：同一文件只从磁盘读取一次
         path = os.path.join(self.wf_dir, name)
         if os.path.exists(path):
-            with open(path, encoding="utf-8") as f:
-                return json.load(f)
-        # 回退到仓库根目录 workflows/
-        root_wf = os.path.join(os.path.dirname(__file__), "..", "workflows", name)
-        root_wf = os.path.normpath(root_wf)
-        if os.path.exists(root_wf):
-            with open(root_wf, encoding="utf-8") as f:
-                return json.load(f)
-        logger.debug(f"工作流不存在: {path} (也检查了 {root_wf})")
-        return {}
+            cache_key = os.path.normpath(path)
+        else:
+            root_wf = os.path.join(os.path.dirname(__file__), "..", "workflows", name)
+            root_wf = os.path.normpath(root_wf)
+            if os.path.exists(root_wf):
+                cache_key = root_wf
+                path = root_wf
+            else:
+                logger.debug(f"工作流不存在: {path} (也检查了 {root_wf})")
+                return {}
+        if cache_key in _wf_cache:
+            return _wf_cache[cache_key]
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        _wf_cache[cache_key] = data
+        return data
 
     def _apply_gpu(self, wf: dict, stage: str, gpu_cfg: dict, sampler_types: set[str]) -> None:
         """应用生成参数到工作流（比例自动计算分辨率 + 步数可选覆盖）

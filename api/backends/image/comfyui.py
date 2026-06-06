@@ -97,6 +97,8 @@ class ComfyUI:
         deadline = time.time() + self._timeout
         poll_interval = 2
         consecutive_failures = 0
+        consecutive_empty = 0
+        max_empty = 60  # 连续 60 次无结果（约 5 分钟）视为卡死
         while time.time() < deadline:
             try:
                 r = self._client.get(f"{self._url}/history/{prompt_id}", headers=self._headers())
@@ -104,9 +106,15 @@ class ComfyUI:
                     result = self._check_history(r, prompt_id, output_dir)
                     if result is not None:
                         return result
+                    consecutive_empty += 1
+                    if consecutive_empty >= max_empty:
+                        raise TimeoutError(
+                            f"ComfyUI 任务 {prompt_id} 连续 {max_empty} 次轮询无结果，疑似卡死"
+                        )
                 consecutive_failures = 0
             except httpx.HTTPError as e:
                 consecutive_failures += 1
+                consecutive_empty = 0
                 logger.debug(f"ComfyUI 轮询网络抖动 ({consecutive_failures}): {e}")
                 if consecutive_failures >= 10:
                     raise RuntimeError(

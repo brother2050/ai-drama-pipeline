@@ -153,6 +153,9 @@ def run_hooks(hook_type: str, *args, service_type: str = "", **kwargs) -> list[A
             logger.error(f"钩子 {hook.name} ({hook_type}/{hook.service_type or '*'}): {e}")
             if hook_type == "init":
                 raise  # 初始化钩子失败应阻断启动
+            # cleanup 钩子不阻断但记录到监控
+            if hook_type == "cleanup":
+                logger.error(f"清理钩子失败，资源可能泄漏: {hook.name}")
 
     return results
 
