@@ -1,4 +1,4 @@
-# 🎬 AI 短剧全流程生产管线 v2
+# 🎬 AI 短剧全流程生产管
 
 > 从剧本到成片，一键搞定 — 纯 Python，跨平台，零 Shell 脚本依赖
 
@@ -29,8 +29,8 @@
 ### 1. 克隆
 
 ```bash
-git clone https://ghfast.top/https://github.com/brother2050/ai-drama-pipeline-v2.git
-cd ai-drama-pipeline-v2
+git clone https://ghfast.top/https://github.com/brother2050/ai-drama-pipeline.git
+cd ai-drama-pipeline
 ```
 
 ### 2. 安装依赖
@@ -704,7 +704,7 @@ pytest tests/test_core.py -v      # 核心引擎测试（27 项）
 ## 📁 项目结构
 
 ```
-ai-drama-pipeline-v2/
+ai-drama-pipeline/
 ├── cli.py                        # 统一 CLI 入口（Click + Rich）
 ├── pyproject.toml                # 依赖与构建配置
 ├── .env.example                  # 环境变量模板
