@@ -45,6 +45,8 @@
 | 54 | `web/static/js/settings.js` | `testTtsPreview` 30 行手写轮询改为 `pollTask()` | `本轮` |
 | 55 | `tests/test_post.py` | 新增 post/ 模块 21 项单元测试（subtitle/production/music/vertical） | `本轮` |
 | 56 | `tests/test_append.py` | 新增 ProjectBuilder.append() 10 项端到端测试（角色/场景追加+跳过+安全名） | `本轮` |
+| 57 | `engines/prompt.py` + `pipeline/tasks/ai.py` | 批量翻译输出预算不足导致逐条回退；空翻译仅 warning 不报错 | `87ff025` |
+| 58 | `engines/prompt.py` + `engines/portrait.py` | 五视图左右脸混淆：视角prompt太弱+同seed+正面照误导侧面/背面 | `1437fc3` |
 
 ---
 
