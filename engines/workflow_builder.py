@@ -315,7 +315,18 @@ class WorkflowBuilder:
         plain_load = [nid for nid in all_load
                       if not nid.startswith("ipadapter_ref")
                       and not nid.startswith("pulid_ref")]
-        target_node = plain_load[0] if plain_load else all_load[0] if all_load else None
+        if plain_load:
+            target_node = plain_load[0]
+        elif all_load:
+            # 所有 LoadImage 都是一致性节点，创建新的场景参考图节点
+            logger.warning("img2img: 无普通 LoadImage 节点，创建新节点用于场景参考图")
+            target_node = f"img2img_ref_{len(all_load)}"
+            wf[target_node] = {
+                "class_type": "LoadImage",
+                "inputs": {"image": Path(ref_image).name},
+            }
+        else:
+            target_node = None
         if target_node:
             wf[target_node]["inputs"]["image"] = Path(ref_image).name
 
