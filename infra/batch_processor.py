@@ -124,7 +124,7 @@ class AdaptiveBatchProcessor:
         if estimate_item_output_tokens:
             get_output = estimate_item_output_tokens
         else:
-            get_output = lambda item: max(300, get_input(item))
+            def get_output(item): return max(300, get_input(item))
         sample = build_prompts([items[0]])
         system_tokens = estimate_tokens(sample.get("system", ""))
         batches = self._create_batches(items, get_input, get_output, system_tokens)

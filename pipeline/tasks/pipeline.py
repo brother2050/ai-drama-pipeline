@@ -9,7 +9,7 @@ from pathlib import Path
 
 from pipeline.celery_app import app
 from pipeline.tasks.helpers import (
-    _ensure_path, _load_shots,
+    _load_shots,
     _db_record_step, _is_default_storyboard,
 )
 from pipeline.tasks.steps import (

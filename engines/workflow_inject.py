@@ -116,7 +116,7 @@ def inject_ip_adapter_plus(wf: dict, char_id: str, ref_images: list[str],
     if not ksampler:
         logger.warning("未找到 KSampler，无法注入 IP-Adapter")
         return wf
-    model_source = _resolve_model_source(wf, ksampler)
+    model_source = resolve_model_source(wf, ksampler)
     if not model_source:
         logger.warning("未找到模型加载节点，无法注入 IP-Adapter")
         return wf
@@ -235,11 +235,6 @@ def inject_ip_adapter_chain(wf: dict, char_id: str, ref_images: list[str],
 #  PuLID-Flux 注入（Flux DiT 架构专用）
 # ══════════════════════════════════════════════════════════
 
-def _resolve_model_source(wf: dict, ksampler: str) -> str | None:
-    """兼容包装：委托给 workflow.resolve_model_source"""
-    return resolve_model_source(wf, ksampler)
-
-
 def inject_pulid_flux(builder: object, wf: dict, char_ids: list[str],
                       pulid_config: dict, outfit: str = "") -> dict:
     """注入 PuLID-Flux 面部一致性节点（Flux 后端专用）"""
@@ -252,7 +247,7 @@ def inject_pulid_flux(builder: object, wf: dict, char_ids: list[str],
     if not ksampler:
         logger.warning("未找到 KSampler，无法注入 PuLID-Flux")
         return wf
-    model_source = _resolve_model_source(wf, ksampler)
+    model_source = resolve_model_source(wf, ksampler)
     if not model_source:
         logger.warning("未找到模型加载节点，无法注入 PuLID-Flux")
         return wf

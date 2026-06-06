@@ -29,14 +29,10 @@ class MultiCharacterHandler:
         parts = []
         for i, char in enumerate(characters):
             desc = char.get("appearance_prompt_en", char.get("appearance", ""))
-            if layout == "side_by_side":
-                pos = "on the left" if i % 2 == 0 else "on the right"
-            else:
-                pos = f"position {i+1}"
+            pos = _position_label(i, layout)
             parts.append(f"{desc}, {pos}")
         prompt = ", ".join(parts)
 
-        # 估算 token 数
         est_tokens = estimate_tokens(prompt)
         if est_tokens > clip_token_limit:
             logger.warning(
@@ -48,5 +44,19 @@ class MultiCharacterHandler:
     def calculate_regions(self, count: int, layout: str = "side_by_side") -> list[dict]:
         if not count or count <= 1:
             return [{"position": "center", "x": 0.5, "y": 0.5}]
-        return [{"position": "left" if i % 2 == 0 else "right",
-                 "x": 0.25 + 0.5 * (i % 2), "y": 0.5} for i in range(count)]
+        regions = []
+        for i in range(count):
+            pos = _position_label(i, layout)
+            if layout == "side_by_side":
+                x = 0.25 + 0.5 * (i % 2)
+            else:
+                x = (i + 0.5) / count
+            regions.append({"position": pos, "x": x, "y": 0.5})
+        return regions
+
+
+def _position_label(index: int, layout: str) -> str:
+    """统一的位置标签生成（prompt 和 region 共用）"""
+    if layout == "side_by_side":
+        return "on the left" if index % 2 == 0 else "on the right"
+    return f"position {index + 1}"

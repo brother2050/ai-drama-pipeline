@@ -81,7 +81,7 @@ def _add_exception_handlers(app: FastAPI) -> None:
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
         errors = []
         for err in exc.errors():
-            loc = " → ".join(str(l) for l in err.get("loc", []))
+            loc = " → ".join(str(loc_part) for loc_part in err.get("loc", []))
             msg = err.get("msg", "校验失败").split("(")[0].strip() if "should" in err.get("msg", "").lower() else err.get("msg", "校验失败")
             errors.append(f"{loc}: {msg}" if loc else msg)
         return JSONResponse(status_code=422, content={"detail": "; ".join(errors)})

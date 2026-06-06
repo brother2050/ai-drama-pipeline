@@ -16,7 +16,7 @@ from typing import Callable
 
 logger = logging.getLogger(__name__)
 
-_noop_progress = lambda *a, **kw: None
+def _noop_progress(*a, **kw): return None
 
 # 进度回调类型: (current, total, message)
 ProgressCB = Callable[[int, int, str], None] | None

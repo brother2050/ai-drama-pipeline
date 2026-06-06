@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 
 from infra.constants import is_ascii_only
 from infra.batch_processor import estimate_tokens as _estimate_tokens
+from engines.prompt_compiler import tpl
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +27,6 @@ class PromptBuildParams:
     image_backend: str = ""
     registry: object = None  # ModelRegistry 实例
     character_bible: str = ""
-
-from engines.prompt_compiler import tpl
 
 
 # 身体特征关键词（从 prompt_en 中提取）
@@ -280,16 +279,20 @@ def _truncate_tag_prompt(prompt: str, max_tokens: int = 75) -> str:
     SD1.5 CLIP tokenizer 限制 75 tokens（不含 start/end token）。
     按逗号分隔的 tag 边界截断，保留前面的 tag（style/genre/scene/character 优先），
     丢弃末尾溢出部分。CJK 字符按 1 token/字估算。
+    单个 tag 超限时也会被跳过（避免首个 tag 独占全部 token 预算）。
     """
     if _estimate_tokens(prompt) <= max_tokens:
         return prompt
 
-    # 按逗号拆分，逐个 tag 累加，超出限制时截断
     tags = [t.strip() for t in prompt.split(",") if t.strip()]
     result = []
     token_count = 0
     for tag in tags:
         tag_cost = _estimate_tokens(tag) + 1  # +1 for comma separator token
+        if tag_cost > max_tokens:
+            # 单个 tag 超限，跳过（保留后续可能不超限的 tag）
+            logger.debug(f"跳过超长 tag ({tag_cost} tokens): {tag[:50]}...")
+            continue
         if token_count + tag_cost > max_tokens:
             break
         result.append(tag)

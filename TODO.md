@@ -7,8 +7,6 @@
 
 ## 🔴 高优先级（无）
 
-审查未发现高严重度的待修复问题。（TTS 缓存失效 bug、duration 裁剪死代码、bible dict 翻译数据丢失、outfits_batch file object bug 均已在本轮修复）
-
 ---
 
 ## 🟡 中优先级
@@ -33,48 +31,48 @@
 **修复**: 通过节点命名或 class_type 区分 img2img 和 IP-Adapter 的 LoadImage。
 
 ### 4. import_json 接受原始 dict 无 Schema 校验
-**文件**: `web/routers/system_tools.py:188`
+**文件**: `web/routers/imports.py:433`
 **问题**: `import_json(plan_data: dict)` 接受任意 JSON，不合规数据导致运行时异常而非 422。
 **修复**: 使用 `ImportPlan` 或中间 Schema 校验。
 
-### 5. 多人同框布局参数不一致
-**文件**: `engines/multi_char.py:28-32, 38-40`
-**问题**: `generate_multi_char_prompt` 和 `calculate_regions` 对非 "side_by_side" 布局的处理不一致。
-**修复**: 统一布局参数映射。
-
-### 6. prompt 截断：单 tag 超限时仍被保留
-**文件**: `engines/prompt.py:164-180`
-**问题**: 第一个 tag 无论 token 代价多高都会被保留。
-**修复**: 第一个 tag 也检查 token 限制。
-
-### 7. 测试 XSS 检测过于宽松
+### 5. 测试 XSS 检测过于宽松
 **文件**: `tests/test_e2e.py:~130`
 **问题**: 检查 `innerHTML` 存在但仅全局搜索 `esc()` 函数，非逐行验证。
 **修复**: 逐行检查每个 `innerHTML` 赋值是否有转义。
 
-### 8. ai_toolkit_api.py 进度解析依赖脆弱的日志格式
+### 6. ai_toolkit_api.py 进度解析依赖脆弱的日志格式
 **文件**: `scripts/ai_toolkit_api.py:~110`
 **问题**: 通过空格分割查找 `X/Y` 格式，AI Toolkit 更新日志格式后静默失效。
 **修复**: 使用正则匹配多种格式。
 
-### 9. testTtsPreview 自建轮询未复用 pollTask
+### 7. testTtsPreview 自建轮询未复用 pollTask
 **文件**: `web/static/js/settings.js:~180-215`
 **问题**: 独立实现 60 次轮询循环，重复了 core.js 的 pollTask 逻辑。
 **修复**: 改用 `pollTask()`。
 
-### 10. 缺少后期处理单元测试
-**文件**: `tests/` 目录
-**问题**: `post/production.py`（拼接流程）、`post/vertical.py`（裁剪逻辑）没有单元测试。
-**修复**: 添加 post/ 模块的单元测试。
+---
 
-### 11. 缺少追加导入模式测试
-**文件**: `tests/` 目录
-**问题**: `ProjectBuilder.append()` 没有端到端测试。
-**修复**: 添加 append 模式的端到端测试。
+## ✅ 已修复（本轮审查）
+
+| # | 文件 | 问题 | 提交 |
+|---|------|------|------|
+| 38 | `engines/prompt.py` | `_truncate_tag_prompt` 首个 tag 不检查 token 限制（超长 tag 独占全部预算） | `本轮` |
+| 39 | `engines/multi_char.py` | `generate_multi_char_prompt` 与 `calculate_regions` 布局逻辑不一致 | `本轮` |
+| 40 | `engines/workflow_inject.py` | `_resolve_model_source` 无用包装函数（直接调用 `resolve_model_source`） | `本轮` |
+| 41 | `engines/prompt.py` | `from engines.prompt_compiler import tpl` 未在文件顶部（E402） | `本轮` |
+| 42 | `web/routers/imports.py` | `_safe_path` 未导入导致 Seko 自定义下载路径崩溃（F821） | `本轮` |
+| 43 | `web/routers/imports.py` | 未使用的 `os` 导入（F401） | `本轮` |
+| 44 | `web/routers/system_tools.py` | 未使用的 `Path` 导入（F401） | `本轮` |
+| 45 | `infra/database/comfyui_assets.py` | 未使用的 `row_to_dict` 导入（F401） | `本轮` |
+| 46 | `pipeline/tasks/pipeline.py` | 未使用的 `_ensure_path` 导入（F401） | `本轮` |
+| 47 | `infra/batch_processor.py` | lambda 赋值改为 def（E731） | `本轮` |
+| 48 | `pipeline/scene_images.py` | lambda 赋值改为 def（E731） | `本轮` |
+| 49 | `web/app.py` | 模糊变量名 `l` → `loc_part`（E741） | `本轮` |
+| 50 | `pipeline/tasks/training_tasks.py` | 模糊变量名 `l` → `loc_part`（E741） | `本轮` |
 
 ---
 
-## ✅ 已修复（本轮）
+## ✅ 已修复（前轮审查）
 
 | # | 文件 | 问题 | 提交 |
 |---|------|------|------|

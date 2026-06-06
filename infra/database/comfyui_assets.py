@@ -4,7 +4,7 @@
 """
 from __future__ import annotations
 
-from infra.database._db import query, row_to_dict, _get_project
+from infra.database._db import query, _get_project
 
 __all__ = ["check", "mark", "unmark", "delete_by_project"]
 

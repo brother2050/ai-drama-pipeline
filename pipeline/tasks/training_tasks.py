@@ -248,7 +248,7 @@ def import_json_task(self, plan_data: dict) -> dict:
     except Exception as e:
         from pydantic import ValidationError
         if isinstance(e, ValidationError):
-            errors = [f"{' → '.join(str(l) for l in err.get('loc', []))}: {err.get('msg', '校验失败')}" for err in e.errors()]
+            errors = [f"{' → '.join(str(loc_part) for loc_part in err.get('loc', []))}: {err.get('msg', '校验失败')}" for err in e.errors()]
             return {"status": STATUS_ERROR, "reason": "数据格式错误", "errors": errors}
         if isinstance(e, ValueError):
             return {"status": STATUS_ERROR, "reason": str(e)}

@@ -4,7 +4,6 @@ from __future__ import annotations
 from infra.constants import STATUS_RUNNING
 import logging
 import os
-from pathlib import Path
 
 from fastapi import APIRouter, Body, HTTPException
 
