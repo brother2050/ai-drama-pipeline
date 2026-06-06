@@ -225,6 +225,26 @@ class PromptCompiler:
             return self._compile_natural(variables)
         return self._compile_tag(variables)
 
+    @staticmethod
+    def _strip_character_sentence(text: str) -> str:
+        """移除模板中角色/情绪相关句子（无角色镜头用）
+
+        模板格式: "... Set in {scene}. {character} {action}, with a {emotion} expression. ..."
+        无角色时 character/action/emotion 为空，产生 "... with a neutral expression. ..."
+        此方法移除这类残留句子。
+        """
+        # 移除 "with a/an ... expression" 整个句子（含前导句号）
+        text = re.sub(r'\.\s*with an?\s+[\w\s]+\s+expression\s*\.', '.', text)
+        # 移除孤立的 "with a ... expression"（在句首或中间）
+        text = re.sub(r'\s*with an?\s+[\w\s]+\s+expression\.?\s*', ' ', text)
+        # 清理多余空格和标点
+        text = re.sub(r'\.\s*\.', '.', text)
+        text = re.sub(r'  +', ' ', text)
+        text = re.sub(r'\.\s*,', '.', text)
+        text = re.sub(r',\s*\.', '.', text)
+        text = re.sub(r'^\s*[,.\s]+', '', text)
+        return text.strip()
+
     def _compile_tag(self, variables: dict) -> str:
         """编译 tag 风格 prompt（SD1.5/SDXL）"""
         # 尝试从模板编译
@@ -253,6 +273,10 @@ class PromptCompiler:
         if template:
             result = self.compile_text(template, variables)
             if result:
+                # 无角色时移除角色/情绪句子，避免 "with a neutral expression" 诱导生成人脸
+                character = variables.get("character", "")
+                if not character:
+                    result = self._strip_character_sentence(result)
                 return result
 
         # 回退：硬编码逻辑（模板缺失时使用）
