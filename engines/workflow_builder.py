@@ -507,8 +507,7 @@ class WorkflowBuilder:
 
     def build_first_frame(self, shot: dict, character_desc: str = "",
                           scene_desc: str = "", multi_char_prompt: str = "",
-                          seed: int | None = None,
-                          skip_global_loras: bool = False) -> tuple[dict, dict]:
+                          seed: int | None = None) -> tuple[dict, dict]:
         """构建首帧工作流
 
         Args:
@@ -517,7 +516,6 @@ class WorkflowBuilder:
             scene_desc: 场景英文描述
             multi_char_prompt: 多角色合并 prompt
             seed: 指定 seed（None 则随机，用于定妆照一致性控制）
-            skip_global_loras: 跳过全局 LoRA 注入（场景图生成用，避免 Portrait LoRA 污染）
 
         Returns:
             (prompt_dict, workflow_dict) 元组
