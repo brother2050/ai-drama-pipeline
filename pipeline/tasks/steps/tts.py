@@ -2,12 +2,27 @@
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 
 from engines.shot_utils import parse_char_ids
 from pipeline.tasks.helpers import _skip, _err, _done, _validate_output
 
 logger = logging.getLogger(__name__)
+
+# 性别 → 声音描述（VoiceDesign 后端使用）
+_GENDER_VOICE_DESC = {
+    "male": "成年男声，声音低沉浑厚",
+    "female": "年轻女声，声音温柔甜美",
+}
+
+# 匹配 "角色名：台词内容" 或 "角色名:台词内容"（中英文冒号）
+_SPEAKER_PREFIX_RE = re.compile(r"^[^：:]+[：:]\s*")
+
+
+def _strip_speaker_prefix(text: str) -> str:
+    """去掉台词中的说话人前缀（如 '张老板：你好' → '你好'）"""
+    return _SPEAKER_PREFIX_RE.sub("", text, count=1)
 
 
 # 文件变化时清除 TTS 角色缓存（YAML 修改后自动生效）
@@ -23,7 +38,7 @@ def _clear_tts_char_cache():
 def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
              force: bool = False, characters: dict | None = None) -> dict:
     """TTS 核心逻辑 — 合成台词为音频（带看门狗跟踪 + 并发组限流）"""
-    dialogue = shot.get("dialogue", "").strip()
+    dialogue = _strip_speaker_prefix(shot.get("dialogue", "").strip())
     if not dialogue or set(dialogue) <= {".", "…"}:
         return _skip(shot_id, "tts", "无台词")
 
@@ -53,6 +68,10 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
     char_voice = char_data.get("voice")
     if isinstance(char_voice, dict) and char_voice:
         voice_config = {**voice_config, **char_voice}
+    # 根据性别设置默认声音描述（VoiceDesign 后端使用）
+    if "voice_description" not in voice_config:
+        gender = char_data.get("gender", "").lower()
+        voice_config["voice_description"] = _GENDER_VOICE_DESC.get(gender, "")
     emotion = shot.get("emotion", "neutral")
     language = shot.get("language", "zh")
 
