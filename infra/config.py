@@ -597,7 +597,8 @@ class Config:
         for p in (getattr(Config, 'SYSTEM_CONFIG', None), self._path):
             if p:
                 abspath = str(Path(p).resolve())
-                _cache.pop(abspath, None)
+                with _lock:
+                    _cache.pop(abspath, None)
         self._data = self._merge(self._path)
         self._data["_project_dir"] = self._project_dir
         self._warnings = []

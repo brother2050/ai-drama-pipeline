@@ -29,6 +29,9 @@ class TemplateMusic:
             raise RuntimeError(f"ffmpeg 模板配乐失败: {r.stderr[-200:]}")
         return output
 
+    def shutdown(self):
+        """释放资源（模板后端无外部依赖）"""
+
     def health_check(self) -> tuple[bool, str]: return True, "template music (ffmpeg)"
 def _f(config): return TemplateMusic(config)
 registry.register(BackendMeta(name="template", service_type="music", factory=_f,

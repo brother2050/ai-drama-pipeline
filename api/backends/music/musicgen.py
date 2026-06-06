@@ -128,6 +128,9 @@ class MusicGenAPI:
         else:
             raise RuntimeError(f"MusicGen 响应中无音频数据: {data}")
 
+    def shutdown(self):
+        """释放资源（共享连接池由 Container.shutdown_all 统一清理）"""
+
     def health_check(self) -> tuple[bool, str]:
         if not self._api_url:
             return False, "music.api_url 未配置"

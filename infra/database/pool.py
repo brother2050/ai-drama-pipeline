@@ -38,10 +38,6 @@ class PgPool:
                 cur.execute("SELECT 1")
         except Exception:
             logger.debug("连接不可用，回收重建")
-            try:
-                conn.close()
-            except Exception:
-                pass
             self._put(conn, close=True)
             return self._pool.getconn()
         return conn

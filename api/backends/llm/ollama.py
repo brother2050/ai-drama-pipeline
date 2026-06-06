@@ -69,6 +69,9 @@ class OllamaLLM:
             _try_learn_limits(self._model, e)
             raise
 
+    def shutdown(self):
+        """释放资源（共享连接池由 Container.shutdown_all 统一清理）"""
+
     def health_check(self) -> tuple[bool, str]:
         try:
             r = self._fast_client.get(f"{self._url}/api/tags")

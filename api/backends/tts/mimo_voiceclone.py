@@ -100,6 +100,9 @@ class MimoVoiceClone:
         write_wav_or_pcm(raw, output)
         return output
 
+    def shutdown(self):
+        """释放资源（共享连接池由 Container.shutdown_all 统一清理）"""
+
     def health_check(self) -> tuple[bool, str]:
         if not self._api_key:
             return False, "MIMO_API_KEY 未设置"

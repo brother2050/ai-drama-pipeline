@@ -96,7 +96,11 @@ def _generate_view(params: ViewGenParams) -> str:
         return ""
     # 重命名为目标文件名
     target = p.portrait_dir / p.filename
-    os.replace(files[0], str(target))
+    try:
+        os.replace(files[0], str(target))
+    except FileNotFoundError:
+        logger.error(f"生成文件丢失: {files[0]}")
+        return ""
     return str(target)
 
 
@@ -286,7 +290,11 @@ def _generate_single_outfit(comfyui, wb, char_id: str, outfit_key: str,
     if not files:
         return None
     cover_out = outfit_dir / "cover.png"
-    os.replace(files[0], str(cover_out))
+    try:
+        os.replace(files[0], str(cover_out))
+    except FileNotFoundError:
+        logger.error(f"生成文件丢失: {files[0]}")
+        return None
     return f"/api/assets/characters/{char_id}/{outfit_key}/cover.png"
 
 

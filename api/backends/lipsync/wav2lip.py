@@ -30,6 +30,9 @@ class Wav2Lip:
             f.write(r.content)
         return output
 
+    def shutdown(self):
+        """释放资源（共享连接池由 Container.shutdown_all 统一清理）"""
+
     def health_check(self) -> tuple[bool, str]:
         from api.backends import http_health_check
         return http_health_check(self._url, self._fast_client, "Wav2Lip")

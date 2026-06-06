@@ -95,6 +95,7 @@ class ComfyUI:
         """轮询 ComfyUI /history 直到任务完成（指数退避 + jitter）"""
         deadline = time.time() + self._timeout
         poll_interval = 2
+        consecutive_failures = 0
         while time.time() < deadline:
             try:
                 r = self._client.get(f"{self._url}/history/{prompt_id}", headers=self._headers())
@@ -102,8 +103,14 @@ class ComfyUI:
                     result = self._check_history(r, prompt_id, output_dir)
                     if result is not None:
                         return result
+                consecutive_failures = 0
             except httpx.HTTPError as e:
-                logger.debug(f"ComfyUI 轮询网络抖动: {e}")
+                consecutive_failures += 1
+                logger.debug(f"ComfyUI 轮询网络抖动 ({consecutive_failures}): {e}")
+                if consecutive_failures >= 10:
+                    raise RuntimeError(
+                        f"ComfyUI 服务在轮询过程中不可达，连续失败 {consecutive_failures} 次"
+                    ) from e
             time.sleep(poll_interval * (0.5 + random.random()))
             poll_interval = min(poll_interval * 2, 16)
         raise TimeoutError(f"ComfyUI workflow timeout ({self._timeout}s)")
@@ -153,6 +160,9 @@ class ComfyUI:
                 out_path.write_bytes(r.content)
                 files.append(str(out_path))
         return files
+
+    def shutdown(self):
+        """释放资源（共享连接池由 Container.shutdown_all 统一清理）"""
 
     def health_check(self) -> tuple[bool, str]:
         try:
