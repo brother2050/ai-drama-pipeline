@@ -108,7 +108,7 @@
 
 ## 执行计划
 
-- [ ] **Batch 1:** H1 + M1 + M5 + M9 — 日志/检测类，低风险
+- [x] **Batch 1:** H1 + M1 + M5 + M9 — 日志/检测类，低风险
 - [ ] **Batch 2:** M3 + M4 + M2 — workflow_builder/inject 逻辑修复
 - [ ] **Batch 3:** M6 + M7 + M8 — consistency_checker + quality_gate 增强
 - [ ] **Batch 4:** M10 + L10 + L11 + L12 — 五视图改进

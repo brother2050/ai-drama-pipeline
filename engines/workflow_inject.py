@@ -187,6 +187,7 @@ def inject_ip_adapter_chain(wf: dict, char_id: str, ref_images: list[str],
     from engines.workflow_builder import WorkflowBuilder
     downstream_node, downstream_input = WorkflowBuilder._find_downstream_consumer(wf, last_ip)
     if not downstream_node:
+        logger.warning(f"链式注入失败: 未找到 IP-Adapter 下游消费者，跳过 {char_id}")
         return wf
 
     suffix = next(_suffix_counter)
@@ -330,6 +331,7 @@ def inject_pulid_flux_chain(wf: dict, char_id: str, ref_images: list[str],
     from engines.workflow_builder import WorkflowBuilder
     downstream_node, downstream_input = WorkflowBuilder._find_downstream_consumer(wf, last_pulid)
     if not downstream_node:
+        logger.warning(f"链式注入失败: 未找到 PuLID-Flux 下游消费者，跳过 {char_id}")
         return wf
 
     pulid_model_node = None

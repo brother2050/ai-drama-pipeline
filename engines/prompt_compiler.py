@@ -160,6 +160,12 @@ class PromptCompiler:
         # 清理多余空行
         result = re.sub(r'\n{3,}', '\n\n', result)
 
+        # 检测未替换的模板变量
+        residual = re.findall(r'\$\{(\w+)\}|\{\{(\w+)\}\}', result)
+        if residual:
+            keys = [m[0] or m[1] for m in residual]
+            logger.warning(f"模板变量未替换: {keys}")
+
         return result.strip()
 
     def _clean_empty_values(self, text: str) -> str:

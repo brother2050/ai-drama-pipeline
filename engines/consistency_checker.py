@@ -169,6 +169,7 @@ class ConsistencyChecker:
 
     def _check_emotion_transition(self, shots: list[dict]) -> list[str]:
         """检查情绪逻辑过渡：相邻镜头情绪不应剧烈跳变"""
+        from infra.constants import VALID_EMOTIONS
         errors = []
 
         # 情绪跳变黑名单（不合理的跳变，其余均允许）
@@ -178,18 +179,28 @@ class ConsistencyChecker:
             ("calm", "angry"), ("angry", "calm"),
         }
 
-        for i in range(1, len(shots)):
+        for i in range(len(shots)):
+            emotion = shots[i].get("emotion", "neutral")
+            # 校验情绪值合法性
+            if emotion not in VALID_EMOTIONS:
+                errors.append(
+                    f"镜头 {shots[i].get('shot_id', '?')}: 无效情绪 '{emotion}'，"
+                    f"合法值: {', '.join(sorted(VALID_EMOTIONS))}"
+                )
+                continue
+
+            if i == 0:
+                continue
             prev_emotion = shots[i - 1].get("emotion", "neutral")
-            curr_emotion = shots[i].get("emotion", "neutral")
-            if prev_emotion == curr_emotion:
+            if prev_emotion == emotion:
                 continue
             # 不同场景允许任意情绪变化
             if shots[i - 1].get("scene_id") != shots[i].get("scene_id"):
                 continue
-            transition = (prev_emotion, curr_emotion)
+            transition = (prev_emotion, emotion)
             if transition in BLOCKED_TRANSITIONS:
                 errors.append(
                     f"镜头 {shots[i].get('shot_id', '?')}: 情绪跳变 "
-                    f"({prev_emotion} → {curr_emotion})，建议添加过渡镜头"
+                    f"({prev_emotion} → {emotion})，建议添加过渡镜头"
                 )
         return errors
