@@ -46,13 +46,12 @@ _FIVE_VIEWS = [
 
 
 def _view_seed(char_id: str, generation: int, view_index: int) -> int:
-    """五视图 seed：同角色同代不同视角，不同角色完全隔离
+    """五视图 seed：同角色同代不同视角使用不同 seed（避免视角雷同）
 
-    注意：为保持五视图人物一致性，所有视角使用相同 seed。
-    view_index 保留用于未来需要差异化时扩展。
+    view_index 用于区分不同视角，确保每个视角有独立的生成结果。
     """
-    h = hashlib.md5(f"{char_id}:gen{generation}:portrait".encode("utf-8")).hexdigest()
-    return int(h[:16], 16)  # 64-bit seed, 碰撞概率 2^-64，实际可忽略
+    h = hashlib.md5(f"{char_id}:gen{generation}:view{view_index}".encode("utf-8")).hexdigest()
+    return int(h[:16], 16)  # 64-bit seed, 碰撞概率 2^-64
 
 
 def _outfit_seed(char_id: str, generation: int, outfit_index: int) -> int:
@@ -114,7 +113,11 @@ def _generate_five_views(comfyui, wb, char_id: str, portrait_dir: Path,
             continue
 
         view_seed = _view_seed(char_id, generation, i)
-        ref = str(cover_path) if i > 0 and cover_path.exists() else None
+        # 参考图策略：正面视图(i==0)无参考；three_quarter 用正面参考；
+        # 侧面/背面不用正面参考（会误导模型照着正面生成）
+        ref = None
+        if i > 0 and cover_path.exists() and vk in ("three_quarter",):
+            ref = str(cover_path)
 
         result = _generate_view(ViewGenParams(
             comfyui=comfyui, wb=wb, char_id=char_id, portrait_dir=portrait_dir,

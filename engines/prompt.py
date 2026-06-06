@@ -192,12 +192,21 @@ def get_view_appearance(char: dict, shot_type: str, *, view_key: str = "") -> st
 # ── 视角 prompt 运行时构建 ──────────────────────────────
 
 # 视角前缀（引导 AI 绘图模型理解视角方向）
+# 每个视角使用详细的英文描述，避免模型"偷懒"照着正面生成
 _VIEW_PREFIX = {
-    "front": "front view, facing camera",
-    "left_side": "left side view, profile angle",
-    "right_side": "right side view, profile angle",
-    "back": "back view, from behind",
-    "three_quarter": "three-quarter view, angled pose",
+    "front": "front view, facing directly at camera, looking into camera, centered face",
+    "left_side": "strict left side profile view, facing left, head turned 90 degrees left, only left side of face visible, no right side visible, side profile",
+    "right_side": "strict right side profile view, facing right, head turned 90 degrees right, only right side of face visible, no left side visible, side profile",
+    "back": "back view, seen from behind, facing away from viewer, back of head and body visible, no face visible, rear view",
+    "three_quarter": "three-quarter view, head angled 45 degrees, one ear partially visible, slight turn from front",
+}
+
+# 视角负面提示（防止模型生成错误视角）
+_VIEW_NEGATIVE = {
+    "left_side": "front view, facing camera, both sides of face, looking at viewer",
+    "right_side": "front view, facing camera, both sides of face, looking at viewer",
+    "back": "front view, facing camera, face visible, looking at viewer, side view",
+    "three_quarter": "front view, straight on, back view",
 }
 
 
@@ -221,6 +230,11 @@ def build_view_prompt(base_en: str, body_features: str, view: str) -> str:
         if view == "back":
             features = _filter_back_features(features)
         parts.append(features)
+
+    # 非正面视角：追加负面引导词到 prompt 末尾（部分模型支持）
+    neg = _VIEW_NEGATIVE.get(view)
+    if neg:
+        parts.append(f"no {neg}")
 
     return ", ".join(parts)
 
