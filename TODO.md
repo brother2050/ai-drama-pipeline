@@ -27,6 +27,16 @@
 - **问题**: 同一角色 cover.png 被多 shot 引用时重复读取+上传
 - **建议**: 在 AssetTracker 层缓存已上传文件
 
+### _upload_reference_images 每 shot 创建 ThreadPoolExecutor
+- **文件**: `pipeline/tasks/steps/frame.py:92`
+- **问题**: 每个 shot 创建新线程池（max_workers=4），10 个 shot 并发 = 40 个上传线程
+- **建议**: 复用全局线程池，或通过 ConcurrencyGroups 限制上传并发
+
+### TTS 后端 HTTP 响应未使用 stream 下载
+- **文件**: `api/backends/tts/cosyvoice.py:34`, `fish_speech.py:35`, `gpt_sovits.py:41`
+- **问题**: `r.content` 一次性加载整个响应到内存，大音频文件可能占用大量内存
+- **建议**: 使用 `stream=True` + 分块写入
+
 ---
 
 ## P2 — 代码质量
@@ -38,3 +48,8 @@
 ### ProjectPaths 其他类集中化
 - **文件**: `engines/character_bible.py`(×6), `scripts/project_mgr.py`(×6)
 - **建议**: 在 `__init__` 中一次性创建 `self._paths`
+
+### Container._TYPE_KEY 硬编码兜底可能与注册表漂移
+- **文件**: `api/registry.py:131-138`
+- **问题**: 硬编码兜底字典与 `models_registry.yaml:defaults.config_paths` 可能不一致
+- **现状**: 当前行为正确，但修改注册表时需同步更新兜底
