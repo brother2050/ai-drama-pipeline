@@ -561,7 +561,7 @@ class WorkflowBuilder:
         # 读取 duration（秒），默认 4 秒
         duration = 4
         try:
-            duration = int(shot.get("duration", 4))
+            duration = round(float(shot.get("duration", 4)))
         except (ValueError, TypeError) as e:
             logger.debug(f"{type(e).__name__}: {e}")
         duration = max(2, min(8, duration))

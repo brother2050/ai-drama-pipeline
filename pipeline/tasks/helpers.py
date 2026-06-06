@@ -85,7 +85,7 @@ def _db_record_step(episode: int, shot_id: str, step: str, result: dict) -> None
         from infra.database.generation import upsert_status
         upsert_status(get_pool(), episode, shot_id, step,
                       status=result.get("status", "unknown"), path=result.get("path", ""),
-                      error=result.get("reason", "") if result.get("status") in ("skipped", "error") else "",
+                      error=result.get("reason", "") if result.get("status") in (STATUS_SKIPPED, STATUS_ERROR) else "",
                       elapsed=result.get("elapsed", 0.0))
     except Exception as e:
         logger.warning(f"DB 写入失败 [{episode}/{shot_id}/{step}]: {e}")
@@ -255,7 +255,9 @@ def _prepare(params: PrepareParams):
     """
     # 1. 并发控制
     if not params.force and not _try_mark_running_atomic(params.episode, params.shot_id, params.step):
-        return None, None, None, _skip(params.shot_id, params.step, "该步骤正在执行中")
+        skip_result = _skip(params.shot_id, params.step, "该步骤正在执行中")
+        _db_record_step(params.episode, params.shot_id, params.step, skip_result)
+        return None, None, None, skip_result
     if params.force:
         _db_mark_running(params.episode, params.shot_id, params.step)
 
@@ -279,7 +281,9 @@ def _prepare(params: PrepareParams):
         try:
             cfg, cont = _build_ctx(params.config_path)
         except ValueError as e:
-            return None, None, None, _err(params.shot_id, params.step, str(e))
+            err_result = _err(params.shot_id, params.step, str(e))
+            _db_record_step(params.episode, params.shot_id, params.step, err_result)
+            return None, None, None, err_result
 
     return cfg, cont, shot, None
 

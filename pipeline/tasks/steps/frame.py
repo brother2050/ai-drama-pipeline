@@ -99,7 +99,7 @@ def _upload_reference_images(wf: dict, shot: dict, wb, comfyui, paths) -> dict:
                     failed_char_refs.append(f"[{node_id}] {err}")
                     logger.error(f"角色参考图上传失败 [{node_id}]: {err}")
                 else:
-                    logger.warning(f"场景图上传失败 [{node_id}: {err}")
+                    logger.warning(f"场景图上传失败 [{node_id}]: {err}")
             elif node_id in wf and remote_name:
                 cls = wf[node_id].get("class_type", "")
                 if cls in ("LoadImage", "LoadImageFromPath", "ImageLoad"):

@@ -87,7 +87,13 @@ class MusicGenAPI:
             Path(output).write_bytes(resp.content)
         else:
             # JSON 响应 → 提取音频
-            self._extract_audio(resp.json(), output)
+            try:
+                data = resp.json()
+            except Exception as e:
+                raise RuntimeError(
+                    f"MusicGen 响应既非音频二进制也非有效 JSON (content-type={content_type}): {e}"
+                ) from e
+            self._extract_audio(data, output)
 
         logger.info(f"MusicGen 完成: {output}")
         return output

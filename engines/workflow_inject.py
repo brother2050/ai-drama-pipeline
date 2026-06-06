@@ -171,6 +171,9 @@ def _build_ip_adapter_nodes(wf: dict, ksampler: str, model_source: str,
 def inject_ip_adapter_chain(wf: dict, char_id: str, ref_images: list[str],
                              weight: float = 0.45, ip_config: dict | None = None) -> dict:
     """链式注入第二个角色的 IP-Adapter（串联在已有 IP-Adapter 之后）"""
+    if not ref_images:
+        logger.warning(f"inject_ip_adapter_chain: ref_images 为空，跳过 {char_id}")
+        return wf
     wf = copy.deepcopy(wf)
     if ip_config is None:
         ip_config = {}
@@ -311,6 +314,9 @@ def _inject_pulid_nodes(wf: dict, ksampler: str, model_source: str,
 def inject_pulid_flux_chain(wf: dict, char_id: str, ref_images: list[str],
                              weight: float = 0.6, pulid_config: dict | None = None) -> dict:
     """链式注入第二个角色的 PuLID-Flux（串联在已有 PuLID 之后）"""
+    if not ref_images:
+        logger.warning(f"inject_pulid_flux_chain: ref_images 为空，跳过 {char_id}")
+        return wf
     wf = copy.deepcopy(wf)
     if pulid_config is None:
         pulid_config = {}

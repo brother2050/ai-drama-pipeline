@@ -51,7 +51,7 @@ def _upload_first_frame_if_needed(video_wf: dict, frame_path: Path, server_filen
             video_comfyui.upload_image(str(frame_path), filename=server_filename)
             tracker.mark_image_tracked(video_server_url, server_filename)
         except Exception as e:
-            logger.warning(f"首帧图上传失败: {e}")
+            raise RuntimeError(f"首帧图上传到视频服务器失败: {e}") from e
 
     if load_nodes[0] in video_wf:
         video_wf[load_nodes[0]]["inputs"]["image"] = server_filename

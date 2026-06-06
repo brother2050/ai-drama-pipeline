@@ -57,7 +57,7 @@ def _shot_task_inner(self, config_path: str, episode: int, shot_data: dict, shot
     # 复制避免污染传入的共享 dict + 裁剪 duration
     shot_data = dict(shot_data)
     try:
-        shot_data["duration"] = max(2, min(8, int(shot_data.get("duration", 4))))
+        shot_data["duration"] = max(2, min(8, round(float(shot_data.get("duration", 4)))))
     except (ValueError, TypeError):
         shot_data["duration"] = 4
     ctx["shot"] = shot_data
@@ -111,7 +111,7 @@ def _run_shot_steps(self, config_path, episode, shot_id, force, ctx):
             log(f"[{shot_id}] {name}: {result.get('status')} — {result.get('reason', '')}")
         except Exception as e:
             logger.error(f"[{shot_id}] {name}: 异常 — {e}", exc_info=True)
-            results[name] = {"status": STATUS_ERROR, "reason": str(e)}
+            results[name] = {"shot_id": shot_id, "step": name, "status": STATUS_ERROR, "reason": str(e)}
             _db_record_step(episode, shot_id, name, results[name])
 
     return results

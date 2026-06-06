@@ -72,7 +72,7 @@ def calibrate_storyboard(llm: object, params: object) -> list[dict]:
     else:
         logger.warning("  ⚠ AI 绘图 Prompt 失败（不影响生产，prepare 阶段会补充）")
 
-    total_sec = sum(int(s.get("duration", 4)) for s in shots)
+    total_sec = sum(round(float(s.get("duration", 4))) for s in shots)
     logger.info(f"多阶段校准完成: {len(shots)} 镜头, {total_sec}秒")
     return shots
 

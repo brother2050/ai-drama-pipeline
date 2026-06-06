@@ -142,7 +142,10 @@ class ConsistencyChecker:
         for shot in shots:
             sid = shot.get("shot_id", "?")
             try:
-                d = int(shot.get("duration", 4))
+                try:
+                    d = round(float(shot.get("duration", 4)))
+                except (ValueError, TypeError):
+                    d = 4
                 if d < 2:
                     errors.append(f"镜头 {sid}: 时长过短 ({d}s < 2s)")
                 elif d > 8:

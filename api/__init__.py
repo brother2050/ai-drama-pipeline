@@ -30,12 +30,11 @@ def _ensure_registered():
     global _loaded, _fail_count
     if _loaded:
         return
-    if _fail_count >= _MAX_RETRIES:
-        return  # 连续失败超过阈值，不再重试
     with _register_lock:
         if _loaded:
             return
-        _loaded = True
+        if _fail_count >= _MAX_RETRIES:
+            return  # 连续失败超过阈值，不再重试
 
         from flow.model_registry import ModelRegistry
 
@@ -44,7 +43,6 @@ def _ensure_registered():
         except Exception as e:
             _fail_count += 1
             logger.error(f"加载模型注册表失败 ({_fail_count}/{_MAX_RETRIES}): {e}")
-            _loaded = False  # 允许重试（有上限）
             return
         _fail_count = 0  # 成功后重置计数
 
@@ -55,6 +53,8 @@ def _ensure_registered():
                 logger.debug(f"跳过后端 {module_path}: {e}")
             except Exception as e:
                 logger.warning(f"加载后端 {module_path} 失败: {e}")
+
+        _loaded = True  # 所有模块导入完成后才标记成功
 
 
 def get_container(config: dict):

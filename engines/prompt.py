@@ -387,7 +387,7 @@ def _parse_numbered_lines(raw: str) -> dict:
     """解析编号行（1. text → {1: text}）"""
     parsed = {}
     for line in raw.strip().splitlines():
-        m = re.match(r"^(\d+)\s*[.)]\s*(.+)", line.strip())
+        m = re.match(r"^(\d+)\s*[.):：\-）]\s*(.+)", line.strip())
         if m:
             parsed[int(m.group(1))] = m.group(2).strip()
     return parsed
