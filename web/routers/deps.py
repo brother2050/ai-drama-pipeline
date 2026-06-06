@@ -206,8 +206,14 @@ def yaml_save(yaml_dir: str, entity_key: str, entity_id: str, data: dict) -> Non
 
 
 def parse_entity(req) -> tuple[str, dict]:
-    """Pydantic 模型 → (entity_id, data)"""
+    """Pydantic 模型 → (entity_id, data)
+
+    exclude_none: 前端未发送的可选字段（None）不覆盖已有值。
+    额外排除空字符串：前端不发送的默认空串字段（如 appearance_prompt_en、body_features）
+    不应清空 AI 生成的已有值。
+    """
     data = req.model_dump(exclude_none=True)
+    data = {k: v for k, v in data.items() if v != ""}
     return data.pop("id"), data
 
 

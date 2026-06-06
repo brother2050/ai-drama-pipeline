@@ -345,7 +345,7 @@ async function _pollImportTask(taskId) {
           return;
         }
       }
-      if (info.status === 'failure') {
+      if (info.status === 'failed') {
         toast('❌ 导入任务失败: ' + (info.result?.reason || info.result || '未知错误'), 'error');
         return;
       }
