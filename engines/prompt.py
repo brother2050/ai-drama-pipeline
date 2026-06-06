@@ -347,7 +347,7 @@ def batch_translate_to_english(texts: list[str], llm: object = None) -> list[str
         parse_result=lambda raw, batch: _parse_numbered_lines(raw),
         estimate_item_tokens=lambda item: estimate_tokens(item[1]),
         # 中→英翻译输出通常比输入长（中文紧凑，英文冗长）
-        estimate_item_output_tokens=lambda item: int(estimate_tokens(item[1]) * 1.5),
+        estimate_item_output_tokens=lambda item: int(estimate_tokens(item[1]) * 2.5),
     )
 
     _merge_translate_results(results, batch_items, batch_result, llm)
@@ -380,14 +380,18 @@ def _parse_numbered_lines(raw: str) -> dict:
 
 
 def _merge_translate_results(results: list[str], batch_items: list[tuple[int, str]], batch_result: dict, llm: object = None) -> None:
-    """合并批次翻译结果，未翻译的回退单条翻译
+    """合并批次翻译结果，未翻译的用小批次重试（非逐条）
 
     batch_result 结构: {"results": [...], "batch_sizes": [...], "total_batches": N}
     每个 parsed_dict 是 {line_num: translated_text}，None 表示批次失败。
+
+    截断检测：如果某批返回的翻译数 < 预期项数，视为输出截断，
+    将缺失项收集后用小批次重试（而非逐条回退，避免 N 次 HTTP 调用）。
     """
     total_items = len(batch_items)
     batch_sizes = batch_result.get("batch_sizes", [])
     offset = 0
+    missing: list[tuple[int, str]] = []  # (orig_idx, orig_text) 未翻译的项
 
     for batch_idx, batch_data in enumerate(batch_result["results"]):
         # 使用精确 batch_size（来自 AdaptiveBatchProcessor），回退到均匀分配
@@ -399,8 +403,14 @@ def _merge_translate_results(results: list[str], batch_items: list[tuple[int, st
             batch_len = max(remaining // max(batches_left, 1), 1) if remaining > 0 else 0
 
         if batch_data is None:
+            # 整批失败 → 收集为 missing
+            for local_idx in range(batch_len):
+                if offset + local_idx >= total_items:
+                    break
+                missing.append(batch_items[offset + local_idx])
             offset += batch_len
             continue
+
         for local_idx in range(batch_len):
             if offset + local_idx >= total_items:
                 break
@@ -408,8 +418,45 @@ def _merge_translate_results(results: list[str], batch_items: list[tuple[int, st
             translated = batch_data.get(local_idx + 1, "")
             if translated:
                 results[orig_idx] = translated
+            else:
+                missing.append((orig_idx, orig_text))
         offset += batch_len
 
-    for orig_idx, orig_text in batch_items:
-        if not results[orig_idx]:
-            results[orig_idx] = translate_to_english(orig_text, llm=llm)
+    if not missing:
+        return
+
+    logger.warning(f"批处理后 {len(missing)} 项未翻译，用小批次重试...")
+    # 用小批次重试（每批最多 10 项），而非逐条调用
+    _retry_missing_in_small_batches(results, missing, llm)
+
+
+def _retry_missing_in_small_batches(results: list[str], missing: list[tuple[int, str]], llm: object) -> None:
+    """将未翻译的项用小批次重试（每批最多 10 项），避免逐条 HTTP 调用"""
+    if not llm or not missing:
+        return
+
+    from infra.batch_processor import AdaptiveBatchProcessor, estimate_tokens
+    from engines.prompt_compiler import tpl
+
+    # 小批次：每批最多 10 项，避免再次截断
+    SMALL_BATCH = 10
+    batches = [missing[i:i + SMALL_BATCH] for i in range(0, len(missing), SMALL_BATCH)]
+    system_prompt = tpl("batch_translate_system") or "You are a professional translator. The user will send numbered Chinese texts.\nTranslate each to English. Output ONLY the translations, one per line, keeping the same numbering.\nDo not add explanations. If a line is already English, output it unchanged."
+
+    total_retried = 0
+    for batch in batches:
+        try:
+            user_msg = "\n".join(f"{i+1}. {t}" for i, (_, t) in enumerate(batch))
+            raw = llm.chat(user_msg, system=system_prompt)
+            parsed = _parse_numbered_lines(raw)
+            for local_idx, (orig_idx, _) in enumerate(batch):
+                translated = parsed.get(local_idx + 1, "")
+                if translated:
+                    results[orig_idx] = translated
+                    total_retried += 1
+        except Exception as e:
+            logger.warning(f"小批次重试失败 ({len(batch)} 项): {e}")
+
+    still_missing = sum(1 for i, _ in missing if not results[i])
+    if still_missing:
+        logger.error(f"翻译重试后仍有 {still_missing} 项未翻译")

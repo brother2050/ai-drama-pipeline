@@ -407,15 +407,21 @@ def _writeback_translations(text_meta, results, paths, episode, shots) -> tuple[
     # 过滤空翻译结果（避免空字符串覆盖原始数据）
     filtered_meta = []
     filtered_results = []
-    skipped = 0
+    skipped_items = []
     for i, meta in enumerate(text_meta):
         if i < len(results) and results[i]:
             filtered_meta.append(meta)
             filtered_results.append(results[i])
         else:
-            skipped += 1
-    if skipped:
-        logger.warning(f"跳过 {skipped} 条空翻译（保留原始值）")
+            skipped_items.append(meta)
+    if skipped_items:
+        # 按实体类型分组统计
+        by_type: dict[str, list[str]] = {}
+        for etype, eid, src_field, _ in skipped_items:
+            key = etype.split(".")[0]  # character / scene / shot
+            by_type.setdefault(key, []).append(f"{eid}.{src_field}")
+        detail = "; ".join(f"{t}: {len(ids)} 项" for t, ids in by_type.items())
+        logger.error(f"跳过 {len(skipped_items)} 条空翻译（AI 绘图无法使用中文 prompt）: {detail}")
 
     # 角色（含 outfit 子字段）
     char_cache = _load_entity_cache(filtered_meta, filtered_results, "character", paths.character_yaml, "character")
@@ -583,6 +589,13 @@ def _ai_prepare_inner(self, config_path, episode, force, translate):
     msg = f"翻译完成: {translated['characters']} 角色, {translated['scenes']} 场景, {translated['shots']} 镜头"
     self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 100, "message": msg})
     result = {"status": STATUS_DONE, "message": msg, **translated}
+    if skipped_items:
+        by_type: dict[str, list[str]] = {}
+        for etype, eid, src_field, _ in skipped_items:
+            key = etype.split(".")[0]
+            by_type.setdefault(key, []).append(f"{eid}.{src_field}")
+        detail = "; ".join(f"{t}: {len(ids)} 项" for t, ids in by_type.items())
+        result["translation_warnings"] = [f"{len(skipped_items)} 条文本翻译失败（AI 绘图将无法使用）: {detail}"]
     _run_quality_gate(paths, result)
     return result
 
