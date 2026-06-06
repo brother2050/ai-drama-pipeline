@@ -399,6 +399,15 @@ def _collect_translation_texts(paths, force: bool = False) -> tuple[list[str], l
     return all_texts, text_meta
 
 
+def _format_skipped_summary(skipped_items: list[tuple]) -> str:
+    """将跳过的翻译项按实体类型分组，生成可读摘要"""
+    by_type: dict[str, list[str]] = {}
+    for etype, eid, src_field, _ in skipped_items:
+        key = etype.split(".")[0]  # character / scene / shot
+        by_type.setdefault(key, []).append(f"{eid}.{src_field}")
+    return "; ".join(f"{t}: {len(ids)} 项" for t, ids in by_type.items())
+
+
 def _writeback_translations(text_meta, results, paths, episode, shots) -> tuple[dict, dict, list]:
     """回写翻译结果到 YAML + DB，返回 (统计, char_cache, skipped_items)"""
     from infra.config import save_yaml
@@ -415,12 +424,7 @@ def _writeback_translations(text_meta, results, paths, episode, shots) -> tuple[
         else:
             skipped_items.append(meta)
     if skipped_items:
-        # 按实体类型分组统计
-        by_type: dict[str, list[str]] = {}
-        for etype, eid, src_field, _ in skipped_items:
-            key = etype.split(".")[0]  # character / scene / shot
-            by_type.setdefault(key, []).append(f"{eid}.{src_field}")
-        detail = "; ".join(f"{t}: {len(ids)} 项" for t, ids in by_type.items())
+        detail = _format_skipped_summary(skipped_items)
         logger.error(f"跳过 {len(skipped_items)} 条空翻译（AI 绘图无法使用中文 prompt）: {detail}")
 
     # 角色（含 outfit 子字段）
@@ -590,11 +594,7 @@ def _ai_prepare_inner(self, config_path, episode, force, translate):
     self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 100, "message": msg})
     result = {"status": STATUS_DONE, "message": msg, **translated}
     if skipped_items:
-        by_type: dict[str, list[str]] = {}
-        for etype, eid, src_field, _ in skipped_items:
-            key = etype.split(".")[0]
-            by_type.setdefault(key, []).append(f"{eid}.{src_field}")
-        detail = "; ".join(f"{t}: {len(ids)} 项" for t, ids in by_type.items())
+        detail = _format_skipped_summary(skipped_items)
         result["translation_warnings"] = [f"{len(skipped_items)} 条文本翻译失败（AI 绘图将无法使用）: {detail}"]
     _run_quality_gate(paths, result)
     return result

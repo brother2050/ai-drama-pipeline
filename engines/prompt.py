@@ -456,7 +456,7 @@ def _retry_missing_in_small_batches(results: list[str], missing: list[tuple[int,
     batches = [missing[i:i + SMALL_BATCH] for i in range(0, len(missing), SMALL_BATCH)]
     system_prompt = tpl("batch_translate_system") or "You are a professional translator. The user will send numbered Chinese texts.\nTranslate each to English. Output ONLY the translations, one per line, keeping the same numbering.\nDo not add explanations. If a line is already English, output it unchanged."
 
-    total_retried = 0
+    retried = 0
     for batch in batches:
         try:
             user_msg = "\n".join(f"{i+1}. {t}" for i, (_, t) in enumerate(batch))
@@ -466,10 +466,12 @@ def _retry_missing_in_small_batches(results: list[str], missing: list[tuple[int,
                 translated = parsed.get(local_idx + 1, "")
                 if translated:
                     results[orig_idx] = translated
-                    total_retried += 1
+                    retried += 1
         except Exception as e:
             logger.warning(f"小批次重试失败 ({len(batch)} 项): {e}")
 
     still_missing = sum(1 for i, _ in missing if not results[i])
     if still_missing:
         logger.error(f"翻译重试后仍有 {still_missing} 项未翻译")
+    else:
+        logger.info(f"小批次重试成功: {retried} 项")
