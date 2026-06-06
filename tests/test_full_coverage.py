@@ -106,7 +106,7 @@ class TestConfigSystem:
         """Config.get 支持 dot notation"""
         from infra.config import Config
         cfg = Config(str(project_dir / "config" / "project.yaml"))
-        assert cfg.get("models.image_backend") == "cosmos"
+        assert cfg.get("models.image_backend") == "flux"
         assert cfg.get("nonexistent.key", "default") == "default"
 
     def test_config_save_reload(self, project_dir):

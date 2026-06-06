@@ -315,7 +315,7 @@ def _init_ctx(config_path: str):
 
 
 def _validate_output(path: str, step: str, *, min_size: int = 0) -> str | None:
-    """轻量质量校验 — 检查文件是否存在且有效。返回错误信息或 None。"""
+    """轻量质量校验 — 检查文件是否存在、大小、格式完整性。返回错误信息或 None。"""
     p = Path(path)
     if not p.exists():
         return f"{step} 输出文件不存在: {p.name}"
@@ -328,6 +328,18 @@ def _validate_output(path: str, step: str, *, min_size: int = 0) -> str | None:
         return f"{step} 图片文件异常 (仅 {size} bytes)"
     if p.suffix == ".mp4" and size < 10000:
         return f"{step} 视频文件异常 (仅 {size} bytes)"
+    # 轻量格式完整性校验（magic bytes）
+    try:
+        with open(p, "rb") as f:
+            header = f.read(12)
+        if p.suffix == ".png" and header[:4] != b'\x89PNG':
+            return f"{step} PNG 文件头损坏: {p.name}"
+        if p.suffix == ".wav" and header[:4] != b'RIFF':
+            return f"{step} WAV 文件头损坏: {p.name}"
+        if p.suffix == ".mp4" and b'ftyp' not in header[:12]:
+            return f"{step} MP4 文件头损坏: {p.name}"
+    except OSError:
+        pass  # 读取失败不阻断，让后续步骤报错
     return None
 
 

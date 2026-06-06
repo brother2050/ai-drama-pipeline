@@ -59,6 +59,12 @@ class CogVideoX(_ComfyUIVideoBase):
     def name(self) -> str: return "cogvideox"
 
 
+class CosmosVideo(_ComfyUIVideoBase):
+    """Cosmos 视频生成 — ComfyUI API"""
+    @property
+    def name(self) -> str: return "cosmos-video"
+
+
 def _f(config): return AnimateDiff(config)
 registry.register(BackendMeta(name="animatediff", service_type="video", factory=_f,
     description="AnimateDiff 视频生成（via ComfyUI）", priority=10, tags=["api"]))
@@ -66,3 +72,7 @@ registry.register(BackendMeta(name="animatediff", service_type="video", factory=
 def _f2(config): return CogVideoX(config)
 registry.register(BackendMeta(name="cogvideox", service_type="video", factory=_f2,
     description="CogVideoX 视频生成（via ComfyUI）", priority=50, tags=["api"]))
+
+def _f3(config): return CosmosVideo(config)
+registry.register(BackendMeta(name="cosmos-video", service_type="video", factory=_f3,
+    description="Cosmos 视频生成（via ComfyUI）", priority=30, tags=["api"]))
