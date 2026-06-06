@@ -53,7 +53,15 @@ def _safe_duration(shot: dict) -> float:
 
 def _build_subtitle_text(shot: dict, bilingual: bool) -> str:
     """构建单条字幕文本（含可选双语）"""
-    dialogue = _sanitize_dialogue(shot.get("dialogue", ""))
+    from engines.dialogue import parse_dialogue
+    lines = parse_dialogue(shot.get("dialogue", ""))
+    if not lines:
+        return ""
+    # 多人对话：每行 "角色名：台词"；单人：只输出台词
+    if len(lines) == 1:
+        dialogue = _sanitize_dialogue(lines[0].text)
+    else:
+        dialogue = _sanitize_dialogue("\n".join(f"{l.speaker}：{l.text}" for l in lines))
     if not dialogue or set(dialogue) <= {".", "…"}:
         return ""
     if not bilingual:

@@ -1,0 +1,100 @@
+"""对话解析 — 台词文本 → 结构化对话行 + WAV 拼接
+
+台词格式约定：
+  单人："角色名：台词内容"
+  多人："角色名A：台词A\n角色名B：台词B"
+  无台词："......"
+"""
+from __future__ import annotations
+
+import struct
+from dataclasses import dataclass
+from pathlib import Path
+
+__all__ = ["DialogueLine", "parse_dialogue", "concat_wav"]
+
+# 无台词标记
+_EMPTY_DIALOGUE = {".", "…"}
+
+
+@dataclass(frozen=True, slots=True)
+class DialogueLine:
+    """一条对话"""
+    speaker: str    # 角色名（冒号左侧）
+    text: str       # 纯台词内容（冒号右侧）
+
+
+def parse_dialogue(raw: str) -> list[DialogueLine]:
+    """解析台词文本为结构化对话行列表。
+
+    格式：每行 "角色名：台词"，多人用换行分隔。
+    无台词（"......" 等）返回空列表。
+    """
+    raw = raw.strip()
+    if not raw or set(raw) <= _EMPTY_DIALOGUE:
+        return []
+
+    lines: list[DialogueLine] = []
+    for part in raw.split("\n"):
+        part = part.strip()
+        if not part or set(part) <= _EMPTY_DIALOGUE:
+            continue
+        speaker, _, text = part.partition("：")
+        if not text:
+            # 兼容英文冒号
+            speaker, _, text = part.partition(":")
+        if text:
+            lines.append(DialogueLine(speaker=speaker.strip(), text=text.strip()))
+        else:
+            # 无冒号 → 整行作为台词（降级兼容）
+            lines.append(DialogueLine(speaker="", text=part))
+    return lines
+
+
+def concat_wav(parts: list[str | Path], output: str | Path) -> str:
+    """拼接多个 WAV 文件为一个。
+
+    所有文件必须是相同采样率/位深/声道的 WAV。
+    返回输出路径。
+    """
+    output = Path(output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    if len(parts) == 1:
+        # 单文件：直接复制，无需解析
+        data = Path(parts[0]).read_bytes()
+        output.write_bytes(data)
+        return str(output)
+
+    # 读取所有文件的 PCM 数据（跳过 WAV header）
+    pcm_chunks: list[bytes] = []
+    sample_rate = bits_per_sample = channels = 0
+    for p in parts:
+        raw = Path(p).read_bytes()
+        if raw[:4] == b"RIFF":
+            # 解析 WAV header 提取参数（取第一个文件的参数）
+            if not sample_rate and len(raw) >= 44:
+                sample_rate = struct.unpack_from("<I", raw, 24)[0]
+                bits_per_sample = struct.unpack_from("<H", raw, 34)[0]
+                channels = struct.unpack_from("<H", raw, 22)[0]
+            # 提取 data chunk
+            idx = raw.find(b"data")
+            if idx >= 0:
+                size = struct.unpack_from("<I", raw, idx + 4)[0]
+                pcm_chunks.append(raw[idx + 8: idx + 8 + size])
+        else:
+            pcm_chunks.append(raw)
+
+    # 合并 PCM 并写入 WAV
+    combined = b"".join(pcm_chunks)
+    byte_rate = sample_rate * channels * bits_per_sample // 8
+    block_align = channels * bits_per_sample // 8
+    with open(output, "wb") as f:
+        f.write(b"RIFF")
+        f.write(struct.pack("<I", 36 + len(combined)))
+        f.write(b"WAVEfmt ")
+        f.write(struct.pack("<IHHIIHH", 16, 1, channels, sample_rate, byte_rate, block_align, bits_per_sample))
+        f.write(b"data")
+        f.write(struct.pack("<I", len(combined)))
+        f.write(combined)
+    return str(output)

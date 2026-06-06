@@ -160,7 +160,7 @@ import_prompt_shots:
     - characters: 角色 ID，多人用 + 连接，必填（无角色填 ""）
     - action: 5-500字画面描述，必填
     - action_en: action 的英文翻译（逗号分隔短语，用于 AI 绘图 prompt）
-    - dialogue: 台词，无台词填 "......"
+    - dialogue: 台词，格式 "角色名：台词内容"，多人每人一行，无台词填 "......"
     - dialogue_en: dialogue 的英文翻译（无台词填 "......"）
     - camera: 见下方可选值
     - shot_type: 见下方可选值
@@ -207,7 +207,7 @@ storyboard_system:
       "characters": "角色ID（多人用+连接）",
       "action": "中文动作描述",
       "action_en": "英文动作描述",
-      "dialogue": "中文台词，无台词用 ......",
+      "dialogue": "角色名：中文台词，无台词用 ......",
       "dialogue_en": "英文台词，无台词用 ......",
       "camera": "固定/缓慢推近/跟随平移/手持晃动/环绕/俯视/仰视",
       "shot_type": "特写/近景/中景/过肩/全身/全景/远景",
@@ -331,7 +331,7 @@ shot_stage2_system:
 
     规则：
     - action: 中文动作描述（20-50字），用角色真实名字
-    - dialogue: 中文台词（无台词用 "......"）
+    - dialogue: 中文台词，格式 "角色名：台词内容"，多人每人一行（无台词用 "......"）
     - action_en: action 的英文翻译
     - dialogue_en: dialogue 的英文翻译
     - 保持 shot_id 不变，其他已有字段原样保留
