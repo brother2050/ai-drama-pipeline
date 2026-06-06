@@ -29,6 +29,15 @@ const _stepBtns = () => [
 ];
 
 function _shotId(s, i) { return s.shot_id || String(i + 1).padStart(3, '0'); }
+
+/** 后端 shots → 前端格式（中文 camera/shot_type → 英文 key） */
+function _normalizeShotsFromBackend(rawShots) {
+  return (rawShots || []).map(s => ({
+    ...s,
+    camera: _cameraFromBackend(s.camera),
+    shot_type: _shotTypeFromBackend(s.shot_type),
+  }));
+}
 function _actionBtns(idx) {
   return `<button class="btn btn-xs" onclick="editShot(${idx})" title="${t('btn.edit')}">✏</button>` +
     _stepBtns().map(b => `<button class="btn btn-xs" onclick="runOne('${b.step}',${idx})" title="${b.label}">${b.icon}</button>`).join('') +
@@ -42,7 +51,7 @@ async function loadPipeline() {
     await _loadNameMaps();
     const episodes = await loadEpisodeSelector();
     const d = await cachedFetch(`storyboard/${ep}`, () => api(`/storyboard/${ep}`));
-    shots = d.shots || [];
+    shots = _normalizeShotsFromBackend(d.shots || []);
     if (!shots.length) { el.innerHTML = `<div class="card"><h2>${t('wb.no_storyboard')}</h2><p class="dim">${t('wb.add_shots_first')}</p><button class="btn btn-primary" style="margin-top:0.5rem" onclick="navTo('storyboard')">${t('wb.go_edit_btn')}</button></div>`; return; }
     renderWB(episodes);
   } catch (e) { el.innerHTML = `<div class="card"><h2>${t('common.error')}</h2><p>${esc(e.message)}</p></div>`; }
@@ -193,6 +202,13 @@ function previewRes(sid, type) {
 
 const _CAMERA_KEYS = ['fixed', 'push_in', 'pan', 'handheld', 'orbit', 'top', 'bottom'];
 const _SHOTTYPE_KEYS = ['closeup', 'medium_close', 'medium', 'over_shoulder', 'full', 'wide', 'extreme_wide'];
+/** 英文 key → 中文值（后端/DB 存中文，前端编辑器用英文 key） */
+const _CAMERA_KEY_TO_ZH = { fixed: '固定', push_in: '缓慢推近', pan: '跟随平移', handheld: '手持晃动', orbit: '环绕', top: '俯视', bottom: '仰视' };
+const _SHOTTYPE_KEY_TO_ZH = { closeup: '特写', medium_close: '近景', medium: '中景', over_shoulder: '过肩', full: '全身', wide: '全景', extreme_wide: '远景' };
+function _cameraToBackend(v) { return _CAMERA_KEY_TO_ZH[v] || v; }
+function _shotTypeToBackend(v) { return _SHOTTYPE_KEY_TO_ZH[v] || v; }
+function _cameraFromBackend(v) { for (const [k, zh] of Object.entries(_CAMERA_KEY_TO_ZH)) { if (zh === v) return k; } return v; }
+function _shotTypeFromBackend(v) { for (const [k, zh] of Object.entries(_SHOTTYPE_KEY_TO_ZH)) { if (zh === v) return k; } return v; }
 /** 镜头默认值（新建镜头 / AI 编辑兜底共用） */
 const _DEFAULT_SHOT = () => ({ shot_id: '', scene_id: '', characters: '', action: '', dialogue: '',
   camera: _CAMERA_KEYS[0], shot_type: _SHOTTYPE_KEYS[2], duration: 4, emotion: 'neutral',
@@ -281,7 +297,13 @@ function _collectShotFields(idx) {
 
 /** 保存 shots 到后端并刷新缓存 */
 async function _persistShots() {
-  await api(`/storyboard/${ep}`, { method: 'POST', body: { shots } });
+  // 转换 camera/shot_type 英文 key → 中文值（后端存中文）
+  const converted = shots.map(s => ({
+    ...s,
+    camera: _cameraToBackend(s.camera),
+    shot_type: _shotTypeToBackend(s.shot_type),
+  }));
+  await api(`/storyboard/${ep}`, { method: 'POST', body: { shots: converted } });
   invalidateCache(`storyboard/${ep}`);
   invalidateCache(`res/${ep}`);
 }
@@ -466,7 +488,7 @@ async function runPrepare() {
       const r = result.result || {};
       statusEl.innerHTML = `<div class="batch-done">✅ ${t('wb.prepare')}
         <span style="margin-left:.5rem;font-size:.85rem;color:var(--fg2)">
-          翻译: ${r.prompt_chars || 0}角色prompt + ${r.translated_scenes || 0}场景 + ${r.translated_shots || 0}镜头
+          翻译: ${r.characters || 0}角色 + ${r.scenes || 0}场景 + ${r.shots || 0}镜头${r.view_prompts ? ` + ${r.view_prompts}视角prompt` : ''}
         </span></div>`;
       toast('✅ ' + t('wb.prepare'));
       // 刷新资源
@@ -554,6 +576,13 @@ window.renderWB = renderWB;
 window._actionBtns = _actionBtns;
 window._cameras = _cameras;
 window._shotTypes = _shotTypes;
+window._CAMERA_KEY_TO_ZH = _CAMERA_KEY_TO_ZH;
+window._SHOTTYPE_KEY_TO_ZH = _SHOTTYPE_KEY_TO_ZH;
+window._cameraToBackend = _cameraToBackend;
+window._shotTypeToBackend = _shotTypeToBackend;
+window._cameraFromBackend = _cameraFromBackend;
+window._shotTypeFromBackend = _shotTypeFromBackend;
+window._normalizeShotsFromBackend = _normalizeShotsFromBackend;
 window._CAMERA_KEYS = _CAMERA_KEYS;
 window._SHOTTYPE_KEYS = _SHOTTYPE_KEYS;
 window._DEFAULT_SHOT = _DEFAULT_SHOT;

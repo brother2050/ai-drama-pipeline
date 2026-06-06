@@ -92,7 +92,7 @@ async function loadStoryboard() {
     await _loadNameMaps();
     const episodes = await loadEpisodeSelector();
     const d = await cachedFetch(`storyboard/${ep}`, () => api(`/storyboard/${ep}`));
-    const ss = d.shots || [];
+    const ss = _normalizeShotsFromBackend(d.shots || []);
     shots = ss; // 同步全局变量（撤销/重做/时间轴缩略图依赖它）
     const epSelector = _episodeSelectHtml(episodes, 'switchEpisode');
     const header = `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem"><h2>${t('sb.title')}</h2>
@@ -173,7 +173,13 @@ const _debouncedSaveSB = debounce(async () => {
       const i = parseInt(inp.dataset.idx);
       if (shots[i]) shots[i][inp.dataset.field] = inp.value;
     });
-    await api(`/storyboard/${ep}`, { method: 'POST', body: { shots } });
+    // 转换 camera/shot_type 英文 key → 中文值（后端存中文）
+    const converted = shots.map(s => ({
+      ...s,
+      camera: _cameraToBackend(s.camera),
+      shot_type: _shotTypeToBackend(s.shot_type),
+    }));
+    await api(`/storyboard/${ep}`, { method: 'POST', body: { shots: converted } });
     invalidateCache(`storyboard/${ep}`);
     _sbDirty = false;
     toast(t('toast.saved'));
