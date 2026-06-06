@@ -63,10 +63,11 @@ def _shot_task_inner(self, config_path: str, episode: int, shot_data: dict, shot
     ctx["shot"] = shot_data
 
     results = _run_shot_steps(self, config_path, episode, shot_id, force, ctx)
-    return {"shot_id": shot_id,
+    errors = [k for k, v in results.items() if v.get("status") == STATUS_ERROR]
+    return {"shot_id": shot_id, "status": STATUS_ERROR if errors else STATUS_DONE,
             "done": [k for k, v in results.items() if v.get("status") == STATUS_DONE],
             "skipped": [k for k, v in results.items() if v.get("status") == STATUS_SKIPPED],
-            "errors": [k for k, v in results.items() if v.get("status") == STATUS_ERROR],
+            "errors": errors,
             "details": results}
 
 

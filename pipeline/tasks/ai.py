@@ -174,7 +174,7 @@ def ai_scenes_task(self, config_path: str, descriptions: list[str]) -> dict:
 #  对话式编辑 — LLM Chat Edit
 # ══════════════════════════════════════════════════════════
 
-@app.task(bind=True, name="ai_chat_edit", soft_time_limit=300)
+@app.task(bind=True, name="pipeline_ai_chat_edit", soft_time_limit=300)
 def ai_chat_edit_task(self, config_path: str, episode: int, message: str, current_shots: list) -> dict:
     """对话式编辑分镜 — 用自然语言修改分镜表"""
     with _project_scope_from_config(config_path):

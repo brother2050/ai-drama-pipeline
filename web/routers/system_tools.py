@@ -561,7 +561,7 @@ def get_task(task_id: str) -> dict:
     task_info = {
         "task_id": task_id, "status": status,
         "progress": info.get("progress", 0) if isinstance(info, dict) else 0,
-        "stage": info.get("stage", "") if isinstance(info, dict) else "",
+        "stage": info.get("step", "") if isinstance(info, dict) else "",
         "message": info.get("message", "") if isinstance(info, dict) else "",
     }
     if result.state == "SUCCESS":

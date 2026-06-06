@@ -22,11 +22,11 @@ def portraits_task(self, config_path: str, force: bool = False) -> dict:
     with _project_scope_from_config(config_path):
         try:
             from pipeline.portraits import run_portraits
-            run_portraits(config_path, force=force)
+            result = run_portraits(config_path, force=force)
         except Exception as e:
             logger.error(f"定妆照生成失败: {e}", exc_info=True)
             return {"status": STATUS_ERROR, "reason": str(e)}
-    return {"status": STATUS_DONE}
+    return result if isinstance(result, dict) else {"status": STATUS_DONE}
 
 
 @app.task(bind=True, name="pipeline_scene_images", soft_time_limit=1800)

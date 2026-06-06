@@ -83,7 +83,7 @@ def tts_single_task(self, config_path: str, text: str, voice_config: dict | None
     try:
         result = cont.get("tts").synthesize(text, output, voice_config=voice_config or {}, emotion=emotion, language=language)
         rel_path = str(Path(result).relative_to(paths.root))
-        return {"path": rel_path, "text": text}
+        return {"status": STATUS_DONE, "path": rel_path, "text": text}
     except Exception as e:
         return {"status": STATUS_ERROR, "reason": f"TTS 合成失败: {e}", "text": text}
 
@@ -97,7 +97,7 @@ def music_task(self, config_path: str, duration: float, mood: str, output: str) 
         result = gen.generate(duration, output, mood=mood)
     except Exception as e:
         return {"status": STATUS_ERROR, "reason": f"配乐生成失败: {e}", "mood": mood, "duration": duration}
-    return {"path": result, "mood": mood, "duration": duration}
+    return {"status": STATUS_DONE, "path": result, "mood": mood, "duration": duration}
 
 
 @app.task(bind=True, name="pipeline_subtitle", soft_time_limit=60)
