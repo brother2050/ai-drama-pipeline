@@ -151,12 +151,8 @@ def _ensure_char_scene_data(cfg, characters, scenes):
     """确保角色/场景数据已加载（不经过 ShotManager，避免加载不必要的 shots）"""
     if characters is not None and scenes is not None:
         return characters, scenes
-    from infra.config import load_yaml_entities
-    paths = cfg.paths
-    if characters is None:
-        characters = {c["id"]: c for c in load_yaml_entities(paths.characters_dir, "character")}
-    if scenes is None:
-        scenes = {s["id"]: s for s in load_yaml_entities(paths.scenes_dir, "scene")}
+    from infra.config import load_project_entities
+    characters, scenes = load_project_entities(cfg.paths)
     return characters, scenes
 
 

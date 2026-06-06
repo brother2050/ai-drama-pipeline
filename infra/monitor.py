@@ -198,8 +198,8 @@ class WatchDog:
                           if b != new_backend and any(h.backend == b for h in self._active.values())]
             if not candidates:
                 return
-            candidates.sort(key=lambda x: x[1])  # 按时间升序
-            oldest_backend = candidates[0][0]
+            candidates.sort(key=lambda x: x[0])  # 按时间升序
+            oldest_backend = candidates[0][1]
         logger.warning(f"[WatchDog] LRU 淘汰后端: {oldest_backend}")
         if self._on_evict:
             try:

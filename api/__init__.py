@@ -46,15 +46,19 @@ def _ensure_registered():
             return
         _fail_count = 0  # 成功后重置计数
 
+        loaded = 0
         for _service_type, module_path, _priority in reg.get_backend_modules():
             try:
                 importlib.import_module(module_path)
+                loaded += 1
             except ImportError as e:
                 logger.debug(f"跳过后端 {module_path}: {e}")
             except Exception as e:
                 logger.warning(f"加载后端 {module_path} 失败: {e}")
 
-        _loaded = True  # 所有模块导入完成后才标记成功
+        if loaded == 0:
+            logger.warning("没有任何后端模块加载成功（所有 import 均失败）")
+        _loaded = True  # 注册表加载成功即标记（后端可能缺失依赖，属正常情况）
 
 
 def get_container(config: dict):

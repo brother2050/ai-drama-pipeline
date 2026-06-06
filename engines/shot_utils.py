@@ -52,12 +52,9 @@ def postprocess_shots(shots: list[dict], episode: int, *, strict: bool = False) 
 
         shot["episode"] = episode
 
-        # duration: 截断到 [2, 8]
-        try:
-            d = int(shot.get("duration", 4))
-            shot["duration"] = max(2, min(8, d))
-        except (ValueError, TypeError):
-            shot["duration"] = 4
+        # duration: 截断到合法范围
+        from infra.constants import clip_duration
+        shot["duration"] = clip_duration(shot.get("duration"))
 
         # 清理引号（含中文引号）
         for k in ("dialogue", "action_en", "dialogue_en"):

@@ -27,7 +27,8 @@ __all__ = ["Config", "ProjectPaths", "load_config", "save_config", "save_yaml",
            "load_yaml_full", "load_character", "load_scene", "load_existing_entities", "cfg_get",
            "SYSTEM_CONFIG_PATH", "REGISTRY_PATH", "PROMPT_TEMPLATES_PATH", "REPO_LOGS_DIR",
            "deep_merge", "resolve_project_config",
-           "get_active_project_dir", "projects_dir", "get_root"]
+           "get_active_project_dir", "projects_dir", "get_root",
+           "load_project_entities"]
 
 # 系统全局配置路径（单一数据源，避免各处重复拼接）
 SYSTEM_CONFIG_PATH = str(_ROOT / "config" / "system.yaml")
@@ -333,6 +334,24 @@ def load_existing_entities(entities_dir: Path, entity_key: str) -> list[dict]:
         return []
     return [{"id": e["id"], "name": e.get("name", e["id"])}
             for e in load_yaml_entities(entities_dir, entity_key)]
+
+
+def load_project_entities(paths_or_dir) -> tuple[dict[str, dict], dict[str, dict]]:
+    """加载项目的角色和场景数据（消除 15+ 处重复的 load_yaml_entities 调用模式）
+
+    Args:
+        paths_or_dir: ProjectPaths 实例或项目根目录 Path/str
+
+    Returns:
+        (characters, scenes) 元组，key 均为 entity id
+    """
+    if hasattr(paths_or_dir, 'characters_dir'):
+        paths = paths_or_dir
+    else:
+        paths = ProjectPaths(paths_or_dir)
+    characters = {c["id"]: c for c in load_yaml_entities(paths.characters_dir, "character")}
+    scenes = {s["id"]: s for s in load_yaml_entities(paths.scenes_dir, "scene")}
+    return characters, scenes
 
 
 def load_yaml_full(path: Path) -> dict:

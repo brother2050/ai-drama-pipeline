@@ -169,11 +169,9 @@ def save_storyboard(episode: int, req: StoryboardSaveRequest) -> dict:
     warnings = []
     try:
         from engines.consistency_checker import check_consistency
-        from infra.config import load_yaml_entities
-        paths = _paths()
-        chars = load_yaml_entities(paths.characters_dir, "character")
-        scenes = load_yaml_entities(paths.scenes_dir, "scene")
-        errors = check_consistency(shots, chars, scenes)
+        from infra.config import load_project_entities
+        chars, scenes = load_project_entities(_paths())
+        errors = check_consistency(shots, list(chars.values()), list(scenes.values()))
         if errors:
             warnings = errors[:10]  # 最多返回 10 条
     except Exception as e:

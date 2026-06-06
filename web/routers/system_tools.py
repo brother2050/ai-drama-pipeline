@@ -613,7 +613,8 @@ def cancel_task(task_id: str) -> dict:
     # 先查询任务状态
     result = app.AsyncResult(task_id)
     state = result.state
-    if state in ("PENDING", "STARTED", "RETRY"):
+    # PROGRESS 是自定义状态（update_state 设置），表示任务正在执行中
+    if state in ("PENDING", "STARTED", "RETRY", "PROGRESS"):
         app.control.revoke(task_id, terminate=True)
         return {"status": "cancelled", "task_id": task_id}
     return {"status": "already_finished", "task_id": task_id, "state": state}

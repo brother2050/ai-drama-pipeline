@@ -622,12 +622,8 @@ class WorkflowBuilder:
         import math
 
         # 读取 duration（秒），默认 4 秒
-        duration = 4
-        try:
-            duration = round(float(shot.get("duration", 4)))
-        except (ValueError, TypeError) as e:
-            logger.debug(f"{type(e).__name__}: {e}")
-        duration = max(2, min(8, duration))
+        from infra.constants import clip_duration
+        duration = clip_duration(shot.get("duration"))
 
         # 获取当前视频后端的 fps
         reg_defaults = self.registry.get_defaults()

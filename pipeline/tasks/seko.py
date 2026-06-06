@@ -140,10 +140,8 @@ def _parse_shot_fields(desc_raw: str) -> dict:
 
     duration_match = re.search(r"时长[：:]\s*(\d+)", desc_raw)
     if duration_match:
-        try:
-            fields["duration"] = max(2, min(8, int(duration_match.group(1))))
-        except (ValueError, TypeError):
-            pass
+        from infra.constants import clip_duration
+        fields["duration"] = clip_duration(int(duration_match.group(1)))
 
     action_match = re.search(r"画面[：:]\s*\[(.+?)\]\s*(.+?)(?:\n运镜|$)", desc_raw, re.DOTALL)
     if action_match:

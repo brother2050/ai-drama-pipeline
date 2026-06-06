@@ -229,8 +229,13 @@ def _ai_chat_edit_inner(self, config_path, episode, message, current_shots):
         tail_shots = current_shots[MAX_SHOTS_FOR_EDIT:]
         for s in tail_shots:
             s["episode"] = episode
-        result = result + tail_shots
-        logger.info(f"chat_edit: 保留 {len(tail_shots)} 个未修改的尾部镜头")
+        # 去重：如果 LLM 生成的 shot_id 与尾部冲突，保留 LLM 版本，丢弃尾部重复
+        llm_ids = {s.get("shot_id") for s in result}
+        deduped_tail = [s for s in tail_shots if s.get("shot_id") not in llm_ids]
+        if len(deduped_tail) < len(tail_shots):
+            logger.warning(f"chat_edit: 截断合并时丢弃了 {len(tail_shots) - len(deduped_tail)} 个重复 shot_id 的尾部镜头")
+        result = result + deduped_tail
+        logger.info(f"chat_edit: 保留 {len(deduped_tail)} 个未修改的尾部镜头")
 
     self.update_state(state="PROGRESS", meta={"step": "chat_edit", "progress": 90, "message": "编辑完成"})
     resp = {"status": STATUS_DONE, "shots": result, "message": f"已修改 {min(len(result), MAX_SHOTS_FOR_EDIT)} 个镜头（共 {len(result)} 个）"}
@@ -263,6 +268,7 @@ def _validate_chat_edit_output(result: list) -> str | None:
     """校验 chat_edit 输出，返回错误信息或 None"""
     required = {"shot_id", "scene_id", "characters", "action", "dialogue"}
     invalid = []
+    seen_ids: set[str] = set()
     for i, shot in enumerate(result):
         if not isinstance(shot, dict):
             invalid.append(f"第{i+1}项不是对象")
@@ -270,6 +276,11 @@ def _validate_chat_edit_output(result: list) -> str | None:
         missing = required - set(shot.keys())
         if missing:
             invalid.append(f"shot_id={shot.get('shot_id', '?')} 缺少: {', '.join(missing)}")
+        sid = shot.get("shot_id", "")
+        if sid:
+            if sid in seen_ids:
+                invalid.append(f"重复的 shot_id: {sid}")
+            seen_ids.add(sid)
     if invalid:
         logger.warning(f"chat_edit 输出校验失败: {invalid[:5]}")
         return f"LLM 返回的分镜数据不完整（{len(invalid)} 处）: {'; '.join(invalid[:3])}"
@@ -318,11 +329,11 @@ def _deserialize_numbered(raw: str, keys: list | None = None, originals: dict | 
     if keys is not None:
         result = {}
         for i, k in enumerate(keys):
-            translated = lines[i] if i < len(lines) else ""
+            translated = lines[i].strip() if i < len(lines) else ""
             orig_val = (originals or {}).get(k, "")
             result[k] = translated or orig_val
         return result
-    return lines
+    return [line.strip() for line in lines]
 
 
 def _collect_bible_texts(char: dict, cid: str, all_texts: list[str],

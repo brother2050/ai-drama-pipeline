@@ -9,6 +9,7 @@ __all__ = [
     "SHOT_TYPE_MAP", "VALID_SHOT_TYPES",
     "CAMERA_MAP", "VALID_CAMERAS",
     "STATUS_PENDING", "STATUS_RUNNING", "STATUS_DONE", "STATUS_ERROR", "STATUS_SKIPPED",
+    "clip_duration",
 ]
 
 # ══════════════════════════════════════════════════════════
@@ -95,3 +96,22 @@ ERR_NOT_PREPARED = "请先在 Web 工作台执行「🔧 准备阶段」（批�
 def is_ascii_only(text: str) -> bool:
     """检查文本是否只包含 ASCII 字符"""
     return text.isascii()
+
+
+# ══════════════════════════════════════════════════════════
+#  Duration 工具
+# ══════════════════════════════════════════════════════════
+
+MIN_DURATION = 2
+MAX_DURATION = 8
+
+def clip_duration(raw: float | int | str | None, default: int = 4) -> int:
+    """将 duration 裁剪到合法范围 [MIN_DURATION, MAX_DURATION]
+
+    统一的 duration 处理逻辑，消除 pipeline/workflow_builder/shot_utils/seko 中的重复代码。
+    """
+    try:
+        d = round(float(raw)) if raw is not None else default
+    except (ValueError, TypeError):
+        d = default
+    return max(MIN_DURATION, min(MAX_DURATION, d))

@@ -56,10 +56,8 @@ def _shot_task_inner(self, config_path: str, episode: int, shot_data: dict, shot
 
     # 复制避免污染传入的共享 dict + 裁剪 duration
     shot_data = dict(shot_data)
-    try:
-        shot_data["duration"] = max(2, min(8, round(float(shot_data.get("duration", 4)))))
-    except (ValueError, TypeError):
-        shot_data["duration"] = 4
+    from infra.constants import clip_duration
+    shot_data["duration"] = clip_duration(shot_data.get("duration"))
     ctx["shot"] = shot_data
 
     results = _run_shot_steps(self, config_path, episode, shot_id, force, ctx)
@@ -74,10 +72,8 @@ def _shot_task_inner(self, config_path: str, episode: int, shot_data: dict, shot
 def _preload_shot_data(cfg):
     """预加载角色和场景数据（不加载分镜 — 分镜由调用方从 DB 新鲜读取）"""
     try:
-        from infra.config import load_yaml_entities
-        paths = cfg.paths
-        characters = {c["id"]: c for c in load_yaml_entities(paths.characters_dir, "character")}
-        scenes = {s["id"]: s for s in load_yaml_entities(paths.scenes_dir, "scene")}
+        from infra.config import load_project_entities
+        characters, scenes = load_project_entities(cfg.paths)
         logger.info(f"预加载: {len(characters)} 角色, {len(scenes)} 场景")
         return characters, scenes
     except Exception as e:
