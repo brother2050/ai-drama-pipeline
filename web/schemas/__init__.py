@@ -190,6 +190,23 @@ class ConfigUpdate(BaseModel):
         return self.data
 
 
+class SystemConfigUpdate(BaseModel):
+    """系统全局配置更新 — 白名单字段 + 类型校验"""
+    models: dict | None = None
+    comfyui: dict | None = None
+    llm: dict | None = None
+    seko: dict | None = None
+    training: dict | None = None
+    server: dict | None = None
+    post_production: dict | None = None
+    timeouts: dict | None = None
+    generation: dict | None = None
+
+    def to_filtered_dict(self) -> dict:
+        """返回非空字段的 dict"""
+        return {k: v for k, v in self.model_dump(exclude_none=True).items() if v is not None}
+
+
 # ── LLM 生成 ──
 
 class StoryboardGenRequest(BaseModel):

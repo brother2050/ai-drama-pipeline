@@ -223,12 +223,17 @@ def _ai_chat_edit_inner(self, config_path, episode, message, current_shots):
 
     for shot in result:
         shot["episode"] = episode
-    self.update_state(state="PROGRESS", meta={"step": "chat_edit", "progress": 90, "message": "编辑完成"})
-    resp = {"status": STATUS_DONE, "shots": result, "message": f"已修改 {len(result)} 个镜头"}
+
+    # 截断时保留未修改的尾部镜头（LLM 只看到前 MAX_SHOTS_FOR_EDIT 个）
     if len(current_shots) > MAX_SHOTS_FOR_EDIT:
-        resp["truncated"] = True
-        resp["total_shots"] = len(current_shots)
-        resp["message"] += f"（注意：分镜表共 {len(current_shots)} 个镜头，AI 只看到了前 {MAX_SHOTS_FOR_EDIT} 个）"
+        tail_shots = current_shots[MAX_SHOTS_FOR_EDIT:]
+        for s in tail_shots:
+            s["episode"] = episode
+        result = result + tail_shots
+        logger.info(f"chat_edit: 保留 {len(tail_shots)} 个未修改的尾部镜头")
+
+    self.update_state(state="PROGRESS", meta={"step": "chat_edit", "progress": 90, "message": "编辑完成"})
+    resp = {"status": STATUS_DONE, "shots": result, "message": f"已修改 {min(len(result), MAX_SHOTS_FOR_EDIT)} 个镜头（共 {len(result)} 个）"}
     return resp
 
 

@@ -31,6 +31,7 @@ def _find_face_center(video: str, max_samples: int = 5) -> tuple[int, int] | Non
         import face_recognition
         import cv2
     except ImportError:
+        logger.info("face_recognition 未安装，使用模糊背景模式（如需人脸追踪请 pip install face_recognition）")
         return None
     try:
         cap = cv2.VideoCapture(video)

@@ -106,7 +106,8 @@ def _generate_view(params: ViewGenParams) -> str:
                 tracker = AssetTracker(p.project_dir)
                 tracker.upload_if_needed(p.comfyui, p.ref_image, remote_name, p.comfyui.url)
             except Exception as e:
-                logger.warning(f"参考图上传失败: {e}")
+                logger.error(f"参考图上传失败，定妆照一致性可能受影响: {e}")
+                raise RuntimeError(f"参考图上传到 ComfyUI 失败: {e}") from e
 
     files = p.comfyui.generate(wf, str(p.portrait_dir))
     if not files:

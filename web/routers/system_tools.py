@@ -6,7 +6,7 @@ import fcntl
 import logging
 import os
 
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, HTTPException
 
 from web.routers.deps import (
     _merged_cfg, _merged_cfg_public, _cfg_path, _paths,
@@ -20,7 +20,7 @@ router = APIRouter()
 
 from web.schemas import (  # noqa: E402
     StepRequest, TTSRequest, PostRequest, MusicRequest, SubtitleRequest,
-    ConfigUpdate,
+    ConfigUpdate, SystemConfigUpdate,
 )
 
 
@@ -97,14 +97,11 @@ def get_system_config() -> dict:
         return {}
 
 
-_ALLOWED_SYS_KEYS = {"models", "comfyui", "llm", "seko", "training", "server", "post_production", "timeouts", "generation"}
-
-
 @router.post("/system/config")
-def update_system_config(data: dict = Body(...)):
-    """更新系统全局配置（仅允许白名单字段，带文件锁防并发）"""
+def update_system_config(req: SystemConfigUpdate):
+    """更新系统全局配置（Pydantic 校验 + 白名单 + 文件锁防并发）"""
     from infra.config import save_config, load_config, SYSTEM_CONFIG_PATH
-    filtered = {k: v for k, v in data.items() if k in _ALLOWED_SYS_KEYS}
+    filtered = req.to_filtered_dict()
     if not filtered:
         raise HTTPException(400, "无有效的配置字段")
     lock_path = str(SYSTEM_CONFIG_PATH) + ".lock"

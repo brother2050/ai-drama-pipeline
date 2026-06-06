@@ -43,12 +43,37 @@ class CharacterBible:
 
     bible（中文）和 bible_en（英文）独立读取，
     分别用于 LLM prompt 和 ComfyUI prompt 注入。
+    缓存带 mtime 检查，YAML 文件修改后自动重载。
     """
 
     def __init__(self, project_dir: str):
         self._project_dir = project_dir
         self._cache: dict[str, dict] = {}       # bible（中文）
         self._cache_en: dict[str, dict] = {}     # bible_en（英文）
+        self._mtimes: dict[str, float] = {}      # 文件 mtime 缓存
+
+    def _is_fresh(self, char_id: str) -> bool:
+        """检查缓存是否仍然有效（文件未修改）"""
+        from infra.config import ProjectPaths
+        paths = ProjectPaths(self._project_dir)
+        char_file = paths.character_yaml(char_id)
+        if not char_file.exists():
+            return char_id in self._cache  # 文件不存在时，缓存空 dict 也是有效的
+        try:
+            mtime = char_file.stat().st_mtime
+            return self._mtimes.get(char_id) == mtime
+        except OSError:
+            return False
+
+    def _update_mtime(self, char_id: str) -> None:
+        """更新缓存的 mtime"""
+        from infra.config import ProjectPaths
+        paths = ProjectPaths(self._project_dir)
+        char_file = paths.character_yaml(char_id)
+        try:
+            self._mtimes[char_id] = char_file.stat().st_mtime
+        except OSError:
+            self._mtimes.pop(char_id, None)
 
     def get_context(self, char_id: str) -> str:
         """获取中文圣经上下文（注入 LLM prompt）"""
@@ -117,8 +142,8 @@ class CharacterBible:
         return ", ".join(tags) if tags else ""
 
     def load(self, char_id: str) -> dict:
-        """加载中文圣经数据，不存在返回空 dict"""
-        if char_id in self._cache:
+        """加载中文圣经数据，不存在返回空 dict。文件修改后自动重载。"""
+        if char_id in self._cache and self._is_fresh(char_id):
             return self._cache[char_id]
 
         from infra.config import load_character, ProjectPaths
@@ -126,11 +151,12 @@ class CharacterBible:
         char = load_character(paths, char_id)
         bible = char.get("bible", {})
         self._cache[char_id] = bible
+        self._update_mtime(char_id)
         return bible
 
     def load_en(self, char_id: str) -> dict:
-        """加载英文圣经数据，不存在返回空 dict"""
-        if char_id in self._cache_en:
+        """加载英文圣经数据，不存在返回空 dict。文件修改后自动重载。"""
+        if char_id in self._cache_en and self._is_fresh(char_id):
             return self._cache_en[char_id]
 
         from infra.config import load_character, ProjectPaths
@@ -138,6 +164,7 @@ class CharacterBible:
         char = load_character(paths, char_id)
         bible_en = char.get("bible_en", {})
         self._cache_en[char_id] = bible_en
+        self._update_mtime(char_id)
         return bible_en
 
     def save(self, char_id: str, bible: dict) -> None:
@@ -161,6 +188,7 @@ class CharacterBible:
             file_data.setdefault("character", {})[key] = data
             save_yaml(char_file, file_data)
             cache[char_id] = data
+            self._update_mtime(char_id)
             logger.info(f"角色圣经已保存: {char_id} ({key})")
         except Exception as e:
             logger.error(f"保存角色圣经失败 {char_id} ({key}): {e}")
