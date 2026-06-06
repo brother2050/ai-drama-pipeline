@@ -136,7 +136,11 @@ def _iterate_shots(self, config_path: str, episode: int, shots: list[dict], prog
 
 
 def _run_shot_direct(config_path: str, episode: int, shot: dict, force: bool) -> dict:
-    """直接执行 shot_task 逻辑（绕过 Celery 队列，避免 worker 阻塞死锁）"""
+    """直接执行 shot_task 逻辑（绕过 Celery 队列，避免 worker 阻塞死锁）
+
+    需要独立设置 project_scope：串行路径冗余但无害，并发路径（ThreadPoolExecutor）
+    的 worker 线程不继承主线程的 threading.local，必须显式设置。
+    """
     shot_id = shot.get("shot_id", "")
     if not shot_id:
         return {"shot_id": "", "status": STATUS_ERROR, "reason": "镜头数据缺少 shot_id"}
