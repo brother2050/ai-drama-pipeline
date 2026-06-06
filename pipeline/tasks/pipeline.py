@@ -89,7 +89,8 @@ def _run_shot_steps(self, config_path, episode, shot_id, force, ctx):
 
     for i, (name, fn) in enumerate(steps):
         deps = skip_deps.get(name, [])
-        failed_deps = [d for d in deps if results.get(d, {}).get("status") == STATUS_ERROR]
+        # 前置步骤失败或被跳过时，当前步骤也应跳过（级联跳过）
+        failed_deps = [d for d in deps if results.get(d, {}).get("status") in (STATUS_ERROR, STATUS_SKIPPED)]
         if failed_deps:
             results[name] = {"shot_id": shot_id, "step": name, "status": STATUS_SKIPPED,
                              "reason": f"前置步骤 {', '.join(failed_deps)} 失败，跳过"}

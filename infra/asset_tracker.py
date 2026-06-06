@@ -87,7 +87,9 @@ class AssetTracker:
                 else:
                     self.untrack_image(server_url, remote_name)
             except Exception as e:
-                logger.debug(f"{type(e).__name__}: {e}")
+                # 异常时清除 tracker 记录，宁可重复上传也不永久跳过
+                logger.warning(f"检查资产存在性失败，清除 tracker 并重新上传: {e}")
+                self.untrack_image(server_url, remote_name)
 
         # 2) 上传 + 记录（上传失败不清除 tracker，下次重试时会重新检查）
         comfyui.upload_image(local_path, filename=remote_name)

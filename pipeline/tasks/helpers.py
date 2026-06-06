@@ -384,7 +384,12 @@ def comfyui_generate(shot_id: str, step: str, comfyui, workflow: dict, out_dir: 
         return _err(shot_id, step, "ComfyUI 未返回任何文件")
 
     out_path = str(out_dir / output_name)
-    os.replace(files[0], out_path)
+    try:
+        os.replace(files[0], out_path)
+    except OSError:
+        # 跨文件系统时 os.replace 失败，回退到 shutil.move
+        import shutil
+        shutil.move(files[0], out_path)
     err = _validate_output(out_path, step, min_size=min_size)
     if err:
         return _err(shot_id, step, err)

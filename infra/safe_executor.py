@@ -119,20 +119,22 @@ def safe_run(
         try:
             if timeout:
                 # 复用线程池：所有重试共享同一个 executor，避免反复创建销毁
-                with _shared_executor() as te:
-                    future = te.submit(fn, *args, **kwargs)
-                    try:
-                        return future.result(timeout=timeout)
-                    except concurrent.futures.TimeoutError:
-                        # 后台线程无法取消（Python 不支持强制终止线程），
-                        # 通过 cancel_event 通知 fn 协作退出，线程将在完成后自动回收。
-                        if cancel_event:
-                            cancel_event.set()
-                        logger.warning(
-                            f"[SafeExecutor] {task_id or fn.__name__}: "
-                            f"执行超时 ({timeout}s)，后台线程继续运行直至完成"
-                        )
-                        raise
+                # 注意：不能用 `with _shared_executor() as te:`，因为 __exit__ 会
+                # 调用 shutdown(wait=True) 关闭共享池，导致后续调用失败。
+                te = _shared_executor()
+                future = te.submit(fn, *args, **kwargs)
+                try:
+                    return future.result(timeout=timeout)
+                except concurrent.futures.TimeoutError:
+                    # 后台线程无法取消（Python 不支持强制终止线程），
+                    # 通过 cancel_event 通知 fn 协作退出，线程将在完成后自动回收。
+                    if cancel_event:
+                        cancel_event.set()
+                    logger.warning(
+                        f"[SafeExecutor] {task_id or fn.__name__}: "
+                        f"执行超时 ({timeout}s)，后台线程继续运行直至完成"
+                    )
+                    raise
             else:
                 return fn(*args, **kwargs)
         except retryable as e:

@@ -220,7 +220,9 @@ def first_frame_core(p: FirstFrameParams) -> dict:
     from pipeline.tasks.helpers import comfyui_generate
 
     comfyui = p.cont.get("image")
-    _check_lora_availability(wf, paths, p.cfg, comfyui)
+    missing_loras = _check_lora_availability(wf, paths, p.cfg, comfyui)
+    if missing_loras:
+        return _err(p.shot_id, "first_frame", f"LoRA 缺失: {', '.join(missing_loras)}")
     wf = _upload_reference_images(wf, shot, wb, comfyui, paths)
 
     result = comfyui_generate(p.shot_id, "first_frame", comfyui, wf, p.out_dir, "frame.png", min_size=500)
