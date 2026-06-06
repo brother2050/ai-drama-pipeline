@@ -5,12 +5,18 @@ from __future__ import annotations
 
 import csv
 import logging
-import math
 from pathlib import Path
 
 from infra.database._db import query, row_to_dict, safe_float, _get_project
 
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_duration(data: dict) -> None:
+    """验证 duration 字段，非法值就地修正为 4（就地修改 dict）"""
+    d = safe_float(data.get("duration", 4), default=-1)
+    if d < 0:
+        data["duration"] = 4
 
 __all__ = ["get_episode_shots", "get_all_episodes", "get_episodes_summary", "get_all_shots", "save_episode_shots", "upsert_shot", "delete_episode", "batch_delete_shots", "export_to_csv"]
 
@@ -92,13 +98,7 @@ def save_episode_shots(pool, episode: int, shots: list[dict]) -> int:
     # 写入前验证 + 过滤无效镜头
     valid_shots = []
     for shot in shots:
-        dur = shot.get("duration", 4)
-        try:
-            d = float(dur)
-            if math.isnan(d) or math.isinf(d) or d < 0:
-                shot["duration"] = 4
-        except (ValueError, TypeError):
-            shot["duration"] = 4
+        _sanitize_duration(shot)
         if not shot.get("shot_id"):
             logger.warning(f"跳过无 shot_id 的镜头: {shot.get('action', '?')[:50]}")
             continue
@@ -132,13 +132,7 @@ def upsert_shot(pool, episode: int, shot_id: str, data: dict):
     project = _get_project()
     # 验证 duration（复制避免修改调用方的 dict）
     data = {**data}
-    dur = data.get("duration", 4)
-    try:
-        d = float(dur)
-        if math.isnan(d) or math.isinf(d) or d < 0:
-            data["duration"] = 4
-    except (ValueError, TypeError):
-        data["duration"] = 4
+    _sanitize_duration(data)
     cols = ", ".join(_INSERT_COLS)
     ph = ", ".join(["%s"] * len(_INSERT_COLS))
     sql = f"INSERT INTO shots ({cols}) VALUES ({ph}) ON CONFLICT (project, episode, shot_id) DO UPDATE SET {_UPSERT_SET}"
@@ -163,13 +157,7 @@ def batch_upsert_shots(pool, shots: list[tuple[int, str, dict]]) -> int:
     with query(pool) as cur:
         for episode, shot_id, data in shots:
             data = {**data}
-            dur = data.get("duration", 4)
-            try:
-                d = float(dur)
-                if math.isnan(d) or math.isinf(d) or d < 0:
-                    data["duration"] = 4
-            except (ValueError, TypeError):
-                data["duration"] = 4
+            _sanitize_duration(data)
             cur.execute(sql, _values(project, episode, {**data, "shot_id": shot_id}))
             count += 1
     return count
