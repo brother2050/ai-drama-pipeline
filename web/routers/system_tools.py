@@ -17,7 +17,7 @@ from infra.config import cfg_get as _cfg_get, deep_merge as _deep_merge
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-from web.schemas import (
+from web.schemas import (  # noqa: E402
     StepRequest, TTSRequest, PostRequest, MusicRequest, SubtitleRequest,
     ConfigUpdate,
 )
@@ -34,12 +34,12 @@ def system_status() -> dict:
     return {"version": "2.0.0", "tools": _collect_tools(cfg)}
 
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed  # noqa: E402
 
 _tool_executor = ThreadPoolExecutor(max_workers=5)
 
 # 注册清理钩子：进程退出时关闭线程池
-from infra.hooks import on_cleanup
+from infra.hooks import on_cleanup  # noqa: E402
 
 @on_cleanup(priority=90)
 def _shutdown_tool_executor():

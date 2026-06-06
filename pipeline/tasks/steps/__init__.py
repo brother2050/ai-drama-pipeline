@@ -95,8 +95,8 @@ def _run_lipsync(config_path: str, episode: int, shot_id: str, *,
 #  Celery 步骤任务
 # ══════════════════════════════════════════════════════════
 
-from celery.exceptions import SoftTimeLimitExceeded
-from pipeline.celery_app import app
+from celery.exceptions import SoftTimeLimitExceeded  # noqa: E402
+from pipeline.celery_app import app  # noqa: E402
 
 
 def _step_task(self, step: str, fn, config_path: str, episode: int, shot_id: str, *, force: bool = False):

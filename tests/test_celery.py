@@ -19,7 +19,7 @@ if str(ROOT) not in sys.path:
 
 # 配置 Celery eager 模式（不需要 Redis broker）
 # 使用 fixture 级别设置，避免污染其他测试模块
-from pipeline.celery_app import app as celery_app
+from pipeline.celery_app import app as celery_app  # noqa: E402
 
 _orig_eager = celery_app.conf.task_always_eager
 _orig_propagate = celery_app.conf.task_eager_propagates
@@ -79,7 +79,6 @@ def test_project():
 def test_load_shots(test_project):
     """测试分镜加载"""
     from pipeline.tasks import _load_shots
-    cfg_path = f"{test_project}/config/project.yaml"
     shots = _load_shots(1)
     assert len(shots) == 2
     assert shots[0]["shot_id"] == "001"
@@ -89,7 +88,6 @@ def test_load_shots(test_project):
 def test_load_shots_empty(test_project):
     """测试空集加载"""
     from pipeline.tasks import _load_shots
-    cfg_path = f"{test_project}/config/project.yaml"
     shots = _load_shots(99)
     assert len(shots) == 0
 
@@ -97,7 +95,6 @@ def test_load_shots_empty(test_project):
 def test_find_shot(test_project):
     """测试单镜头查找"""
     from pipeline.tasks import _find_shot
-    cfg_path = f"{test_project}/config/project.yaml"
     shot = _find_shot(1, "001")
     assert shot is not None
     assert shot["shot_id"] == "001"
@@ -106,7 +103,6 @@ def test_find_shot(test_project):
 def test_find_shot_not_found(test_project):
     """测试不存在的镜头"""
     from pipeline.tasks import _find_shot
-    cfg_path = f"{test_project}/config/project.yaml"
     shot = _find_shot(1, "999")
     assert shot is None
 

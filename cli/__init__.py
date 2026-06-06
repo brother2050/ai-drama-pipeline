@@ -18,7 +18,7 @@ from rich.console import Console
 console = Console()
 logger = logging.getLogger(__name__)
 
-from infra.config import get_root as _get_root
+from infra.config import get_root as _get_root  # noqa: E402
 
 ROOT = _get_root()
 
@@ -247,8 +247,8 @@ def cli() -> None:
 
 
 # 注册子命令组
-from cli.system import register_system_commands
-from cli.io import register_io_commands
+from cli.system import register_system_commands  # noqa: E402
+from cli.io import register_io_commands  # noqa: E402
 
 register_system_commands(cli)
 register_io_commands(cli)

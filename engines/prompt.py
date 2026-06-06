@@ -449,7 +449,6 @@ def _retry_missing_in_small_batches(results: list[str], missing: list[tuple[int,
     if not llm or not missing:
         return
 
-    from infra.batch_processor import AdaptiveBatchProcessor, estimate_tokens
     from engines.prompt_compiler import tpl
 
     # 小批次：每批最多 10 项，避免再次截断

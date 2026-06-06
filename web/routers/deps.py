@@ -10,7 +10,7 @@ from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
-from infra.config import get_root as _get_root, load_yaml_full
+from infra.config import get_root as _get_root, load_yaml_full  # noqa: E402
 
 ROOT = _get_root()
 

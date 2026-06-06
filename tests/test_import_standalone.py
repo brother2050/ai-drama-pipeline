@@ -9,7 +9,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from infra.models import ImportPlan, ImportValidator
+from infra.models import ImportPlan, ImportValidator  # noqa: E402
 
 
 def test_valid_plan():
@@ -186,7 +186,7 @@ def test_schema_errors():
             {"shot_id": "001@#", "scene_id": "s", "action": "测试动作描述内容"}
         ])
         print("❌ 应该报错但没报")
-    except ValidationError as e:
+    except ValidationError:
         print("✅ Schema 校验通过 — shot_id 非法字符被拦截")
 
     # action 太短
@@ -195,7 +195,7 @@ def test_schema_errors():
             {"shot_id": "001", "scene_id": "s", "action": "短"}
         ])
         print("❌ 应该报错但没报")
-    except ValidationError as e:
+    except ValidationError:
         print("✅ Schema 校验通过 — action 太短被拦截")
 
     # duration 超范围
@@ -204,7 +204,7 @@ def test_schema_errors():
             {"shot_id": "001", "scene_id": "s", "action": "测试动作描述内容", "duration": "15"}
         ])
         print("❌ 应该报错但没报")
-    except ValidationError as e:
+    except ValidationError:
         print("✅ Schema 校验通过 — duration=15 超范围被拦截")
 
 

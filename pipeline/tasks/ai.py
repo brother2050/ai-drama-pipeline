@@ -399,8 +399,8 @@ def _collect_translation_texts(paths, force: bool = False) -> tuple[list[str], l
     return all_texts, text_meta
 
 
-def _writeback_translations(text_meta, results, paths, episode, shots) -> tuple[dict, dict]:
-    """回写翻译结果到 YAML + DB，返回统计"""
+def _writeback_translations(text_meta, results, paths, episode, shots) -> tuple[dict, dict, list]:
+    """回写翻译结果到 YAML + DB，返回 (统计, char_cache, skipped_items)"""
     from infra.config import save_yaml
     translated = {"characters": 0, "scenes": 0, "shots": 0}
 
@@ -451,7 +451,7 @@ def _writeback_translations(text_meta, results, paths, episode, shots) -> tuple[
         save_storyboard(shots, episode)
         translated["shots"] = updated_shots
 
-    return translated, char_cache
+    return translated, char_cache, skipped_items
 
 
 def _load_entity_cache(text_meta, results, entity_type, yaml_fn, entity_key) -> dict[str, dict]:
@@ -581,7 +581,7 @@ def _ai_prepare_inner(self, config_path, episode, force, translate):
 
     # 3. 回写 + 视角 prompt
     self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 80, "message": "正在保存..."})
-    translated, char_cache = _writeback_translations(text_meta, results, paths, episode, shots)
+    translated, char_cache, skipped_items = _writeback_translations(text_meta, results, paths, episode, shots)
 
     self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 90, "message": "生成视角 prompt..."})
     translated["view_prompts"] = _generate_view_prompts(char_cache, llm, paths)

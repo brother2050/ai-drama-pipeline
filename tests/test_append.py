@@ -10,8 +10,8 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from infra.models import ImportPlan
-from infra.config import save_yaml, ProjectPaths, load_yaml_entities
+from infra.models import ImportPlan  # noqa: E402
+from infra.config import save_yaml, ProjectPaths, load_yaml_entities  # noqa: E402
 
 
 def _make_project(tmp_path: Path) -> Path:

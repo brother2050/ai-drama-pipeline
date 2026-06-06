@@ -17,7 +17,7 @@ from web.routers.deps import (
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-from web.schemas import (
+from web.schemas import (  # noqa: E402
     PipelineRequest, PrepareRequest,
     StoryboardGenRequest, CharacterGenRequest, SceneGenRequest,
     ChatEditRequest,

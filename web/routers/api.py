@@ -15,12 +15,12 @@ from fastapi import APIRouter
 router = APIRouter()
 
 # 按领域注册子路由（prefix 为空，各子模块的路由已包含完整路径）
-from web.routers.system_tools import router as system_tools_router
-from web.routers.characters import router as characters_router
-from web.routers.scenes import router as scenes_router
-from web.routers.storyboard import router as storyboard_router
-from web.routers.assets import router as assets_router
-from web.routers.imports import router as imports_router
+from web.routers.system_tools import router as system_tools_router  # noqa: E402
+from web.routers.characters import router as characters_router  # noqa: E402
+from web.routers.scenes import router as scenes_router  # noqa: E402
+from web.routers.storyboard import router as storyboard_router  # noqa: E402
+from web.routers.assets import router as assets_router  # noqa: E402
+from web.routers.imports import router as imports_router  # noqa: E402
 
 router.include_router(system_tools_router)
 router.include_router(characters_router)

@@ -236,7 +236,7 @@ def test_reset_registry():
     from infra.toolcheck import reset_registry
     from flow.model_registry import ModelRegistry
     # 先获取实例，确保单例存在
-    reg1 = ModelRegistry()
+    ModelRegistry()
     assert ModelRegistry._instance is not None
     # 重置
     reset_registry()

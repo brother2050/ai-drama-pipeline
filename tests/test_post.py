@@ -1,7 +1,6 @@
 """后期处理模块单元测试 — post/production.py + post/vertical.py + post/subtitle.py"""
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 

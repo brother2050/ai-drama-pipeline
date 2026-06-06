@@ -51,7 +51,7 @@ project:
 #   enabled: true
 """
 
-from infra.config import get_root as _get_root, projects_dir as _projects_dir, load_yaml_full
+from infra.config import get_root as _get_root, projects_dir as _projects_dir, load_yaml_full  # noqa: E402
 
 _ROOT = _get_root()
 

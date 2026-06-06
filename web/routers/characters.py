@@ -15,7 +15,7 @@ from web.routers.deps import (
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-from web.schemas import CharacterData, BatchDeleteRequest
+from web.schemas import CharacterData, BatchDeleteRequest  # noqa: E402
 
 
 @router.get("/characters")

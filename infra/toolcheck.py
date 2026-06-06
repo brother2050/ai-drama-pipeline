@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 __all__ = ["check_tool", "reset_registry"]
 
 # 工具状态缓存 — 使用 HealthCache 统一管理
-from infra.globals import get_health_cache
+from infra.globals import get_health_cache  # noqa: E402
 
 
 def _url_ok(url: str, path: str = "/", headers: dict | None = None) -> bool:

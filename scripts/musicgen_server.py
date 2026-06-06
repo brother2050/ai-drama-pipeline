@@ -93,16 +93,16 @@ if __name__ == "__main__":
     _ensure_deps(quantize=_Quantize_Flag)
 
 # ── 正式导入（依赖由 __main__ 中的 _ensure_deps 保证）──
-import argparse
-import contextlib
-import io
-import time
-import numpy as np
-import soundfile as sf
-import torch
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import Response
-from pydantic import BaseModel, Field
+import argparse  # noqa: E402
+import contextlib  # noqa: E402
+import io  # noqa: E402
+import time  # noqa: E402
+import numpy as np  # noqa: E402
+import soundfile as sf  # noqa: E402
+import torch  # noqa: E402
+from fastapi import FastAPI, HTTPException  # noqa: E402
+from fastapi.responses import Response  # noqa: E402
+from pydantic import BaseModel, Field  # noqa: E402
 
 
 logger = logging.getLogger("musicgen-server")

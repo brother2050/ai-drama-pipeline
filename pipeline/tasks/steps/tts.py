@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 # 文件变化时清除 TTS 角色缓存（YAML 修改后自动生效）
-from infra.hooks import on_cache_invalidate
+from infra.hooks import on_cache_invalidate  # noqa: E402
 
 @on_cache_invalidate(priority=50)
 def _clear_tts_char_cache():

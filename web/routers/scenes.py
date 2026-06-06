@@ -14,7 +14,7 @@ from web.routers.deps import (
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-from web.schemas import SceneData, BatchDeleteRequest
+from web.schemas import SceneData, BatchDeleteRequest  # noqa: E402
 
 
 @router.get("/scenes")
