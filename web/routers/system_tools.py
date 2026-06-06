@@ -613,7 +613,6 @@ def list_tasks() -> dict:
 def cancel_task(task_id: str) -> dict:
     _check_uuid(task_id)
     from pipeline.celery_app import app
-    from infra.constants import STATUS_PENDING, STATUS_RUNNING
     # 先查询任务状态
     result = app.AsyncResult(task_id)
     state = result.state
