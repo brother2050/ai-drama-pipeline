@@ -96,7 +96,7 @@ def _db_mark_running(episode: int, shot_id: str, step: str) -> None:
         from infra.database.generation import upsert_status
         upsert_status(get_pool(), episode, shot_id, step, status=STATUS_RUNNING)
     except Exception as e:
-        logger.debug(f"DB mark_running 跳过: {e}")
+        logger.warning(f"DB mark_running 跳过: {e}")
 
 
 def _try_mark_running_atomic(episode: int, shot_id: str, step: str) -> bool:
@@ -132,7 +132,7 @@ def _try_mark_running_atomic(episode: int, shot_id: str, step: str) -> bool:
             finally:
                 cur.close()
     except Exception as e:
-        logger.debug(f"DB mark_running 降级: {e}")
+        logger.warning(f"DB mark_running 降级: {e}")
         return True  # DB 不可用时放行
 
 

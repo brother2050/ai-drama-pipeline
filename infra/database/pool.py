@@ -45,9 +45,8 @@ class PgPool:
     def _put(self, conn, close: bool = False):
         try:
             self._pool.putconn(conn, close=close)
-        except Exception:
-            logger.debug("连接归还失败")
-            pass
+        except Exception as e:
+            logger.warning(f"连接归还失败: {e}")
 
     def release(self, conn):
         self._pool.putconn(conn)
@@ -61,9 +60,8 @@ class PgPool:
         except Exception:
             try:
                 conn.rollback()
-            except Exception:
-                logger.debug("事务回滚失败")
-                pass
+            except Exception as e:
+                logger.warning(f"事务回滚失败: {e}")
             raise
         finally:
             self.release(conn)

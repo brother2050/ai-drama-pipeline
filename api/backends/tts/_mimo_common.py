@@ -34,20 +34,17 @@ def write_wav_or_pcm(raw: bytes, output: str, *,
     Returns:
         输出文件路径
     """
-    Path(output).parent.mkdir(parents=True, exist_ok=True)
-    with open(output, "wb") as f:
-        if raw[:4] == b"RIFF":
-            f.write(raw)
-        else:
-            byte_rate = sample_rate * channels * bits_per_sample // 8
-            block_align = channels * bits_per_sample // 8
-            f.write(b"RIFF")
-            f.write(struct.pack("<I", 36 + len(raw)))
-            f.write(b"WAVEfmt ")
-            f.write(struct.pack("<IHHIIHH", 16, 1, channels, sample_rate, byte_rate, block_align, bits_per_sample))
-            f.write(b"data")
-            f.write(struct.pack("<I", len(raw)))
-            f.write(raw)
+    if raw[:4] == b"RIFF":
+        wav_data = raw
+    else:
+        byte_rate = sample_rate * channels * bits_per_sample // 8
+        block_align = channels * bits_per_sample // 8
+        header = b"RIFF" + struct.pack("<I", 36 + len(raw)) + b"WAVEfmt "
+        header += struct.pack("<IHHIIHH", 16, 1, channels, sample_rate, byte_rate, block_align, bits_per_sample)
+        header += b"data" + struct.pack("<I", len(raw))
+        wav_data = header + raw
+    from infra.config import atomic_write_bytes
+    atomic_write_bytes(output, wav_data)
     return output
 
 

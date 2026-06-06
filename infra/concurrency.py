@@ -72,7 +72,7 @@ def run_staggered_sync(
             try:
                 f.result()
             except Exception as e:
-                logger.debug(f"Future 异常: {e}")
+                logger.warning(f"Future 异常: {e}")
     return results
 
 

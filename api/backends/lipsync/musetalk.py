@@ -36,8 +36,8 @@ class MuseTalk:
                                          self._audio_field: (Path(audio).name, af)},
                                   data={"result_type": self._result_type})
         r.raise_for_status()
-        with open(output, "wb") as f:
-            f.write(r.content)
+        from infra.config import atomic_write_bytes
+        atomic_write_bytes(output, r.content)
         return output
 
     def shutdown(self):

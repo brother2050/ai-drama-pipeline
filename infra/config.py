@@ -168,21 +168,9 @@ class ProjectPaths:
         """镜头输出目录"""
         return self._root / "output" / f"e{episode:02d}" / f"s{shot_id}"
 
-    def shot_audio(self, episode: int, shot_id: str) -> Path:
-        """镜头音频"""
-        return self.shot_dir(episode, shot_id) / "audio.wav"
-
     def shot_frame(self, episode: int, shot_id: str) -> Path:
         """镜头首帧"""
         return self.shot_dir(episode, shot_id) / "frame.png"
-
-    def shot_video(self, episode: int, shot_id: str) -> Path:
-        """镜头视频"""
-        return self.shot_dir(episode, shot_id) / "video.mp4"
-
-    def shot_synced(self, episode: int, shot_id: str) -> Path:
-        """镜头口型同步视频"""
-        return self.shot_dir(episode, shot_id) / "synced.mp4"
 
     # ── 工作流 ──────────────────────────────────────────
 
@@ -208,11 +196,6 @@ class ProjectPaths:
         """TTS 预览目录"""
         return self._root / "output" / "tts_preview"
 
-    @property
-    def logs_dir(self) -> Path:
-        """日志目录"""
-        return self._root / "logs"
-
     def bgm_file(self, tag: str = "") -> Path:
         """配乐文件路径（tag 用于区分不同用途，如时间戳）"""
         name = f"bgm_{tag}.wav" if tag else "bgm.wav"
@@ -229,10 +212,6 @@ class ProjectPaths:
     def config_entity_yaml(self, entity_type: str, entity_id: str) -> Path:
         """通用实体配置文件"""
         return self._root / "config" / entity_type / f"{entity_id}.yaml"
-
-    def assets_entity_file(self, entity_type: str, entity_id: str, filename: str) -> Path:
-        """通用实体资产文件"""
-        return self._root / "assets" / entity_type / entity_id / filename
 
     def seko_asset_dir(self, task_id: str) -> Path:
         """Seko 策划案资产目录"""
@@ -413,6 +392,24 @@ def save_yaml(path: str | Path, data: Any, *, sort_keys: bool = False) -> None:
             os.unlink(tmp)
         except OSError:
             logger.debug("临时文件清理")
+            pass
+        raise
+
+
+def atomic_write_bytes(path: str | Path, data: bytes) -> None:
+    """原子写入二进制文件（temp file + rename，防崩溃损坏）"""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    import tempfile
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        os.replace(str(tmp), str(path))
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
             pass
         raise
 

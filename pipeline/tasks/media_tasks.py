@@ -65,7 +65,7 @@ def post_task(self, config_path: str, episode: int, vertical: bool = False) -> d
                 logger.error(f"❌ 质量检查: {e['name']} — {e['message']}")
             result["quality_issues"] = issues
     except Exception as e:
-        logger.debug(f"质量门禁跳过: {e}")
+        logger.warning(f"质量门禁跳过: {e}")
 
     return result
 

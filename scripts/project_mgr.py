@@ -246,38 +246,6 @@ def switch_project(name: str, root: Path, console):
             console.print(f"[dim]  角色: {', '.join(chars)}[/dim]")
 
 
-def show_current(root: Path, console):
-    from infra.config import get_active_project_dir
-    active = get_active_project_dir(root)
-    from infra.config import ProjectPaths
-    dp = ProjectPaths(active)
-    cfg = dp.project_yaml
-    if cfg.exists():
-        data = load_yaml_full(cfg)
-        name = data.get("project", {}).get("name", active.name)
-    else:
-        name = active.name
-    console.print(f"[cyan]当前项目:[/cyan] {name}")
-    console.print(f"[cyan]路径:[/cyan]     {active}")
-
-    # 显示项目文件统计
-    chars_dir = dp.characters_dir
-    char_count = len(list(chars_dir.glob("*.yaml"))) if chars_dir.exists() else 0
-    scenes_dir = dp.scenes_dir
-    scene_count = len(list(scenes_dir.glob("*.yaml"))) if scenes_dir.exists() else 0
-    sb_count = 0
-    try:
-        from infra.database.pool import get_pool
-        from infra.database.storyboard_db import get_episodes_summary
-        rows = get_episodes_summary(get_pool())
-        sb_count = sum(r["shots"] for r in rows)
-    except Exception as e:
-        logger.debug(f"获取集统计失败: {e}")
-    console.print(f"[cyan]角色:[/cyan] {char_count} 个")
-    console.print(f"[cyan]场景:[/cyan] {scene_count} 个")
-    console.print(f"[cyan]分镜:[/cyan] {sb_count} 个镜头")
-
-
 def delete_project(name: str, root: Path, console):
     if name == DEFAULT_PROJECT:
         console.print("[red]❌ 不能删除默认项目[/red]")

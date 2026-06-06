@@ -48,7 +48,7 @@ def _shot_task_inner(self, config_path: str, episode: int, shot_data: dict, shot
                 fresh_shot = row
                 break
     except Exception as e:
-        logger.debug(f"从 DB 读取最新 shot 失败，使用传入数据: {e}")
+        logger.warning(f"从 DB 读取最新 shot 失败，使用传入数据: {e}")
     if fresh_shot:
         shot_data = fresh_shot
 

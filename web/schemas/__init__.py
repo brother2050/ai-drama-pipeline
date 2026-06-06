@@ -335,8 +335,8 @@ class StoryboardShotData(BaseModel):
     camera: str = Field("", max_length=50)
     shot_type: str = Field("", max_length=50)
     duration: int = Field(4, ge=2, le=8)
-    emotion: str = Field("", max_length=30)
-    outfit: str = Field("", max_length=50)
+    emotion: str = Field("neutral", max_length=30)
+    outfit: str = Field("default", max_length=50)
     language: str = Field("zh", max_length=5)
     image_prompt_en: str = Field("", max_length=4000, description="AI 生成的英文图像 prompt")
 

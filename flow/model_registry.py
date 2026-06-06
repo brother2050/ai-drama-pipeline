@@ -174,30 +174,6 @@ class ModelRegistry:
         hc = self._data.get("services", {}).get(service_name, {}).get("health_check")
         return copy.deepcopy(hc) if hc is not None else None
 
-    def get_all_health_checks(self) -> dict[str, dict]:
-        """返回所有需要健康检查的项（后端 + 辅助服务）
-
-        Returns:
-            {'tts:mimo-voicedesign': {'type': 'api_key_env', ...},
-             'comfyui': {'type': 'http', ...}, ...}
-        """
-        result = {}
-
-        # 后端的健康检查
-        for service_type, section in self._SECTION_MAP.items():
-            for name, meta in self._data.get(section, {}).items():
-                hc = meta.get("health_check")
-                if hc:
-                    result[f"{service_type}:{name}"] = hc
-
-        # 辅助服务的健康检查
-        for name, meta in self._data.get("services", {}).items():
-            hc = meta.get("health_check")
-            if hc:
-                result[name] = hc
-
-        return result
-
     # ══════════════════════════════════════════════════════════
     #  图像后端
     # ══════════════════════════════════════════════════════════
@@ -205,10 +181,6 @@ class ModelRegistry:
     def get_image_workflow(self, backend: str) -> str:
         """返回图像后端的工作流文件名"""
         return self._data.get("image_backends", {}).get(backend, {}).get("workflow", "")
-
-    def get_image_defaults(self, backend: str) -> dict:
-        """返回图像后端的默认生成参数（返回副本）"""
-        return copy.deepcopy(self._data.get("image_backends", {}).get(backend, {}).get("default_params", {}))
 
     def get_prompt_style(self, image_backend: str) -> str:
         """返回图像后端的 prompt 风格 ('tag' / 'natural')
@@ -274,35 +246,6 @@ class ModelRegistry:
         method = self._data.get("consistency_methods", {}).get(name)
         return copy.deepcopy(method) if method is not None else None
 
-    def get_compatible_consistency(self, image_backend: str) -> list[str]:
-        """返回与某图像后端兼容的所有一致性方案名"""
-        methods = self._data.get("consistency_methods", {})
-        result = []
-        for name, meta in methods.items():
-            compat = meta.get("compatible_backends", [])
-            if "*" in compat or image_backend.lower() in compat:
-                result.append(name)
-        return result
-
-    # ══════════════════════════════════════════════════════════
-    #  生产步骤编排
-    # ══════════════════════════════════════════════════════════
-
-    def get_pipeline_steps(self) -> list[dict]:
-        """返回生产步骤编排列表
-
-        Returns:
-            [{'name': 'tts', 'task': 'pipeline_step_tts', 'tool': 'tts', 'timeout': 120}, ...]
-            （返回副本）
-        """
-        return copy.deepcopy(self._data.get("pipeline_steps", []))
-
-    def valid_image_backends(self) -> set[str]:
-        return set(self._data.get("image_backends", {}).keys())
-
-    def valid_video_backends(self) -> set[str]:
-        return set(self._data.get("video_backends", {}).keys())
-
     def get_tts_backends(self) -> dict:
         """获取所有 TTS 后端及其描述（返回副本）"""
         return copy.deepcopy(self._data.get("tts_backends", {}))
@@ -315,6 +258,12 @@ class ModelRegistry:
 
     def get_music_backends(self) -> dict:
         return copy.deepcopy(self._data.get("music_backends", {}))
+
+    def valid_image_backends(self) -> set[str]:
+        return set(self._data.get("image_backends", {}).keys())
+
+    def valid_video_backends(self) -> set[str]:
+        return set(self._data.get("video_backends", {}).keys())
 
     # ══════════════════════════════════════════════════════════
     #  服务类型元数据（toolcheck 等模块使用）

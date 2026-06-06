@@ -58,21 +58,21 @@ class _YAMLFileHandler:
             from infra.config import invalidate_config_cache
             invalidate_config_cache()
         except Exception as e:
-            logger.debug(f"Config 缓存失效跳过: {e}")
+            logger.warning(f"Config 缓存失效跳过: {e}")
 
         # 2. 通过 hooks 通知所有注册的缓存失效回调（pipeline 等上层模块通过 hooks 注册）
         try:
             from infra.hooks import run_hooks
             run_hooks("cache_invalidate")
         except Exception as e:
-            logger.debug(f"缓存失效钩子跳过: {e}")
+            logger.warning(f"缓存失效钩子跳过: {e}")
 
         # 3. ModelRegistry 单例缓存
         try:
             from flow.model_registry import ModelRegistry
             ModelRegistry.reload(ModelRegistry())
         except Exception as e:
-            logger.debug(f"ModelRegistry 缓存失效跳过: {e}")
+            logger.warning(f"ModelRegistry 缓存失效跳过: {e}")
 
         logger.info("文件变化检测 → 缓存已失效")
 

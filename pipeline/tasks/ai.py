@@ -583,7 +583,7 @@ def _run_quality_gate(paths, result: dict) -> None:
                     logger.warning(f"⚠ 质量检查: {w['name']} — {w['message']}")
             result["quality_issues"] = issues
     except Exception as e:
-        logger.debug(f"质量门禁跳过: {e}")
+        logger.warning(f"质量门禁跳过: {e}")
 
 
 def _ai_prepare_inner(self, config_path, episode, force, translate):

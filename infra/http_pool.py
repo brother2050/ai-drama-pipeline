@@ -97,7 +97,6 @@ def shutdown_all() -> None:
                 client.close()
             except Exception:
                 logger.debug("HTTP 客户端关闭失败")
-                pass
         _clients.clear()
 
 

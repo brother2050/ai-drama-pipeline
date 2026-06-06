@@ -150,7 +150,7 @@ def _reset_proj_cache():
         from pipeline.tasks.helpers import invalidate_ctx_cache
         invalidate_ctx_cache()
     except Exception as e:
-        logger.debug(f"上下文缓存重置失败: {e}")
+        logger.warning(f"上下文缓存重置失败: {e}")
 
 
 def _submit_task(task, *args, **kwargs) -> dict:

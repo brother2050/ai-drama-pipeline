@@ -140,7 +140,7 @@ def clear_episode_outputs(episode: int) -> dict:
         from infra.database.generation import clear_episode
         clear_episode(_get_pool(), episode)
     except Exception as e:
-        logger.debug(f"数据库清理跳过: {e}")
+        logger.warning(f"数据库清理跳过: {e}")
     return {"status": "ok", "episode": episode, "cleared_files": cleared}
 
 

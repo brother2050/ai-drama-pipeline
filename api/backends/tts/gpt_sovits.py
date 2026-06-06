@@ -37,8 +37,8 @@ class GptSovits:
             "prompt_text": voice_config.get("prompt_text", ""),
         })
         r.raise_for_status()
-        with open(output, "wb") as f:
-            f.write(r.content)
+        from infra.config import atomic_write_bytes
+        atomic_write_bytes(output, r.content)
         return output
 
     def health_check(self) -> tuple[bool, str]:

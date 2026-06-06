@@ -26,8 +26,8 @@ class Wav2Lip:
             r = self._client.post(f"{self._url}/process",
                        files={"face": (Path(video).name, vf), "audio": (Path(audio).name, af)})
         r.raise_for_status()
-        with open(output, "wb") as f:
-            f.write(r.content)
+        from infra.config import atomic_write_bytes
+        atomic_write_bytes(output, r.content)
         return output
 
     def shutdown(self):
