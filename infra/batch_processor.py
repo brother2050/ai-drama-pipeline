@@ -21,9 +21,11 @@ __all__ = ["AdaptiveBatchProcessor", "estimate_tokens"]
 def estimate_tokens(text: str) -> int:
     """保守估算 token 数（宁可高估多分批，也不低估撞限制）
 
-    中文约 1 token/汉字，英文约 1 token/4 字符。
+    中文约 1 token/汉字，CJK 标点约 1 token/字符，英文约 1 token/4 字符。
     """
-    cjk = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+    cjk = sum(1 for c in text if '\u4e00' <= c <= '\u9fff'  # CJK 统一汉字
+              or '\u3000' <= c <= '\u303f'  # CJK 标点符号
+              or '\uff00' <= c <= '\uffef')  # 全角标点
     other = len(text) - cjk
     return max(1, int(cjk + other / 4))
 

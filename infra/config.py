@@ -656,6 +656,16 @@ class Config:
         return f"Config({self._path})"
 
 
+def _validate_active_path(d: str, root: Path) -> Path | None:
+    """校验 .active 文件内容路径安全性（防路径遍历）"""
+    p = Path(d).resolve()
+    proj_dir = projects_dir(root).resolve()
+    if not p.is_relative_to(proj_dir):
+        logger.warning(f".active 指向项目目录外的路径，已忽略: {d}")
+        return None
+    return p
+
+
 def resolve_project_config(root: Path | None = None) -> str:
     """统一的项目配置路径解析（CLI 和 Web 共用）
 
@@ -675,9 +685,11 @@ def resolve_project_config(root: Path | None = None) -> str:
         try:
             d = active_file.read_text().strip()
             if d:
-                cfg = Path(d) / "config" / "project.yaml"
-                if cfg.exists():
-                    return str(cfg)
+                p = _validate_active_path(d, root)
+                if p:
+                    cfg = p / "config" / "project.yaml"
+                    if cfg.exists():
+                        return str(cfg)
         except (OSError, ValueError) as e:
             logger.debug(f"{type(e).__name__}: {e}")
 
@@ -699,8 +711,8 @@ def get_active_project_dir(root: Path | None = None) -> Path:
         try:
             d = active_file.read_text().strip()
             if d:
-                p = Path(d)
-                if p.exists():
+                p = _validate_active_path(d, root)
+                if p and p.exists():
                     return p
         except (OSError, ValueError) as e:
             logger.debug(f"{type(e).__name__}: {e}")

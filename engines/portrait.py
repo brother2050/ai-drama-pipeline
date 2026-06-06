@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import shutil
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -11,6 +12,18 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 __all__ = ["ensure_portrait", "ViewGenParams"]
+
+
+def _safe_rename(src: str, dst: str) -> None:
+    """安全重命名（跨文件系统自动回退到 copy2）"""
+    try:
+        os.replace(src, dst)
+    except OSError:
+        shutil.copy2(src, dst)
+        try:
+            os.unlink(src)
+        except OSError:
+            pass
 
 
 # 重入保护：正在生成中的角色，防止 build_first_frame → _get_character_refs → ensure_portrait 死循环
@@ -94,10 +107,10 @@ def _generate_view(params: ViewGenParams) -> str:
     files = p.comfyui.generate(wf, str(p.portrait_dir))
     if not files:
         return ""
-    # 重命名为目标文件名
+    # 重命名为目标文件名（跨文件系统自动回退到 copy2）
     target = p.portrait_dir / p.filename
     try:
-        os.replace(files[0], str(target))
+        _safe_rename(files[0], str(target))
     except FileNotFoundError:
         logger.error(f"生成文件丢失: {files[0]}")
         return ""
@@ -291,7 +304,7 @@ def _generate_single_outfit(comfyui, wb, char_id: str, outfit_key: str,
         return None
     cover_out = outfit_dir / "cover.png"
     try:
-        os.replace(files[0], str(cover_out))
+        _safe_rename(files[0], str(cover_out))
     except FileNotFoundError:
         logger.error(f"生成文件丢失: {files[0]}")
         return None

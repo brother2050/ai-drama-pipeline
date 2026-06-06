@@ -3,6 +3,7 @@ from __future__ import annotations
 from infra.config import load_yaml_full
 
 import logging
+import os
 import shutil
 import yaml
 from pathlib import Path
@@ -68,8 +69,19 @@ async def upload_entity_image(entity_type: str, entity_id: str, file: UploadFile
     asset_dir.mkdir(parents=True, exist_ok=True)
     filename = f"cover{detected}"
     dest = asset_dir / filename
-    with open(dest, "wb") as f:
-        f.write(content)
+    # 原子写入：先写临时文件再 rename，防并发/崩溃损坏
+    import tempfile
+    fd, tmp = tempfile.mkstemp(dir=str(asset_dir), suffix=".tmp")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(content)
+        os.replace(tmp, str(dest))
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
     # 更新 YAML reference_images
     if yaml_path.exists():
@@ -98,7 +110,8 @@ def get_entity_asset(entity_type: str, entity_id: str, filename: str):
     _check_entity_type(entity_type)
     _check_id(entity_id)
     _check_filename(filename)
-    file_path = _paths().assets_entity_file(entity_type, entity_id, filename)
+    base = _paths().assets_entity_dir(entity_type) / entity_id
+    file_path = _safe_path(base, filename)
     if not file_path.exists():
         raise HTTPException(404, f"文件不存在: {filename}")
     ext = file_path.suffix.lower()

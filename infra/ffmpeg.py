@@ -12,10 +12,15 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["FFmpeg", "probe"]
+__all__ = ["FFmpeg", "probe", "ffmpeg_path"]
 
 _FFMPEG = shutil.which("ffmpeg") or "ffmpeg"
 _FFPROBE = shutil.which("ffprobe") or "ffprobe"
+
+
+def ffmpeg_path() -> str:
+    """获取 ffmpeg 可执行文件路径（公开 API）"""
+    return _FFMPEG
 
 
 def probe(path: str) -> dict[str, Any]:

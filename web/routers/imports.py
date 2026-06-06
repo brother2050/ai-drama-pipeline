@@ -284,9 +284,10 @@ def _load_prompt_presets(style: str = "", genre: str = "") -> dict:
         return presets
     sys_cfg = load_yaml_full(sys_path)
     p = sys_cfg.get("presets", {})
-    presets["shot_types_str"] = "、".join(p.get("shot_types", {}).keys()) or ""
-    presets["cameras_str"] = "、".join(p.get("cameras", {}).keys()) or ""
-    presets["emotions_str"] = "、".join(p.get("emotions", {}).keys()) or ""
+    # 传递 key + 描述（如 "特写: 面部/物体细节，情感冲击最强"），LLM 才能理解可选值含义
+    presets["shot_types_str"] = "、".join(f"{k}: {v}" for k, v in p.get("shot_types", {}).items()) or ""
+    presets["cameras_str"] = "、".join(f"{k}: {v}" for k, v in p.get("cameras", {}).items()) or ""
+    presets["emotions_str"] = "、".join(f"{k}: {v}" for k, v in p.get("emotions", {}).items()) or ""
     if style:
         presets["style_desc"] = p.get("styles", {}).get(style, "")
     if genre:

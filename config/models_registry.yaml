@@ -19,6 +19,8 @@ defaults:
     music: "models.music_backend"
     image: "models.image_backend"
     video: "models.video_backend"
+    seko: "seko.api_key"
+    training: "training.backend"
 
 # ══════════════════════════════════════════════════════════
 #  TTS 后端

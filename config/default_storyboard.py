@@ -5,7 +5,7 @@ DEFAULT_CHARACTERS = [
         "id": "linxia", "name": "林夏", "gender": "female",
         "appearance": "22岁年轻女性，长发及肩，瓜子脸，大眼睛，柳叶眉，身高165cm，体型偏瘦，皮肤白皙",
         "outfits": {
-            "casual": {"description": "白色T恤，浅蓝色牛仔裤，白色帆布鞋，斜挎小包", "reference_images": []},
+            "default": {"description": "白色T恤，浅蓝色牛仔裤，白色帆布鞋，斜挎小包", "reference_images": []},
             "home": {"description": "浅粉色居家服，棉拖鞋", "reference_images": []},
         },
         "bible": {
@@ -20,7 +20,7 @@ DEFAULT_CHARACTERS = [
         "id": "guchen", "name": "顾辰", "gender": "male",
         "appearance": "22岁年轻男性，短发，剑眉星目，身高180cm，体型匀称",
         "outfits": {
-            "casual": {"description": "黑色卫衣，深色休闲裤，运动鞋，双肩包", "reference_images": []},
+            "default": {"description": "黑色卫衣，深色休闲裤，运动鞋，双肩包", "reference_images": []},
         },
         "bible": {
             "core_traits": "沉稳可靠，行动派，对林夏有好感但不善表达",
@@ -56,7 +56,7 @@ DEFAULT_SHOTS = [
      "action_en": "stands up and walks to the window", "dialogue_en": "...", "language": "zh"},
     {"shot_id": "003", "scene_id": "street", "characters": "guchen",
      "action": "骑车赶路", "dialogue": "马上就到了！",
-     "camera": "固定", "shot_type": "全身", "duration": "4", "outfit": "casual", "emotion": "determined",
+     "camera": "固定", "shot_type": "全身", "duration": "4", "outfit": "default", "emotion": "determined",
      "action_en": "riding a bicycle", "dialogue_en": "I'm almost there!", "language": "zh"},
     {"shot_id": "004", "scene_id": "living_room", "characters": "linxia",
      "action": "听到门铃声抬头", "dialogue": "嗯？",
@@ -64,7 +64,7 @@ DEFAULT_SHOTS = [
      "action_en": "hears the doorbell and looks up", "dialogue_en": "Hmm?", "language": "zh"},
     {"shot_id": "005", "scene_id": "street", "characters": "guchen",
      "action": "按门铃", "dialogue": "开门！我来了！",
-     "camera": "固定", "shot_type": "近景", "duration": "3", "outfit": "casual", "emotion": "happy",
+     "camera": "固定", "shot_type": "近景", "duration": "3", "outfit": "default", "emotion": "happy",
      "action_en": "ringing the doorbell", "dialogue_en": "Open the door! I'm here!", "language": "zh"},
     {"shot_id": "006", "scene_id": "living_room", "characters": "linxia+guchen",
      "action": "开门对视", "dialogue": "......",
@@ -72,7 +72,7 @@ DEFAULT_SHOTS = [
      "action_en": "opens the door and they lock eyes", "dialogue_en": "...", "language": "zh"},
     {"shot_id": "007", "scene_id": "living_room", "characters": "guchen",
      "action": "递出一束花", "dialogue": "送你的，生日快乐。",
-     "camera": "固定", "shot_type": "中景", "duration": "4", "outfit": "casual", "emotion": "happy",
+     "camera": "固定", "shot_type": "中景", "duration": "4", "outfit": "default", "emotion": "happy",
      "action_en": "handing over a bouquet of flowers", "dialogue_en": "This is for you. Happy birthday.", "language": "zh"},
     {"shot_id": "008", "scene_id": "living_room", "characters": "linxia",
      "action": "接过花低头笑", "dialogue": "谢谢...你还记得。",
