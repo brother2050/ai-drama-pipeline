@@ -8,7 +8,12 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["ProjectBuilder"]
+__all__ = ["ProjectBuilder", "ProjectAlreadyExists"]
+
+
+class ProjectAlreadyExists(ValueError):
+    """项目已存在（非 append 模式下，build() 时目录已存在）"""
+
 
 
 class ProjectBuilder:
@@ -64,7 +69,7 @@ class ProjectBuilder:
 
         project_dir = projects_dir(root) / self._safe_name(plan.project_name)
         if project_dir.exists():
-            raise ValueError(f"项目 '{plan.project_name}' 已存在，请更换名称或删除已有项目")
+            raise ProjectAlreadyExists(f"项目 '{plan.project_name}' 已存在，请更换名称或删除已有项目")
 
         try:
             _ensure_project_dirs(project_dir)

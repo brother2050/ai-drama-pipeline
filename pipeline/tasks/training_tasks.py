@@ -189,10 +189,11 @@ def _import_json_append(builder, plan, project_dir, translation, root) -> dict:
 
 def _import_json_full(builder, plan, project_dir, translation, root) -> dict:
     """全量模式导入（项目已存在时自动切换追加）"""
+    from scripts.project_builder import ProjectAlreadyExists
     try:
         project_dir = builder.build(plan, root)
-    except ValueError as e:
-        if "已存在" in str(e) and project_dir and project_dir.exists():
+    except ProjectAlreadyExists:
+        if project_dir and project_dir.exists():
             logger.info(f"项目已存在，自动切换到追加模式: {project_dir}")
             return _import_json_append(builder, plan, project_dir, translation, root)
         raise

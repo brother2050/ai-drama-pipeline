@@ -77,6 +77,25 @@ def _outfit_seed(char_id: str, generation: int, outfit_key: str) -> int:
     return int(h[:16], 16)
 
 
+def _inject_ref_image(wf: dict, ref_image: str, char_id: str, project_dir: str, comfyui, *, raise_on_error: bool = False) -> None:
+    """注入参考图到工作流的 IP-Adapter/PuLID LoadImage 节点"""
+    if not ref_image or not os.path.exists(ref_image):
+        return
+    from engines.workflow import find_character_load_image_nodes
+    char_nodes = find_character_load_image_nodes(wf)
+    if not char_nodes:
+        return
+    from infra.asset_tracker import comfyui_asset_name, AssetTracker
+    remote_name = comfyui_asset_name(project_dir, char_id, os.path.basename(ref_image))
+    wf[char_nodes[0]]["inputs"]["image"] = remote_name
+    try:
+        AssetTracker(project_dir).upload_if_needed(comfyui, ref_image, remote_name, comfyui.url)
+    except Exception as e:
+        if raise_on_error:
+            raise RuntimeError(f"参考图上传到 ComfyUI 失败: {e}") from e
+        logger.warning(f"参考图上传失败: {e}")
+
+
 def _generate_view(params: ViewGenParams) -> str:
     """生成单张视图，返回文件路径或空字符串"""
     p = params
@@ -94,25 +113,11 @@ def _generate_view(params: ViewGenParams) -> str:
     if not wf:
         return ""
 
-    # 注入参考图到 IP-Adapter（保持角色面部/体型一致性）
-    if p.ref_image and os.path.exists(p.ref_image):
-        from engines.workflow import find_character_load_image_nodes
-        char_nodes = find_character_load_image_nodes(wf)
-        if char_nodes:
-            from infra.asset_tracker import comfyui_asset_name, AssetTracker
-            remote_name = comfyui_asset_name(p.project_dir, p.char_id, os.path.basename(p.ref_image))
-            wf[char_nodes[0]]["inputs"]["image"] = remote_name
-            try:
-                tracker = AssetTracker(p.project_dir)
-                tracker.upload_if_needed(p.comfyui, p.ref_image, remote_name, p.comfyui.url)
-            except Exception as e:
-                logger.error(f"参考图上传失败，定妆照一致性可能受影响: {e}")
-                raise RuntimeError(f"参考图上传到 ComfyUI 失败: {e}") from e
+    _inject_ref_image(wf, p.ref_image, p.char_id, p.project_dir, p.comfyui, raise_on_error=True)
 
     files = p.comfyui.generate(wf, str(p.portrait_dir))
     if not files:
         return ""
-    # 重命名为目标文件名（跨文件系统自动回退到 copy2）
     target = p.portrait_dir / p.filename
     try:
         _safe_rename(files[0], str(target))
@@ -294,17 +299,7 @@ def _generate_single_outfit(comfyui, wb, char_id: str, outfit_key: str,
     if not wf:
         return None
 
-    if cover_path.exists():
-        from engines.workflow import find_character_load_image_nodes
-        from infra.asset_tracker import comfyui_asset_name, AssetTracker
-        char_nodes = find_character_load_image_nodes(wf)
-        if char_nodes:
-            remote_name = comfyui_asset_name(project_dir, char_id, os.path.basename(str(cover_path)))
-            wf[char_nodes[0]]["inputs"]["image"] = remote_name
-            try:
-                AssetTracker(project_dir).upload_if_needed(comfyui, str(cover_path), remote_name, comfyui.url)
-            except Exception as e:
-                logger.warning(f"参考图上传失败: {e}")
+    _inject_ref_image(wf, str(cover_path) if cover_path.exists() else None, char_id, project_dir, comfyui)
 
     try:
         files = comfyui.generate(wf, str(outfit_dir))

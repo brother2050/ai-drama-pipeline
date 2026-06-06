@@ -104,6 +104,15 @@ class ImportShot(BaseModel):
             raise ValueError("shot_id 只允许字母、数字、下划线、连字符")
         return v
 
+    @field_validator("characters")
+    @classmethod
+    def validate_characters(cls, v: str) -> str:
+        """规范化 characters 字段：清理多余 + 号和空白"""
+        if not v:
+            return v
+        parts = [p.strip() for p in v.split("+") if p.strip()]
+        return "+".join(parts)
+
     @field_validator("duration", mode="before")
     @classmethod
     def coerce_duration(cls, v):
