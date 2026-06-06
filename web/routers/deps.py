@@ -27,11 +27,13 @@ def _get_config():
     global _cfg_instance
     from infra.config import Config
     path = _cfg_path()
+    # 快速路径：已缓存且未变化（锁外检查 mtime，避免 I/O 阻塞其他线程）
+    if _cfg_instance is not None and _cfg_instance.path == path:
+        _cfg_instance._check_reload()
+        return _cfg_instance
     with _cfg_lock:
         if _cfg_instance is None or _cfg_instance.path != path:
             _cfg_instance = Config(path)
-        else:
-            _cfg_instance._check_reload()
         return _cfg_instance
 
 

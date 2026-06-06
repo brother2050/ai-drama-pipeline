@@ -19,12 +19,11 @@ _cfg_cache_lock = threading.Lock()
 def _get_config(config_path: str):
     """获取缓存的 Config 实例（mtime 变化时自动重载）"""
     from infra.config import Config
-    # 快速路径：已缓存
-    with _cfg_cache_lock:
-        cfg = _cfg_cache.get(config_path)
-        if cfg is not None:
-            cfg._check_reload()
-            return cfg
+    # 快速路径：已缓存且未变化（锁外检查 mtime，避免 I/O 阻塞其他线程）
+    cfg = _cfg_cache.get(config_path)
+    if cfg is not None:
+        cfg._check_reload()
+        return cfg
     # 慢路径：首次创建
     cfg = Config(config_path)
     with _cfg_cache_lock:
