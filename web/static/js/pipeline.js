@@ -205,10 +205,12 @@ const _SHOTTYPE_KEYS = ['closeup', 'medium_close', 'medium', 'over_shoulder', 'f
 /** 英文 key → 中文值（后端/DB 存中文，前端编辑器用英文 key） */
 const _CAMERA_KEY_TO_ZH = { fixed: '固定', push_in: '缓慢推近', pan: '跟随平移', handheld: '手持晃动', orbit: '环绕', top: '俯视', bottom: '仰视' };
 const _SHOTTYPE_KEY_TO_ZH = { closeup: '特写', medium_close: '近景', medium: '中景', over_shoulder: '过肩', full: '全身', wide: '全景', extreme_wide: '远景' };
+const _CAMERA_ZH_TO_KEY = Object.fromEntries(Object.entries(_CAMERA_KEY_TO_ZH).map(([k, v]) => [v, k]));
+const _SHOTTYPE_ZH_TO_KEY = Object.fromEntries(Object.entries(_SHOTTYPE_KEY_TO_ZH).map(([k, v]) => [v, k]));
 function _cameraToBackend(v) { return _CAMERA_KEY_TO_ZH[v] || v; }
 function _shotTypeToBackend(v) { return _SHOTTYPE_KEY_TO_ZH[v] || v; }
-function _cameraFromBackend(v) { for (const [k, zh] of Object.entries(_CAMERA_KEY_TO_ZH)) { if (zh === v) return k; } return v; }
-function _shotTypeFromBackend(v) { for (const [k, zh] of Object.entries(_SHOTTYPE_KEY_TO_ZH)) { if (zh === v) return k; } return v; }
+function _cameraFromBackend(v) { return _CAMERA_ZH_TO_KEY[v] || v; }
+function _shotTypeFromBackend(v) { return _SHOTTYPE_ZH_TO_KEY[v] || v; }
 /** 镜头默认值（新建镜头 / AI 编辑兜底共用） */
 const _DEFAULT_SHOT = () => ({ shot_id: '', scene_id: '', characters: '', action: '', dialogue: '',
   camera: _CAMERA_KEYS[0], shot_type: _SHOTTYPE_KEYS[2], duration: 4, emotion: 'neutral',

@@ -5,6 +5,7 @@ from infra.config import load_yaml_full
 import logging
 import os
 import shutil
+import tempfile
 import yaml
 from pathlib import Path
 
@@ -70,7 +71,6 @@ async def upload_entity_image(entity_type: str, entity_id: str, file: UploadFile
     filename = f"cover{detected}"
     dest = asset_dir / filename
     # 原子写入：先写临时文件再 rename，防并发/崩溃损坏
-    import tempfile
     fd, tmp = tempfile.mkstemp(dir=str(asset_dir), suffix=".tmp")
     try:
         with os.fdopen(fd, "wb") as f:
