@@ -142,16 +142,14 @@ class ConsistencyChecker:
         for shot in shots:
             sid = shot.get("shot_id", "?")
             try:
-                try:
-                    d = round(float(shot.get("duration", 4)))
-                except (ValueError, TypeError):
-                    d = 4
-                if d < 2:
-                    errors.append(f"镜头 {sid}: 时长过短 ({d}s < 2s)")
-                elif d > 8:
-                    errors.append(f"镜头 {sid}: 时长过长 ({d}s > 8s)")
+                d = round(float(shot.get("duration", 4)))
             except (ValueError, TypeError):
                 errors.append(f"镜头 {sid}: 时长格式错误 ({shot.get('duration')})")
+                continue
+            if d < 2:
+                errors.append(f"镜头 {sid}: 时长过短 ({d}s < 2s)")
+            elif d > 8:
+                errors.append(f"镜头 {sid}: 时长过长 ({d}s > 8s)")
         return errors
 
     def _check_shot_id_unique(self, shots: list[dict]) -> list[str]:
