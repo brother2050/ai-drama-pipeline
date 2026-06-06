@@ -5,7 +5,6 @@ from infra.constants import STATUS_DONE, STATUS_ERROR
 import json
 import logging
 import re
-from itertools import zip_longest
 
 from pipeline.celery_app import app
 from pipeline.tasks.helpers import _init_ctx, _project_scope_from_config
@@ -280,13 +279,13 @@ def ai_prepare_task(self, config_path: str, episode: int,
 
 
 def _serialize_dict_values(d: dict) -> str:
-    """将 dict 值序列化为编号文本（翻译用）"""
-    return "\n".join(f"{i+1}. {v}" for i, v in enumerate(d.values()) if v)
+    """将 dict 值序列化为编号文本（翻译用），保留空值占位"""
+    return "\n".join(f"{i+1}. {v}" for i, v in enumerate(d.values()))
 
 
 def _serialize_list_items(items: list) -> str:
-    """将 list 项序列化为编号文本（翻译用）"""
-    return "\n".join(f"{i+1}. {v}" for i, v in enumerate(items) if v)
+    """将 list 项序列化为编号文本（翻译用），保留空值占位"""
+    return "\n".join(f"{i+1}. {v}" for i, v in enumerate(items))
 
 
 def _deserialize_numbered(raw: str, keys: list | None = None, originals: dict | None = None) -> dict | list:
@@ -299,14 +298,15 @@ def _deserialize_numbered(raw: str, keys: list | None = None, originals: dict | 
     """
     lines = []
     for line in raw.strip().splitlines():
-        m = re.match(r"^\d+\s*[.)]\s*(.+)", line.strip())
+        m = re.match(r"^(\d+)\s*[.):：\-）]\s*(.+)", line.strip())
         if m:
-            lines.append(m.group(1).strip())
+            lines.append(m.group(2).strip())
     if keys is not None:
         result = {}
-        for k, v in zip_longest(keys, lines, fillvalue=""):
-            if k:
-                result[k] = v or (originals or {}).get(k, "")
+        for i, k in enumerate(keys):
+            translated = lines[i] if i < len(lines) else ""
+            orig_val = (originals or {}).get(k, "")
+            result[k] = translated or orig_val
         return result
     return lines
 

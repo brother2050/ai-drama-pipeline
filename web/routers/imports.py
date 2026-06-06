@@ -275,7 +275,7 @@ def training_status(char_id: str) -> dict:
 # 导入提示词模板
 # ══════════════════════════════════════════════════════════
 
-def _load_prompt_presets() -> dict:
+def _load_prompt_presets(style: str = "", genre: str = "") -> dict:
     """加载系统预设（shot_types/cameras/emotions/style_desc/genre_desc）"""
     from infra.config import SYSTEM_CONFIG_PATH
     presets = {"style_desc": "", "genre_desc": "", "shot_types_str": "", "cameras_str": "", "emotions_str": ""}
@@ -287,6 +287,10 @@ def _load_prompt_presets() -> dict:
     presets["shot_types_str"] = "、".join(p.get("shot_types", {}).keys()) or ""
     presets["cameras_str"] = "、".join(p.get("cameras", {}).keys()) or ""
     presets["emotions_str"] = "、".join(p.get("emotions", {}).keys()) or ""
+    if style:
+        presets["style_desc"] = p.get("styles", {}).get(style, "")
+    if genre:
+        presets["genre_desc"] = p.get("genres", {}).get(genre, "")
     return presets
 
 
@@ -325,7 +329,7 @@ def get_import_prompt_template(params: ImportPromptParams = Depends()):
     if not tpl:
         raise HTTPException(404, f"模板 '{template_id}' 不存在，可用: {list(tpl_data.keys())}")
 
-    presets = _load_prompt_presets()
+    presets = _load_prompt_presets(params.style, params.genre)
     style_desc = params.style
     genre_desc = params.genre
     if presets.get("style_desc"):
