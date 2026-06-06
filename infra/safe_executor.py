@@ -39,6 +39,8 @@ T = TypeVar("T")
 __all__ = ["safe_run", "safe_map", "safe_task", "SafeExecutionError"]
 
 # 共享线程池（超时模式复用，避免反复创建销毁）
+# 注意：Python 线程无法强制终止，超时后仅通过 cancel_event 协作取消。
+# 如需强制终止，改用 ProcessPoolExecutor（但要求 fn 可 pickle，实例方法不可）。
 _shared_pool: concurrent.futures.ThreadPoolExecutor | None = None
 _shared_pool_lock = threading.Lock()
 
@@ -50,6 +52,19 @@ def _shared_executor() -> concurrent.futures.ThreadPoolExecutor:
             if _shared_pool is None:
                 _shared_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="safe_exec")
     return _shared_pool
+
+
+# 注册清理钩子：进程退出时关闭进程池
+try:
+    from infra.hooks import on_cleanup
+    def _shutdown_pool():
+        global _shared_pool
+        if _shared_pool is not None:
+            _shared_pool.shutdown(wait=False, cancel_futures=True)
+            _shared_pool = None
+    on_cleanup(priority=90)(_shutdown_pool)
+except ImportError:
+    pass
 
 
 class SafeExecutionError(Exception):
@@ -118,21 +133,19 @@ def safe_run(
             cancel_event.clear()
         try:
             if timeout:
-                # 复用线程池：所有重试共享同一个 executor，避免反复创建销毁
-                with _shared_executor() as te:
-                    future = te.submit(fn, *args, **kwargs)
-                    try:
-                        return future.result(timeout=timeout)
-                    except concurrent.futures.TimeoutError:
-                        # 后台线程无法取消（Python 不支持强制终止线程），
-                        # 通过 cancel_event 通知 fn 协作退出，线程将在完成后自动回收。
-                        if cancel_event:
-                            cancel_event.set()
-                        logger.warning(
-                            f"[SafeExecutor] {task_id or fn.__name__}: "
-                            f"执行超时 ({timeout}s)，后台线程继续运行直至完成"
-                        )
-                        raise
+                # 线程池：超时后通过 cancel_event 协作取消（Python 线程无法强制终止）
+                pool = _shared_executor()
+                future = pool.submit(fn, *args, **kwargs)
+                try:
+                    return future.result(timeout=timeout)
+                except concurrent.futures.TimeoutError:
+                    if cancel_event:
+                        cancel_event.set()
+                    logger.warning(
+                        f"[SafeExecutor] {task_id or fn.__name__}: "
+                        f"执行超时 ({timeout}s)，后台线程继续运行直至完成"
+                    )
+                    raise
             else:
                 return fn(*args, **kwargs)
         except retryable as e:
