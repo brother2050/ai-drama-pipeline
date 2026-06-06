@@ -463,15 +463,17 @@ def inject_lora(wf: dict, lora_path: str, strength: float = 0.7,
     if isinstance(clip_ref, list) and len(clip_ref) == 2:
         clip_source, clip_output_idx = clip_ref[0], clip_ref[1]
     else:
-        clip_source, clip_output_idx = None, 0
-        if wf.get(model_source, {}).get("class_type") == "CheckpointLoaderSimple":
-            clip_source = model_source
-            clip_output_idx = 1
+        # 沿 model_source 回溯 CLIP（CheckpointLoader/LoraLoader 都输出 model+clip）
+        src_class = wf.get(model_source, {}).get("class_type", "")
+        if src_class in ("CheckpointLoaderSimple", "LoraLoader"):
+            clip_source, clip_output_idx = model_source, 1
         else:
+            # UNETLoader 无 CLIP 输出，找独立的 CLIPLoader
             clip_source = (find_first_node(wf, "DualCLIPLoader")
                            or find_first_node(wf, "CLIPLoader"))
-        if not clip_source:
-            logger.warning(f"inject_lora: 未找到 CLIP 来源节点，LoRA clip 将指向 model 节点（可能不正确）")
+            clip_output_idx = 0
+            if not clip_source:
+                logger.warning(f"inject_lora: 未找到 CLIP 来源节点，LoRA clip 将指向 model 节点（可能不正确）")
 
     lora_node_id = f"lora_{Path(lora_path).stem}_{next(_suffix_counter)}"
     if not lora_name:

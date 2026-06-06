@@ -234,7 +234,8 @@ class PromptCompiler:
             if result:
                 return self._clean_tag_prompt(result)
 
-        # 回退：硬编码逻辑
+        # 回退：硬编码逻辑（模板缺失时使用）
+        logger.warning("first_frame_tag 模板缺失，使用硬编码回退")
         parts = []
         for key in ("style_tag", "genre_tag", "scene", "character", "action"):
             val = variables.get(key, "")
@@ -254,7 +255,8 @@ class PromptCompiler:
             if result:
                 return result
 
-        # 回退：硬编码逻辑
+        # 回退：硬编码逻辑（模板缺失时使用）
+        logger.warning("first_frame_natural 模板缺失，使用硬编码回退")
         sentences = []
 
         # 第一句：风格 + 场景

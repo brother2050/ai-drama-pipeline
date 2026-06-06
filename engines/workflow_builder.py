@@ -195,6 +195,14 @@ class WorkflowBuilder:
         # 视频帧数由 build_video() → _apply_duration() 根据镜头 duration 动态计算，
         # 不再从 generation.video_frames 硬编码读取。
 
+        # 检测未覆盖的 latent 节点
+        latent_classes = {"EmptyLatentImage", "EmptySD3LatentImage", "ImageScale",
+                          "EmptyImage", "LatentUpscale", "LatentBatch"}
+        uncovered = [f"{nid}({node.get('class_type', '?')})" for nid, node in wf.items()
+                     if node.get("class_type", "") in latent_classes and node.get("class_type", "") not in _RESIZE_NODES]
+        if uncovered:
+            logger.warning(f"  ⚠ {stage}: 未覆盖的 latent 节点（分辨率未调整）: {uncovered}")
+
     # ── Seed 随机化 ────────────────────────────────────────
 
     @staticmethod
@@ -535,6 +543,7 @@ class WorkflowBuilder:
         """
         wf = copy.deepcopy(self.video_wf)
         if not wf:
+            logger.warning("build_video: video_wf 为空，无法构建视频工作流")
             return {}
 
         # 设置首帧图

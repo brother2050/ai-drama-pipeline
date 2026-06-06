@@ -254,7 +254,7 @@ class QualityGate:
         for shot in shots:
             sid = shot.get("shot_id", "")
             dialogue = shot.get("dialogue", "").strip()
-            if not sid or not dialogue or set(dialogue) <= {".", "…"}:
+            if not sid or not dialogue or set(dialogue) <= {".", "…", " ", "-", "—", "~"}:
                 continue
             audio = out_dir / f"s{sid}" / "audio.wav"
             if not audio.exists():
