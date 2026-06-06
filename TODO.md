@@ -33,5 +33,21 @@
 
 ## ⏳ 待补充
 
-- audit2-frontend-api（前端 JS ↔ 后端 API 契约）— 进行中
-- audit2-celery（Celery 任务流）— 进行中
+- audit2-celery（Celery 任务流）— 审查完成，无问题
+- audit2-frontend-api（前端 JS ↔ 后端 API 契约）— 审查完成，已修复 2 项
+
+### 前端↔API 契约审查结果
+
+| 问题 | 文件 | 状态 |
+|------|------|------|
+| prepare 结果字段名不匹配（prompt_chars vs characters） | pipeline.js | ✅ 已修复 |
+| camera/shot_type 英文 key ↔ 中文值转换缺失 | pipeline.js + ai-gen.js | ✅ 已修复 |
+
+### Celery 任务流审查结果
+
+- 所有任务正确使用 `project_scope` 绑定项目
+- `_prepare` 防重复机制完整（advisory lock + DB 状态检查）
+- 步骤依赖链正确（video 依赖 first_frame，lipsync 依赖 video+tts）
+- 失败重试机制就绪（`_retry_failed` 一次重试）
+- 任务状态上报一致（`update_state` PROGRESS/SUCCESS/FAILURE）
+- 无发现新问题
