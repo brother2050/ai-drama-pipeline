@@ -70,11 +70,15 @@ def register_system_commands(cli):
             sys.exit(1)
 
         console.print(f"\n[bold cyan]🔧 Celery Worker 启动中 (并发: {concurrency})[/bold cyan]\n")
+        from infra.config import REPO_LOGS_DIR
+        log_file = str(REPO_LOGS_DIR / "worker.log")
+        REPO_LOGS_DIR.mkdir(parents=True, exist_ok=True)
         os.execvp(celery, [
             celery, "-A", "pipeline.celery_app", "worker",
             "--loglevel=info", f"--concurrency={concurrency}",
             "-Q", "drama",
             "--pool=threads",
+            f"--logfile={log_file}",
         ])
 
     @cli.command()
