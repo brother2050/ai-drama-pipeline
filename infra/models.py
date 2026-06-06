@@ -188,8 +188,8 @@ def get_translation_status(plan: ImportPlan) -> dict:
 
 def _resolve_existing_ids(plan: ImportPlan, project_dir: Path | None,
                           existing_char_ids: set[str] | None,
-                          existing_scene_ids: set[str] | None) -> tuple[set[str], set[str], set[str]]:
-    """收集所有已知的角色/场景 ID + 已有镜头 ID"""
+                          existing_scene_ids: set[str] | None) -> tuple[set[str], set[str], set[tuple[int, str]]]:
+    """收集所有已知的角色/场景 ID + 已有镜头 (episode, shot_id) 对"""
     from infra.config import ProjectPaths, load_yaml_entities
 
     char_ids = {c.id for c in plan.characters}
@@ -199,7 +199,7 @@ def _resolve_existing_ids(plan: ImportPlan, project_dir: Path | None,
     if existing_scene_ids:
         scene_ids |= existing_scene_ids
 
-    existing_shots: set[str] = set()
+    existing_shots: set[tuple[int, str]] = set()
     if project_dir and project_dir.exists():
         paths = ProjectPaths(project_dir)
         char_ids |= {e["id"] for e in load_yaml_entities(paths.characters_dir, "character")}
@@ -207,9 +207,10 @@ def _resolve_existing_ids(plan: ImportPlan, project_dir: Path | None,
         try:
             from infra.database.pool import get_pool
             from infra.database.storyboard_db import get_all_shots
-            existing_shots = {r["shot_id"] for r in get_all_shots(get_pool()) if r.get("shot_id")}
+            existing_shots = {(r.get("episode", 0), r.get("shot_id", ""))
+                              for r in get_all_shots(get_pool()) if r.get("shot_id")}
         except Exception as e:
-            logger.debug(f"读取已有镜头 ID 跳过: {e}")
+            logger.warning(f"读取已有镜头 ID 跳过（DB 不可用？）: {e}")
 
     return char_ids, scene_ids, existing_shots
 
@@ -251,18 +252,27 @@ class ImportValidator:
         char_ids, scene_ids, existing_shots = _resolve_existing_ids(
             plan, project_dir, existing_char_ids, existing_scene_ids)
 
-        # 已有镜头重复检查
-        for sid in existing_shots:
-            if sid in {s.shot_id for s in plan.shots}:
-                errors.append(f"shots: 镜头 ID '{sid}' 与已有项目重复")
+        # 已有镜头重复检查（按 episode+shot_id，DB 约束是 (project, episode, shot_id)）
+        for shot in plan.shots:
+            try:
+                ep = int(shot.episode)
+            except (ValueError, TypeError):
+                continue
+            if (ep, shot.shot_id) in existing_shots:
+                errors.append(f"shots: 第{ep}集镜头 ID '{shot.shot_id}' 与已有项目重复")
 
-        # shot_id 唯一性
-        seen_ids: dict[str, int] = {}
+        # shot_id 唯一性（按 episode 分组检查，DB 约束是 (project, episode, shot_id)）
+        seen_ids: dict[tuple[int, str], int] = {}
         for i, shot in enumerate(plan.shots):
-            if shot.shot_id in seen_ids:
-                errors.append(f"shots[{i}].shot_id: 镜头 ID '{shot.shot_id}' 与 shots[{seen_ids[shot.shot_id]}] 重复")
+            try:
+                ep = int(shot.episode)
+            except (ValueError, TypeError):
+                continue  # episode 校验已在上方处理
+            key = (ep, shot.shot_id)
+            if key in seen_ids:
+                errors.append(f"shots[{i}].shot_id: 第{ep}集镜头 ID '{shot.shot_id}' 与 shots[{seen_ids[key]}] 重复")
             else:
-                seen_ids[shot.shot_id] = i
+                seen_ids[key] = i
 
         # episode 范围校验
         max_episode = plan.episodes if plan.episodes > 0 else 1

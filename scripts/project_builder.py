@@ -174,13 +174,11 @@ class ProjectBuilder:
         existing_ids: set[str] = set()
         try:
             from infra.database.pool import get_pool
-            from infra.database.storyboard_db import get_all_episodes, get_episode_shots
-            pool = get_pool()
-            for ep in get_all_episodes(pool):
-                for row in get_episode_shots(pool, ep):
-                    sid = row.get("shot_id", "")
-                    if sid:
-                        existing_ids.add(sid)
+            from infra.database.storyboard_db import get_all_shots
+            for row in get_all_shots(get_pool()):
+                sid = row.get("shot_id", "")
+                if sid:
+                    existing_ids.add(sid)
         except Exception as e:
             logger.debug(f"读取已有镜头 ID 跳过: {e}")
 

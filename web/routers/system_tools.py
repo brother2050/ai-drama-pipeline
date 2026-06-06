@@ -491,6 +491,8 @@ _STEP_TASKS = {
 
 def _make_step_handler(task_name: str, summary: str):
     def handler(req: StepRequest):
+        _check_episode(req.episode)
+        _check_id(req.shot_id, "shot_id")
         import pipeline.tasks as tasks
         task_fn = getattr(tasks, task_name)
         return _submit_task(task_fn, _cfg_path(), req.episode, req.shot_id, req.force)

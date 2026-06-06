@@ -403,8 +403,8 @@ class WorkflowBuilder:
                 bible = CharacterBible(self.project_dir)
                 prompt_style = self.registry.get_prompt_style(img_backend) if img_backend else "tag"
                 character_bible = bible.get_tags(char_ids[0]) if prompt_style == "tag" else bible.get_context(char_ids[0])
-            except Exception:
-                logger.debug("角色圣经加载跳过")
+            except Exception as e:
+                logger.warning(f"角色圣经加载跳过（配置可能有误）: {e}")
 
         positive = build_prompt(PromptBuildParams(
             shot=shot, character_desc=character_desc,

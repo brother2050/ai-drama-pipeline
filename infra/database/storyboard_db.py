@@ -13,10 +13,9 @@ logger = logging.getLogger(__name__)
 
 
 def _sanitize_duration(data: dict) -> None:
-    """验证 duration 字段，非法值就地修正为 4（就地修改 dict）"""
-    d = safe_float(data.get("duration", 4), default=-1)
-    if d < 0:
-        data["duration"] = 4
+    """验证 duration 字段，非法值就地修正为合法范围（就地修改 dict）"""
+    from infra.constants import clip_duration
+    data["duration"] = clip_duration(data.get("duration"))
 
 __all__ = ["get_episode_shots", "get_all_episodes", "get_episodes_summary", "get_all_shots", "save_episode_shots", "upsert_shot", "delete_episode", "batch_delete_shots", "export_to_csv"]
 

@@ -17,6 +17,12 @@ from web.routers.deps import (
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+_MEDIA_TYPES = {
+    ".wav": "audio/wav", ".mp3": "audio/mpeg",
+    ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+    ".mp4": "video/mp4", ".webm": "video/webm",
+}
+
 from web.schemas import (  # noqa: E402
     PipelineRequest, PrepareRequest,
     StoryboardGenRequest, CharacterGenRequest, SceneGenRequest,
@@ -105,6 +111,7 @@ def delete_episode(episode: int) -> dict:
     ep_dir = p.episode_dir(episode)
     if not ep_dir.exists():
         raise HTTPException(404, f"第 {episode} 集不存在")
+    # DB 先删（失败则中止，避免文件删了 DB 残留孤儿记录）
     removed_shots = 0
     try:
         from infra.database.storyboard_db import delete_episode as db_delete_ep
@@ -113,7 +120,8 @@ def delete_episode(episode: int) -> dict:
         removed_shots = db_delete_ep(pool, episode)
         clear_episode(pool, episode)
     except Exception as e:
-        logger.warning(f"DB 删除失败: {e}")
+        logger.error(f"DB 删除失败，中止文件清理: {e}")
+        raise HTTPException(500, f"数据库删除失败: {e}")
     shutil.rmtree(ep_dir, ignore_errors=True)
     return {"status": "ok", "episode": episode, "removed_shots": removed_shots}
 
@@ -300,12 +308,7 @@ def get_shot_file(episode: int, shot_id: str, filename: str):
     if not file_path.exists():
         raise HTTPException(404, f"文件不存在: {filename}")
     ext = file_path.suffix.lower()
-    media_types = {
-        ".wav": "audio/wav", ".mp3": "audio/mpeg",
-        ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-        ".mp4": "video/mp4", ".webm": "video/webm",
-    }
-    return FileResponse(str(file_path), media_type=media_types.get(ext, "application/octet-stream"))
+    return FileResponse(str(file_path), media_type=_MEDIA_TYPES.get(ext, "application/octet-stream"))
 
 
 @router.get("/project-file/{path:path}")
@@ -316,12 +319,7 @@ def get_project_file(path: str):
     if not file_path.exists():
         raise HTTPException(404, f"文件不存在: {path}")
     ext = file_path.suffix.lower()
-    media_types = {
-        ".wav": "audio/wav", ".mp3": "audio/mpeg",
-        ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
-        ".mp4": "video/mp4", ".webm": "video/webm",
-    }
-    return FileResponse(str(file_path), media_type=media_types.get(ext, "application/octet-stream"))
+    return FileResponse(str(file_path), media_type=_MEDIA_TYPES.get(ext, "application/octet-stream"))
 
 
 @router.get("/shots/{episode}/final/resources")

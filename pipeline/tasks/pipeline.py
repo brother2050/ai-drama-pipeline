@@ -84,7 +84,7 @@ def _preload_shot_data(cfg):
 def _run_shot_steps(self, config_path, episode, shot_id, force, ctx):
     """执行单镜头的 4 个步骤（tts → first_frame → video → lipsync）"""
     steps = [("tts", _run_tts), ("first_frame", _run_first_frame), ("video", _run_video), ("lipsync", _run_lipsync)]
-    skip_deps = {"video": ["first_frame"], "lipsync": ["video", "tts"]}
+    skip_deps = {"first_frame": ["tts"], "video": ["first_frame"], "lipsync": ["video", "tts"]}
     results = {}
 
     for i, (name, fn) in enumerate(steps):

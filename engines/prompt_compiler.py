@@ -262,10 +262,14 @@ class PromptCompiler:
         # 回退：硬编码逻辑（模板缺失时使用）
         logger.warning("first_frame_tag 模板缺失，使用硬编码回退")
         parts = []
-        for key in ("style_tag", "genre_tag", "scene", "character", "action"):
+        for key in ("style_tag", "genre_tag", "scene", "character"):
             val = variables.get(key, "")
             if val:
                 parts.append(val)
+        # action 需要 ASCII 检查（SD1.5/SDXL 的 CLIP 编码器不支持中文）
+        action = variables.get("action", "")
+        if action and is_ascii_only(action):
+            parts.append(action)
         # 无角色时跳过 emotion（避免场景图带 "neutral expression" tag）
         if variables.get("character"):
             parts.append(variables.get("emotion_desc", "neutral expression"))
