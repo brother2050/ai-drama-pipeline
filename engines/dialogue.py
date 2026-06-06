@@ -39,11 +39,11 @@ def parse_dialogue(raw: str) -> list[DialogueLine]:
         part = part.strip()
         if not part or set(part) <= _EMPTY_DIALOGUE:
             continue
-        speaker, _, text = part.partition("：")
-        if not text:
+        speaker, sep, text = part.partition("：")
+        if not sep:
             # 兼容英文冒号
-            speaker, _, text = part.partition(":")
-        if text:
+            speaker, sep, text = part.partition(":")
+        if sep:
             lines.append(DialogueLine(speaker=speaker.strip(), text=text.strip()))
         else:
             # 无冒号 → 整行作为台词（降级兼容）
@@ -60,6 +60,8 @@ def concat_wav(parts: list[str | Path], output: str | Path) -> str:
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
 
+    if not parts:
+        raise ValueError("concat_wav: parts 不能为空")
     if len(parts) == 1:
         # 单文件：直接复制，无需解析
         data = Path(parts[0]).read_bytes()

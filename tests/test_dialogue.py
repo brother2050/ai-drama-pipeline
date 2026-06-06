@@ -59,6 +59,14 @@ class TestParseDialogue:
         assert lines[0].speaker == ""
         assert lines[0].text == "你好"
 
+    def test_empty_text_after_colon(self):
+        """'林夏：' → speaker='林夏', text=''"""
+        from engines.dialogue import parse_dialogue
+        lines = parse_dialogue("林夏：")
+        assert len(lines) == 1
+        assert lines[0].speaker == "林夏"
+        assert lines[0].text == ""
+
     def test_multi_line_with_empty(self):
         """多人对话中混有空行"""
         from engines.dialogue import parse_dialogue
