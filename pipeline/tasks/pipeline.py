@@ -87,16 +87,17 @@ def _preload_shot_data(cfg):
 def _run_shot_steps(self, config_path, episode, shot_id, force, ctx):
     """执行单镜头的 4 个步骤（tts → first_frame → video → lipsync）"""
     steps = [("tts", _run_tts), ("first_frame", _run_first_frame), ("video", _run_video), ("lipsync", _run_lipsync)]
-    skip_deps = {"video": "first_frame", "lipsync": "video"}
+    skip_deps = {"video": ["first_frame"], "lipsync": ["video", "tts"]}
     results = {}
 
     for i, (name, fn) in enumerate(steps):
-        dep = skip_deps.get(name)
-        if dep and results.get(dep, {}).get("status") == STATUS_ERROR:
+        deps = skip_deps.get(name, [])
+        failed_deps = [d for d in deps if results.get(d, {}).get("status") == STATUS_ERROR]
+        if failed_deps:
             results[name] = {"shot_id": shot_id, "step": name, "status": STATUS_SKIPPED,
-                             "reason": f"前置步骤 {dep} 失败，跳过"}
+                             "reason": f"前置步骤 {', '.join(failed_deps)} 失败，跳过"}
             _db_record_step(episode, shot_id, name, results[name])
-            logger.warning(f"[{shot_id}] {name}: 跳过（前置步骤 {dep} 失败）")
+            logger.warning(f"[{shot_id}] {name}: 跳过（前置步骤 {', '.join(failed_deps)} 失败）")
             continue
 
         self.update_state(state="PROGRESS", meta={"step": name, "shot_id": shot_id,

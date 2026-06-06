@@ -89,7 +89,8 @@ def save_episode_shots(pool, episode: int, shots: list[dict]) -> int:
     写入前验证数据完整性（NaN/负数/空 shot_id）。
     """
     project = _get_project()
-    # 写入前验证
+    # 写入前验证 + 过滤无效镜头
+    valid_shots = []
     for shot in shots:
         dur = shot.get("duration", 4)
         try:
@@ -99,15 +100,17 @@ def save_episode_shots(pool, episode: int, shots: list[dict]) -> int:
         except (ValueError, TypeError):
             shot["duration"] = 4
         if not shot.get("shot_id"):
-            shot["shot_id"] = "000"
+            logger.warning(f"跳过无 shot_id 的镜头: {shot.get('action', '?')[:50]}")
+            continue
+        valid_shots.append(shot)
     cols = ", ".join(_INSERT_COLS)
     ph = ", ".join(["%s"] * len(_INSERT_COLS))
     sql = f"INSERT INTO shots ({cols}) VALUES ({ph}) ON CONFLICT (project, episode, shot_id) DO UPDATE SET {_UPSERT_SET}"
-    new_ids = [s.get("shot_id", "") for s in shots if s.get("shot_id")]
+    new_ids = [s.get("shot_id", "") for s in valid_shots if s.get("shot_id")]
     with pool.connection() as conn:
         cur = conn.cursor()
         try:
-            for shot in shots:
+            for shot in valid_shots:
                 cur.execute(sql, _values(project, episode, shot))
             if new_ids:
                 cur.execute(
@@ -116,7 +119,7 @@ def save_episode_shots(pool, episode: int, shots: list[dict]) -> int:
             else:
                 cur.execute("DELETE FROM shots WHERE project = %s AND episode = %s", (project, episode))
             conn.commit()
-            return len(shots)
+            return len(valid_shots)
         except Exception:
             conn.rollback()
             raise
@@ -141,6 +144,35 @@ def upsert_shot(pool, episode: int, shot_id: str, data: dict):
     sql = f"INSERT INTO shots ({cols}) VALUES ({ph}) ON CONFLICT (project, episode, shot_id) DO UPDATE SET {_UPSERT_SET}"
     with query(pool) as cur:
         cur.execute(sql, _values(project, episode, {**data, "shot_id": shot_id}))
+
+
+def batch_upsert_shots(pool, shots: list[tuple[int, str, dict]]) -> int:
+    """批量写入/更新镜头（单连接 + 单事务，保证原子性）
+
+    Args:
+        shots: [(episode, shot_id, data), ...] 列表
+
+    Returns:
+        写入数
+    """
+    project = _get_project()
+    cols = ", ".join(_INSERT_COLS)
+    ph = ", ".join(["%s"] * len(_INSERT_COLS))
+    sql = f"INSERT INTO shots ({cols}) VALUES ({ph}) ON CONFLICT (project, episode, shot_id) DO UPDATE SET {_UPSERT_SET}"
+    count = 0
+    with query(pool) as cur:
+        for episode, shot_id, data in shots:
+            data = {**data}
+            dur = data.get("duration", 4)
+            try:
+                d = float(dur)
+                if math.isnan(d) or math.isinf(d) or d < 0:
+                    data["duration"] = 4
+            except (ValueError, TypeError):
+                data["duration"] = 4
+            cur.execute(sql, _values(project, episode, {**data, "shot_id": shot_id}))
+            count += 1
+    return count
 
 
 def delete_episode(pool, episode: int) -> int:

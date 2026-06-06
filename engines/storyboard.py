@@ -41,7 +41,7 @@ def save_storyboard(shots: list[dict], episode: int, pool=None) -> None:
 
 
 def append_storyboard(shots: list[dict], episode: int | None = None, pool=None) -> None:
-    """追加镜头到 DB（批量 upsert）
+    """追加镜头到 DB（批量 upsert，单事务保证原子性）
 
     Args:
         shots: 镜头列表
@@ -50,9 +50,9 @@ def append_storyboard(shots: list[dict], episode: int | None = None, pool=None) 
     """
     if not shots:
         return
-    from infra.database.storyboard_db import upsert_shot
+    from infra.database.storyboard_db import batch_upsert_shots
     pool = pool or _pool()
-    count = 0
+    entries = []
     for shot in shots:
         ep = episode if episode is not None else shot.get("episode", 0)
         try:
@@ -64,9 +64,10 @@ def append_storyboard(shots: list[dict], episode: int | None = None, pool=None) 
         if ep < 1 or not sid:
             logger.warning(f"跳过镜头: episode={ep}, shot_id={sid!r}")
             continue
-        upsert_shot(pool, ep, sid, shot)
-        count += 1
-    logger.info(f"追加分镜: {count} 个镜头")
+        entries.append((ep, sid, shot))
+    if entries:
+        count = batch_upsert_shots(pool, entries)
+        logger.info(f"追加分镜: {count} 个镜头")
 
 
 # ── 工具函数 ──
