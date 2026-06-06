@@ -67,9 +67,13 @@ def _view_seed(char_id: str, generation: int, view_index: int) -> int:
     return int(h[:16], 16)  # 64-bit seed, 碰撞概率 2^-64
 
 
-def _outfit_seed(char_id: str, generation: int, outfit_index: int) -> int:
-    """服装图 seed：同角色同代不同服装，不同角色完全隔离"""
-    h = hashlib.md5(f"{char_id}:gen{generation}:outfit{outfit_index}".encode("utf-8")).hexdigest()
+def _outfit_seed(char_id: str, generation: int, outfit_key: str) -> int:
+    """服装图 seed：同角色同代不同服装，不同角色完全隔离
+
+    使用 outfit_key（而非 index）使 seed 与 YAML 中的声明顺序无关，
+    避免用户调整 outfit 顺序后已生成图片与新 seed 不匹配。
+    """
+    h = hashlib.md5(f"{char_id}:gen{generation}:outfit:{outfit_key}".encode("utf-8")).hexdigest()
     return int(h[:16], 16)
 
 
@@ -135,6 +139,8 @@ def _generate_five_views(comfyui, wb, char_id: str, portrait_dir: Path,
         ref = None
         if i > 0 and cover_path.exists() and vk in ("three_quarter",):
             ref = str(cover_path)
+        elif i > 0 and not cover_path.exists() and vk == "three_quarter":
+            logger.warning(f"  ⚠ {label}视图: cover.png 不存在，three_quarter 无参考图，一致性可能受影响")
 
         result = _generate_view(ViewGenParams(
             comfyui=comfyui, wb=wb, char_id=char_id, portrait_dir=portrait_dir,
@@ -354,7 +360,7 @@ def _ensure_outfit_images(char_id: str, config: dict, container,
             logger.error(f"角色 '{char_id}' 的服装 '{outfit_key}' 尚未生成英文描述，{ERR_NOT_PREPARED}")
             continue
 
-        outfit_seed = _outfit_seed(char_id, generation, outfit_idx)
+        outfit_seed = _outfit_seed(char_id, generation, outfit_key)
         url = _generate_single_outfit(comfyui, wb, char_id, outfit_key,
                                       outfit_desc_en, appearance_en, portrait_dir,
                                       cover_path, project_dir, outfit_seed)

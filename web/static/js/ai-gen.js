@@ -183,7 +183,7 @@ const _debouncedSaveSB = debounce(async () => {
     invalidateCache(`storyboard/${ep}`);
     _sbDirty = false;
     toast(t('toast.saved'));
-  } catch (e) { toast(e.message, 'error'); }
+  } catch (e) { toast(e.message, 'error'); setTimeout(() => { if (_sbDirty) _debouncedSaveSB(); }, 5000); }
   finally { _sbSaving = false; }
 }, 1000);
 function updateShotField() {

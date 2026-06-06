@@ -335,6 +335,9 @@ async function deleteShot(idx) {
 
 async function runOne(step, idx) {
   const sid = _shotId(shots[idx], idx);
+  const key = `${step}-${idx}`;
+  if (_runningSteps.has(key)) return;
+  _runningSteps.add(key);
   const act = document.getElementById(`shot-${sid}`)?.querySelector('.wb-shot-actions');
   _html(act, `<span class="run-indicator">⏳ ${step}...</span> <button class="btn btn-xs btn-danger" onclick="cancelCurrentTask()">⏹</button>`);
   _updatePipelineStep(step, 'active');
@@ -355,6 +358,7 @@ async function runOne(step, idx) {
       toast(`❌ ${sid} ${step}: ${err}`, 'error'); _updatePipelineStep(step, 'fail');
     }
   } catch (e) { _currentTaskId = null; toast(`❌ ${sid}: ${e.message}`, 'error'); _updatePipelineStep(step, 'fail'); }
+  _runningSteps.delete(key);
   _html(act, _actionBtns(idx));
   invalidateCache(`res/${ep}/`);  // 清除该集所有镜头缓存（含聚合资源）
   loadResources(idx);

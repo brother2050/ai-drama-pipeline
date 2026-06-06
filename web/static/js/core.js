@@ -29,6 +29,7 @@ let ep = 1, shots = [], batchCancelled = false;
 const _undoStack = [], _redoStack = [];
 let _currentTaskId = null; // 当前正在执行的任务 ID（单任务）
 const _activeTaskIds = new Set(); // 所有活跃任务 ID（批量并发用）
+const _runningSteps = new Set(); // 正在执行的 shot+step 组合（防重复）
 
 // ── ID→名字显示映射 ──
 const _charNameMap = {};  // { 'ch_8a3f2b1c': '林夏', ... }
@@ -36,6 +37,9 @@ const _sceneNameMap = {}; // { 'sc_8a3f2b1c': '客厅', ... }
 
 async function _loadNameMaps() {
   try {
+    // 清空旧映射（防止删除/重命名后残留）
+    Object.keys(_charNameMap).forEach(k => delete _charNameMap[k]);
+    Object.keys(_sceneNameMap).forEach(k => delete _sceneNameMap[k]);
     const [charData, sceneData] = await Promise.all([
       cachedFetch('characters', () => api('/characters')),
       cachedFetch('scenes', () => api('/scenes')),
@@ -204,13 +208,14 @@ function _applyHistory(from, to, label) {
   if (!from.length) { toast(t('undo.no_action', { label }), 'error'); return; }
   const entry = from.pop();
   to.push({ shots: JSON.parse(JSON.stringify(shots)), desc: entry.desc });
+  const prevShots = JSON.parse(JSON.stringify(shots)); // 保存回滚快照
   shots = entry.shots;
   invalidateCache(`storyboard/${ep}`);
   api(`/storyboard/${ep}`, { method: 'POST', body: { shots } }).then(() => {
     toast(`${label === t('undo.undo') ? '↩' : '↪'} ${label}: ${entry.desc}`);
     const p = document.querySelector('.page.active');
     p?.id === 'page-storyboard' ? loadStoryboard() : renderShotsGrid();
-  }).catch(e => toast(e.message, 'error'));
+  }).catch(e => { shots = prevShots; toast(e.message, 'error'); });
 }
 function pushUndo(desc) { _undoStack.push({ shots: JSON.parse(JSON.stringify(shots)), desc }); if (_undoStack.length > MAX_UNDO) _undoStack.shift(); _redoStack.length = 0; }
 function undo() { _applyHistory(_undoStack, _redoStack, t('undo.undo')); }

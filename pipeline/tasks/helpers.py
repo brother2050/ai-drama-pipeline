@@ -114,14 +114,14 @@ def _try_mark_running_atomic(episode: int, shot_id: str, step: str) -> bool:
         with pool.connection() as conn:
             cur = conn.cursor()
             try:
-                # 尝试插入；已存在则检查是否可抢占（非 running 或已 stale >10min）
+                # 尝试插入；已存在则检查是否可抢占（非 running 或已 stale >30min）
                 cur.execute(f"""
                     INSERT INTO generation_status (project, episode, shot_id, stage, status, updated_at)
                     VALUES ({placeholder()}, {placeholder()}, {placeholder()}, {placeholder()}, 'running', CURRENT_TIMESTAMP)
                     ON CONFLICT (project, episode, shot_id, stage) DO UPDATE
                     SET status = 'running', updated_at = CURRENT_TIMESTAMP
                     WHERE generation_status.status != 'running'
-                       OR EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - generation_status.updated_at)) > 600
+                       OR EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - generation_status.updated_at)) > 1800
                     RETURNING 1
                 """, (project, episode, shot_id, step))
                 result = cur.fetchone()
@@ -152,21 +152,14 @@ def invalidate_ctx_cache():
     """失效 pipeline 上下文缓存（文件系统监控回调）
 
     当角色/场景 YAML 文件变化时调用，强制下次 _build_ctx 重建 Config + Container。
+    不调用 shutdown_all()，让旧实例自然过期（避免中断正在使用后端的任务）。
     """
     global _ctx_cache
-    # 同时清除 Config 实例缓存
     with _cfg_cache_lock:
         _cfg_cache.clear()
     with _ctx_lock:
-        if _ctx_cache is not None:
-            cont = _ctx_cache[2]
-            if hasattr(cont, 'shutdown_all'):
-                try:
-                    cont.shutdown_all()
-                except Exception as e:
-                    logger.debug(f"Container 关闭异常: {e}")
-            _ctx_cache = None
-            logger.info("Pipeline ctx 缓存已失效（文件变化触发）")
+        _ctx_cache = None
+    logger.info("Pipeline ctx 缓存已失效（文件变化触发）")
 
 
 # 注册缓存失效钩子：文件变化时由 infra/file_watcher 通过 hooks 系统触发

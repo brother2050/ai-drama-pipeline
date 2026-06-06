@@ -413,6 +413,8 @@ async function switchProj(name) {
   try {
     await api('/projects/switch', { method: 'POST', body: { name } });
     _cache.clear();
+    Object.keys(_charNameMap).forEach(k => delete _charNameMap[k]);
+    Object.keys(_sceneNameMap).forEach(k => delete _sceneNameMap[k]);
     _undoStack.length = 0;
     _redoStack.length = 0;
     _sbDirty = false;
