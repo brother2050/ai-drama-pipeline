@@ -270,6 +270,27 @@ class WorkflowBuilder:
         for nid, node in WorkflowBuilder._iter_seed_nodes(wf):
             node["inputs"]["seed"] = seed
 
+    def _lora_file_exists(self, lora_name: str) -> bool:
+        """检查 LoRA 文件是否存在于 ComfyUI models 目录
+
+        搜索顺序：项目 loras/ → ComfyUI models/loras/
+        注意：远程 ComfyUI 实例时，本地检查可能误判（文件在远程服务器上），
+        此时跳过检查让 ComfyUI 自行报错。
+        """
+        # 项目内 loras 目录
+        project_lora = self._paths.loras_dir / lora_name
+        if project_lora.exists():
+            return True
+        # ComfyUI models 目录（从 comfyui 配置读取）
+        comfyui_dir = self.config.get("comfyui", {}).get("models_dir", "")
+        if comfyui_dir:
+            return (Path(comfyui_dir) / "loras" / lora_name).exists()
+        # 远程 ComfyUI 时 models_dir 为空，无法本地校验，放行让 ComfyUI 报错
+        default_path = Path.home() / "ComfyUI" / "models" / "loras" / lora_name
+        if not default_path.parent.exists():
+            return True  # 本地无 ComfyUI 目录，视为远程实例，放行
+        return default_path.exists()
+
     @staticmethod
     def _find_downstream_consumer(wf: dict, source_node: str) -> tuple[str | None, str | None]:
         """查找 source_node 的下游消费者（接收其输出的节点+输入名）
@@ -534,6 +555,10 @@ class WorkflowBuilder:
         for gl in self.models.get("global_loras", []):
             name = gl.get("name", "")
             if not name:
+                continue
+            # 检查 LoRA 文件是否存在于 ComfyUI models 目录
+            if not self._lora_file_exists(name):
+                logger.warning(f"全局 LoRA 文件不存在，跳过: {name}（请放入 ComfyUI/models/loras/）")
                 continue
             strength = gl.get("strength", 0.7)
             wf = _inject_lora(wf, name, strength=strength, lora_name=name)
