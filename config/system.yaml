@@ -75,7 +75,7 @@ post_production:
 #   pulid_flux:  PuLID-Flux（需要 Flux 后端 + ComfyUI-PuLID-Flux 自定义节点）
 #   ip_adapter:  IP-Adapter Plus（需要 SD1.5/SDXL 后端 + ComfyUI_IPAdapter_plus 自定义节点）
 #   none:        不使用一致性方案（仅靠 LoRA + seed）
-consistency_method: pulid_flux
+consistency_method: auto
 
 ip_adapter:
   enabled: true
