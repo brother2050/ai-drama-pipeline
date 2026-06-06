@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shutil
 from pathlib import Path
 
@@ -34,7 +35,6 @@ def _cleanup_intermediates(out_dir: Path, episode: int) -> None:
 
 def _collect_videos(out_dir: Path) -> list[Path]:
     """收集所有镜头视频（按 shot_id 数值排序，优先 synced.mp4）"""
-    import re
     def _shot_sort_key(p: Path) -> int:
         m = re.search(r'\d+', p.name)
         return int(m.group()) if m else 0
