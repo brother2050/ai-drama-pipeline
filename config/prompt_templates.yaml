@@ -244,6 +244,7 @@ character_system:
         "bible": {
           "core_traits": "核心性格特征（20-40字）",
           "speech_patterns": "说话风格（20-40字）",
+          "voice_description": "声音特征描述（10-30字），如 '低沉磁性的男声' '清脆甜美的少女音'，根据角色性格/年龄/性别生成",
           "relationships": {"其他角色ID": "关系描述"},
           "emotional_range": {"happy": "开心时表现", "sad": "悲伤时表现"},
           "body_language": {"nervous": "紧张时肢体语言"},

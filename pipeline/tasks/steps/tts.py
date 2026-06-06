@@ -9,12 +9,6 @@ from pipeline.tasks.helpers import _skip, _err, _done, _validate_output
 
 logger = logging.getLogger(__name__)
 
-# 性别 → 声音描述（VoiceDesign 后端使用）
-_GENDER_VOICE_DESC = {
-    "male": "成年男声，声音低沉浑厚",
-    "female": "年轻女声，声音温柔甜美",
-}
-
 
 def _build_voice_config(char_data: dict) -> dict:
     """从角色数据构建 voice_config"""
@@ -24,10 +18,10 @@ def _build_voice_config(char_data: dict) -> dict:
     char_voice = char_data.get("voice")
     if isinstance(char_voice, dict) and char_voice:
         voice_config = {**voice_config, **char_voice}
-    # 根据性别设置默认声音描述
-    if "voice_description" not in voice_config:
-        gender = char_data.get("gender", "").lower()
-        voice_config["voice_description"] = _GENDER_VOICE_DESC.get(gender, "")
+    # 声音特征描述（角色配置中的 voice_description）
+    voice_desc = char_data.get("voice_description", "")
+    if voice_desc and "voice_description" not in voice_config:
+        voice_config["voice_description"] = voice_desc
     return voice_config
 
 
