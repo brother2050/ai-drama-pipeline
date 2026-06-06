@@ -123,12 +123,25 @@ wget -O ComfyUI/models/clip/t5xxl_fp16.safetensors \
 # 3. VAE：Flux UNet 自带 VAE，无需单独下载
 ```
 
-> **FP8 省显存版**（T4/A10 可尝试）：
+> **FP8 省显存版**（T4/A10 推荐，显存从 32GB+ 降到 ~16GB）：
 > ```bash
-> # 用 FP8 UNet 替代 FP16，显存从 32GB+ 降到 ~16GB
-> # 注意：仍需 T4 (16GB) 级别以上，且生成速度较慢
+> # UNet 用 FP8 替代 FP16，CLIP 也用 FP8 版
 > wget -O ComfyUI/models/diffusion_models/flux1-dev-fp8.safetensors \
 >   https://huggingface.co/Kijai/flux-fp8/resolve/main/flux1-dev-fp8.safetensors
+> wget -O ComfyUI/models/clip/clip_l.safetensors \
+>   https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors
+> wget -O ComfyUI/models/clip/t5xxl_fp8_e4m3fn_scaled.safetensors \
+>   https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn_scaled.safetensors
+> ```
+
+> **Flux 写实 LoRA**（推荐下载，放入 `ComfyUI/models/loras/`）：
+> ```bash
+> # flux-RealismLora（超写实人像）
+> wget -O ComfyUI/models/loras/flux-realism-lora.safetensors \
+>   https://huggingface.co/XLabs-AI/flux-RealismLora/resolve/main/flux-realism-lora.safetensors
+> # ACE++ Portrait（零训练角色一致性）
+> wget -O ComfyUI/models/loras/comfyui_portrait_lora64.safetensors \
+>   https://huggingface.co/ali-vilab/ACE_Plus/resolve/main/portrait/comfyui_portrait_lora64.safetensors
 > ```
 
 #### 方案 C：SD1.5 后端（≥6GB 显存，入门级）
@@ -395,7 +408,16 @@ wget -O ComfyUI/models/pulid/pulid_flux_v0.9.0.safetensors \
 
 # 2. InsightFace AntelopeV2（5 个文件）→ ComfyUI/models/insightface/models/antelopev2/
 mkdir -p ComfyUI/models/insightface/models/antelopev2/
-# 从 https://huggingface.co/MonsterMMORPG/tools/tree/main 下载后解压到此目录
+wget -O ComfyUI/models/insightface/models/antelopev2/1k3d68.onnx \
+  https://hf-mirror.com/MonsterMMORPG/tools/resolve/main/1k3d68.onnx
+wget -O ComfyUI/models/insightface/models/antelopev2/2d106det.onnx \
+  https://hf-mirror.com/MonsterMMORPG/tools/resolve/main/2d106det.onnx
+wget -O ComfyUI/models/insightface/models/antelopev2/genderage.onnx \
+  https://hf-mirror.com/MonsterMMORPG/tools/resolve/main/genderage.onnx
+wget -O ComfyUI/models/insightface/models/antelopev2/glintr100.onnx \
+  https://hf-mirror.com/MonsterMMORPG/tools/resolve/main/glintr100.onnx
+wget -O ComfyUI/models/insightface/models/antelopev2/scrfd_10g_bnkps.onnx \
+  https://hf-mirror.com/MonsterMMORPG/tools/resolve/main/scrfd_10g_bnkps.onnx
 
 # 3. EVA02-CLIP-L-14-336 → 首次运行自动下载（或手动放到 ComfyUI/models/clip/）
 ```
