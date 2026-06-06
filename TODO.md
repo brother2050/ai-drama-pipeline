@@ -9,17 +9,7 @@
 
 ---
 
-## 🟡 中优先级
-
-### 1. 缺少后期处理单元测试
-**文件**: `tests/` 目录
-**问题**: `post/production.py`（拼接流程）、`post/vertical.py`（裁剪逻辑）没有单元测试。
-**修复**: 添加 post/ 模块的单元测试。
-
-### 2. 缺少追加导入模式测试
-**文件**: `tests/` 目录
-**问题**: `ProjectBuilder.append()` 没有端到端测试。`test_import_standalone.py` 仅测 Schema 校验。
-**修复**: 添加 append 模式的端到端测试。
+## 🟡 中优先级（无）
 
 ---
 
@@ -53,6 +43,8 @@
 | 52 | `web/routers/imports.py` | `import_json` 接受 raw dict 改为 `ImportPlan` Schema 校验（422 而非运行时异常） | `本轮` |
 | 53 | `scripts/ai_toolkit_api.py` | 进度解析从空格分割改为正则匹配 `(\d+)\s*/\s*(\d+)` | `本轮` |
 | 54 | `web/static/js/settings.js` | `testTtsPreview` 30 行手写轮询改为 `pollTask()` | `本轮` |
+| 55 | `tests/test_post.py` | 新增 post/ 模块 21 项单元测试（subtitle/production/music/vertical） | `本轮` |
+| 56 | `tests/test_append.py` | 新增 ProjectBuilder.append() 10 项端到端测试（角色/场景追加+跳过+安全名） | `本轮` |
 
 ---
 
