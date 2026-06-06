@@ -227,7 +227,10 @@ def yaml_delete(yaml_dir: str, entity_id: str, label: str) -> None:
     path.unlink()
     asset_dir = p.assets_entity_dir(yaml_dir) / entity_id
     if asset_dir.exists():
-        shutil.rmtree(asset_dir, ignore_errors=True)
+        try:
+            shutil.rmtree(asset_dir)
+        except OSError as e:
+            logger.warning(f"资产目录删除失败 {asset_dir}: {e}")
 
 
 def yaml_batch_delete(yaml_dir: str, entity_ids: list[str], label: str) -> dict:

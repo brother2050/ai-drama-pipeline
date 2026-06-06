@@ -408,13 +408,14 @@ def _merge_translate_results(results: list[str], batch_items: list[tuple[int, st
     missing: list[tuple[int, str]] = []  # (orig_idx, orig_text) 未翻译的项
 
     for batch_idx, batch_data in enumerate(batch_result["results"]):
-        # 使用精确 batch_size（来自 AdaptiveBatchProcessor），回退到均匀分配
+        # 使用精确 batch_size（来自 AdaptiveBatchProcessor），回退到剩余项数
         if batch_idx < len(batch_sizes):
             batch_len = batch_sizes[batch_idx]
         else:
-            remaining = total_items - offset
-            batches_left = len(batch_result["results"]) - batch_idx
-            batch_len = max(remaining // max(batches_left, 1), 1) if remaining > 0 else 0
+            batch_len = total_items - offset
+            if batch_len <= 0:
+                logger.warning(f"batch_len 回退异常: offset={offset}, total={total_items}, batch_idx={batch_idx}")
+                break
 
         if batch_data is None:
             # 整批失败 → 收集为 missing

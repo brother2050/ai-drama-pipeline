@@ -74,7 +74,17 @@ def generate_storyboard(llm: object, params: StoryboardGenParams) -> list[dict]:
         return []
 
     shots = _postprocess_shots(raw_shots, episode)
-    logger.info(f"生成 {len(shots)} 个镜头, 预计 {sum(int(s.get('duration', 4)) for s in shots)} 秒")
+
+    # 镜头数合理性校验
+    total_dur = sum(int(s.get("duration", 4)) for s in shots)
+    expected_min = max(3, target_duration // 10)  # 每镜头最多 10 秒
+    expected_max = target_duration // 2 + 5        # 每镜头最少 2 秒，留余量
+    if len(shots) < expected_min:
+        logger.warning(f"镜头数过少: {len(shots)}（预期 ≥{expected_min}），总时长可能不足 {target_duration}s")
+    elif len(shots) > expected_max:
+        logger.warning(f"镜头数过多: {len(shots)}（预期 ≤{expected_max}），可能超出目标时长")
+
+    logger.info(f"生成 {len(shots)} 个镜头, 预计 {total_dur} 秒")
     return shots
 
 

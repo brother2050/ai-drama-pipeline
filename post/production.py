@@ -125,16 +125,16 @@ def _to_vertical(concat_out: Path, episode: int, out_dir: Path) -> Path:
 
 
 def _rename_final(concat_out: Path, episode: int, out_dir: Path) -> Path:
-    """重命名为 final.mp4"""
+    """重命名为 final.mp4（跨文件系统自动回退到 copy2）"""
     final_out = out_dir / f"episode_{episode:02d}_final.mp4"
     try:
         os.replace(str(concat_out), str(final_out))
     except OSError:
+        shutil.copy2(str(concat_out), str(final_out))
         try:
-            shutil.copy2(str(concat_out), str(final_out))
-        except Exception as e:
-            logger.warning(f"复制到 final 失败: {e}")
-            return concat_out
+            os.unlink(str(concat_out))
+        except OSError:
+            pass
     logger.info(f"最终输出: {final_out}")
     return final_out
 

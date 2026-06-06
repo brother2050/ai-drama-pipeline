@@ -165,12 +165,15 @@ def _enrich_stage(llm: object, shots: list[dict], system: str, label: str, requi
                 result_map[sid] = item
 
     merged = []
+    unmatched = []
     for i, shot in enumerate(shots):
         sid = shot.get("shot_id", "")
         update = result_map.get(sid, {})
         if not update:
-            logger.debug(f"  {label}: shot_id={sid} 未匹配到 LLM 结果，保留原始数据")
+            unmatched.append(sid)
         merged.append({**shot, **update})
+    if unmatched:
+        logger.warning(f"  {label}: {len(unmatched)}/{len(shots)} 个镜头未匹配 LLM 结果: {unmatched[:5]}{'...' if len(unmatched) > 5 else ''}")
 
     # 校验必填字段
     if required_fields:
