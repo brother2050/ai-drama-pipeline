@@ -46,7 +46,9 @@ def _ai_storyboard_inner(self, config_path, episode, outline, duration, append):
                           "message": f"正在生成 {len(char_ids)} 个角色、{len(scene_ids)} 个场景..."})
     id_remap, warnings, err = _generate_entities_for_storyboard(llm, shots, char_ids, scene_ids, outline, style, genre, cfg.paths)
     if err:
-        return {"status": STATUS_ERROR, "reason": err}
+        # 实体生成失败不阻断分镜保存 — 分镜本身已生成成功，用户可后续补充实体
+        logger.warning(f"实体生成失败（分镜仍会保存）: {err}")
+        warnings.append(f"实体生成失败: {err}")
 
     # 3. 回写 + 保存
     if id_remap:
@@ -88,22 +90,27 @@ def _generate_shots(llm, outline, episode, duration, style, genre):
 
 
 def _generate_entities_for_storyboard(llm, shots, char_ids, scene_ids, outline, style, genre, paths):
-    """生成角色+场景，返回 (id_remap, warnings, error_or_None)"""
+    """生成角色+场景，返回 (id_remap, warnings, error_or_None)
+
+    实体生成失败不视为致命错误 — 分镜本身已生成成功，用户可后续补充实体。
+    """
     id_remap, warnings = {}, []
     if char_ids:
         result = _generate_entities_for_storyboard_core(
             llm, shots, char_ids, outline, style, genre, paths, "character", "ch")
         if result.get("error"):
-            return {}, [], result["error"]
-        id_remap.update(result.get("id_remap", {}))
-        warnings = result.get("warnings", [])
+            warnings.append(f"角色生成失败: {result['error']}")
+        else:
+            id_remap.update(result.get("id_remap", {}))
+            warnings.extend(result.get("warnings", []))
     if scene_ids:
         result = _generate_entities_for_storyboard_core(
             llm, shots, scene_ids, outline, style, genre, paths, "scene", "sc")
         if result.get("error"):
-            return {}, [], result["error"]
-        id_remap.update(result.get("id_remap", {}))
-        warnings.extend(result.get("warnings", []))
+            warnings.append(f"场景生成失败: {result['error']}")
+        else:
+            id_remap.update(result.get("id_remap", {}))
+            warnings.extend(result.get("warnings", []))
     return id_remap, warnings, None
 
 
