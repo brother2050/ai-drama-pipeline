@@ -102,19 +102,19 @@ def get_episodes_summary() -> dict:
 def delete_episode(episode: int) -> dict:
     _check_episode(episode)
     p = _paths()
+    ep_dir = p.episode_dir(episode)
+    if not ep_dir.exists():
+        raise HTTPException(404, f"第 {episode} 集不存在")
     removed_shots = 0
     try:
         from infra.database.storyboard_db import delete_episode as db_delete_ep
         from infra.database.generation import clear_episode
         pool = _get_pool()
-        # 单事务：shots → generation_status
         removed_shots = db_delete_ep(pool, episode)
         clear_episode(pool, episode)
     except Exception as e:
         logger.warning(f"DB 删除失败: {e}")
-    ep_dir = p.episode_dir(episode)
-    if ep_dir.exists():
-        shutil.rmtree(ep_dir, ignore_errors=True)
+    shutil.rmtree(ep_dir, ignore_errors=True)
     return {"status": "ok", "episode": episode, "removed_shots": removed_shots}
 
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from infra.constants import STATUS_RUNNING
+import fcntl
 import logging
 import os
 
@@ -101,17 +102,23 @@ _ALLOWED_SYS_KEYS = {"models", "comfyui", "llm", "seko", "training", "server", "
 
 @router.post("/system/config")
 def update_system_config(data: dict = Body(...)):
-    """更新系统全局配置（仅允许白名单字段）"""
+    """更新系统全局配置（仅允许白名单字段，带文件锁防并发）"""
     from infra.config import save_config, load_config, SYSTEM_CONFIG_PATH
     filtered = {k: v for k, v in data.items() if k in _ALLOWED_SYS_KEYS}
     if not filtered:
         raise HTTPException(400, "无有效的配置字段")
-    try:
-        existing = load_config(SYSTEM_CONFIG_PATH)
-    except Exception:
-        existing = {}
-    merged = _deep_merge(existing, filtered)
-    save_config(SYSTEM_CONFIG_PATH, merged)
+    lock_path = str(SYSTEM_CONFIG_PATH) + ".lock"
+    with open(lock_path, "w") as _lf:
+        fcntl.flock(_lf, fcntl.LOCK_EX)
+        try:
+            try:
+                existing = load_config(SYSTEM_CONFIG_PATH)
+            except Exception:
+                existing = {}
+            merged = _deep_merge(existing, filtered)
+            save_config(SYSTEM_CONFIG_PATH, merged)
+        finally:
+            fcntl.flock(_lf, fcntl.LOCK_UN)
     # 通知 Config 实例热重载
     try:
         from infra.config import invalidate_config_cache
@@ -435,16 +442,22 @@ def get_config() -> dict:
 
 @router.post("/config")
 def update_config(req: ConfigUpdate):
-    """更新配置（接受 {"data": {...}} 格式）"""
+    """更新配置（接受 {"data": {...}} 格式，带文件锁防并发）"""
     data = req.get_config_data()
     cfg_path = _cfg_path()
     from infra.config import save_config, load_config
-    try:
-        existing = load_config(cfg_path)
-    except Exception:
-        existing = {}
-    merged = _deep_merge(existing, data)
-    save_config(cfg_path, merged)
+    lock_path = cfg_path + ".lock"
+    with open(lock_path, "w") as _lf:
+        fcntl.flock(_lf, fcntl.LOCK_EX)
+        try:
+            try:
+                existing = load_config(cfg_path)
+            except Exception:
+                existing = {}
+            merged = _deep_merge(existing, data)
+            save_config(cfg_path, merged)
+        finally:
+            fcntl.flock(_lf, fcntl.LOCK_UN)
     # 通知 Config 实例热重载
     try:
         from infra.config import invalidate_config_cache
@@ -600,5 +613,11 @@ def list_tasks() -> dict:
 def cancel_task(task_id: str) -> dict:
     _check_uuid(task_id)
     from pipeline.celery_app import app
-    app.control.revoke(task_id, terminate=True)
-    return {"status": "cancelled", "task_id": task_id}
+    from infra.constants import STATUS_PENDING, STATUS_RUNNING
+    # 先查询任务状态
+    result = app.AsyncResult(task_id)
+    state = result.state
+    if state in ("PENDING", "STARTED", "RETRY"):
+        app.control.revoke(task_id, terminate=True)
+        return {"status": "cancelled", "task_id": task_id}
+    return {"status": "already_finished", "task_id": task_id, "state": state}

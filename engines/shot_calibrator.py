@@ -113,7 +113,7 @@ def _build_context(outline: str, characters: list[dict], scenes: list[dict], tar
     return "\n".join(parts)
 
 
-def _enrich_stage(llm: object, shots: list[dict], system: str, label: str, required_fields: list[str] | None = None, max_missing_ratio: float = 0.5) -> list[dict] | None:
+def _enrich_stage(llm: object, shots: list[dict], system: str, label: str, required_fields: list[str] | None = None, max_missing_ratio: float = 0.2) -> list[dict] | None:
     """对已有镜头列表执行一次 LLM 补充调用
 
     Args:
@@ -121,7 +121,7 @@ def _enrich_stage(llm: object, shots: list[dict], system: str, label: str, requi
         system: 系统提示
         label: 日志标签
         required_fields: 必须存在的字段（缺少则视为失败）
-        max_missing_ratio: 缺失字段比例阈值，超过则视为失败（默认 0.5）
+        max_missing_ratio: 缺失字段比例阈值，超过则视为失败（默认 0.2）
 
     Returns:
         补充后的镜头列表，或 None（失败时）

@@ -198,7 +198,7 @@ def _run_concurrent(self, config_path, episode, shots, force, progress_base, pro
             failed_indices.append(i)
         else:
             results.append(raw)
-            if raw.get("errors"):
+            if isinstance(raw, dict) and raw.get("errors"):
                 failed_indices.append(i)
     return results, failed_indices
 

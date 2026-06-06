@@ -16,7 +16,7 @@ function _initSortable() {
       shots.splice(evt.newIndex, 0, moved);
       pushUndo(t('sb.reordered'));
       try {
-        await api(`/storyboard/${ep}`, { method: 'POST', body: { shots } });
+        await api(`/storyboard/${ep}`, { method: 'POST', body: { shots: _prepareShotsForSave(shots) } });
         invalidateCache(`storyboard/${ep}`);
         toast(t('sb.reordered'));
       } catch (e) { toast(e.message, 'error'); }
@@ -41,7 +41,7 @@ function _initTimelineSortable() {
       shots.splice(evt.newIndex, 0, moved);
       pushUndo(t('sb.reordered'));
       try {
-        await api(`/storyboard/${ep}`, { method: 'POST', body: { shots } });
+        await api(`/storyboard/${ep}`, { method: 'POST', body: { shots: _prepareShotsForSave(shots) } });
         invalidateCache(`storyboard/${ep}`);
         toast(t('sb.reordered'));
       } catch (e) { toast(e.message, 'error'); }
@@ -145,7 +145,7 @@ async function doImport() {
 
   const finalShots = mode === 'overwrite' ? newShots : [...(await api(`/storyboard/${ep}`)).shots, ...newShots];
   try {
-    await api(`/storyboard/${ep}`, { method: 'POST', body: { shots: finalShots } });
+    await api(`/storyboard/${ep}`, { method: 'POST', body: { shots: _prepareShotsForSave(finalShots) } });
     shots = finalShots;
     invalidateCache(`storyboard/${ep}`);
     document.getElementById('import-overlay')?.remove();
@@ -339,7 +339,7 @@ async function sendChatMsg() {
           return merged;
         });
         shots = r.shots;
-        await api(`/storyboard/${ep}`, { method: 'POST', body: { shots } });
+        await api(`/storyboard/${ep}`, { method: 'POST', body: { shots: _prepareShotsForSave(shots) } });
         invalidateCache(`storyboard/${ep}`);
         const p = document.querySelector('.page.active');
         if (p?.id === 'page-storyboard') loadStoryboard();
@@ -414,10 +414,10 @@ async function loadEpisodeManager() {
       el.innerHTML = `<div class="card" style="margin-top:1rem"><h2>${t('ep.title')}</h2><p class="dim">暂无剧集</p></div>`;
       return;
     }
-    const cards = episodes.map(ep => {
-      const statusKey = `ep.status_${ep.status}`;
-      const badgeClass = ep.status === 'done' ? 'badge-green' : ep.status === 'progress' ? 'badge' : '';
-      return `<div class="ep-card"><div class="ep-card-clickable" onclick="ep=${ep.episode};navTo('pipeline')"><div class="ep-card-num">EP ${ep.episode}</div><div class="ep-card-meta">${ep.shots} ${t('ep.shots')} · ${ep.duration}s · ${ep.done}/${ep.shots} ✅</div><div class="ep-card-status"><span class="badge ${badgeClass}">${t(statusKey)}</span></div></div><div class="ep-card-actions"><button class="btn btn-xs btn-outline" onclick="event.stopPropagation();clearEpisodeOutputs(${ep.episode})" title="${t('ep.clear_outputs')}">🧹</button><button class="btn btn-xs btn-danger" onclick="event.stopPropagation();deleteEpisode(${ep.episode})" title="${t('btn.delete')}">🗑</button></div></div>`;
+    const cards = episodes.map(epData => {
+      const statusKey = `ep.status_${epData.status}`;
+      const badgeClass = epData.status === 'done' ? 'badge-green' : epData.status === 'progress' ? 'badge' : '';
+      return `<div class="ep-card"><div class="ep-card-clickable" onclick="ep=${epData.episode};navTo('pipeline')"><div class="ep-card-num">EP ${epData.episode}</div><div class="ep-card-meta">${epData.shots} ${t('ep.shots')} · ${epData.duration}s · ${epData.done}/${epData.shots} ✅</div><div class="ep-card-status"><span class="badge ${badgeClass}">${t(statusKey)}</span></div></div><div class="ep-card-actions"><button class="btn btn-xs btn-outline" onclick="event.stopPropagation();clearEpisodeOutputs(${epData.episode})" title="${t('ep.clear_outputs')}">🧹</button><button class="btn btn-xs btn-danger" onclick="event.stopPropagation();deleteEpisode(${epData.episode})" title="${t('btn.delete')}">🗑</button></div></div>`;
     });
     el.innerHTML = `<div class="card" style="margin-top:1rem"><h2>${t('ep.title')}</h2><div class="ep-grid">${cards.join('')}</div></div>`;
   } catch (e) { el.innerHTML = `<div class="dim">${e.message}</div>`; }

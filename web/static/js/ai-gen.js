@@ -173,13 +173,7 @@ const _debouncedSaveSB = debounce(async () => {
       const i = parseInt(inp.dataset.idx);
       if (shots[i]) shots[i][inp.dataset.field] = inp.value;
     });
-    // 转换 camera/shot_type 英文 key → 中文值（后端存中文）
-    const converted = shots.map(s => ({
-      ...s,
-      camera: _cameraToBackend(s.camera),
-      shot_type: _shotTypeToBackend(s.shot_type),
-    }));
-    await api(`/storyboard/${ep}`, { method: 'POST', body: { shots: converted } });
+    await api(`/storyboard/${ep}`, { method: 'POST', body: { shots: _prepareShotsForSave(shots) } });
     invalidateCache(`storyboard/${ep}`);
     _sbDirty = false;
     toast(t('toast.saved'));
@@ -197,7 +191,7 @@ async function deleteShotFromSB(idx) {
   if (!await modalConfirm(t('confirm.delete_shot', { id: sid }))) return;
   pushUndo(`${t('btn.delete')} ${sid}`);
   shots.splice(idx, 1);
-  try { await api(`/storyboard/${ep}`, { method: 'POST', body: { shots } }); invalidateCache(`storyboard/${ep}`); toast(t('toast.deleted')); loadStoryboard(); } catch (e) { toast(e.message, 'error'); }
+  try { await api(`/storyboard/${ep}`, { method: 'POST', body: { shots: _prepareShotsForSave(shots) } }); invalidateCache(`storyboard/${ep}`); toast(t('toast.deleted')); loadStoryboard(); } catch (e) { toast(e.message, 'error'); }
 }
 
 async function addShot() {
@@ -206,7 +200,7 @@ async function addShot() {
   pushUndo(`${t('btn.add')} ${newId}`);
   const newShot = { ..._DEFAULT_SHOT(), episode: ep, shot_id: newId };
   shots.push(newShot);
-  try { await api(`/storyboard/${ep}`, { method: 'POST', body: { shots } }); invalidateCache(`storyboard/${ep}`); toast(t('toast.created')); loadStoryboard(); } catch (e) { toast(e.message, 'error'); }
+  try { await api(`/storyboard/${ep}`, { method: 'POST', body: { shots: _prepareShotsForSave(shots) } }); invalidateCache(`storyboard/${ep}`); toast(t('toast.created')); loadStoryboard(); } catch (e) { toast(e.message, 'error'); }
 }
 
 // ── 分镜表批量选择/删除 ──

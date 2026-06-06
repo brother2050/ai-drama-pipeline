@@ -312,7 +312,6 @@ const I18N = {
   // 分镜表补充
   'sb.saved': { zh: '✅ 已保存', en: '✅ Saved' },
   'sb.deleted': { zh: '✅ 已删除', en: '✅ Deleted' },
-  'sb.added': { zh: '已添加', en: 'Added' },
   'sb.emotion': { zh: '情绪', en: 'Emotion' },
   'sb.action_en': { zh: '动作(英)', en: 'Action(EN)' },
   'sb.dialogue_en': { zh: '台词(英)', en: 'Dialogue(EN)' },

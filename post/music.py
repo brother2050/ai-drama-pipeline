@@ -39,7 +39,8 @@ class MusicGenerator:
             "worried": 370, "surprised": 480, "smug": 460, "serious": 350,
             "calm": 400, "determined": 450, "fearful": 310, "action": 500,
         }.get(mood, 400)
-        from infra.ffmpeg import _FFMPEG as ffmpeg
+        from infra.ffmpeg import ffmpeg_path
+        ffmpeg = ffmpeg_path()
         cmd = [ffmpeg, "-y", "-f", "lavfi", "-i",
                f"sine=frequency={freq}:duration={duration}",
                "-af", "volume=0.1,tremolo=f=3:d=0.4", output]

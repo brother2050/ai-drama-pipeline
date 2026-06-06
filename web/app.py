@@ -75,7 +75,7 @@ def _add_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
         logger.error(f"未处理异常: {request.method} {request.url.path} — {exc}\n{traceback.format_exc()}")
-        return JSONResponse(status_code=500, content={"detail": f"服务器内部错误: {type(exc).__name__}: {str(exc)}"})
+        return JSONResponse(status_code=500, content={"detail": "服务器内部错误，请稍后重试"})
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):

@@ -226,7 +226,7 @@ function redo() { _applyHistory(_redoStack, _undoStack, t('undo.redo')); }
 document.querySelectorAll('.nav-item').forEach(item => {
   item.onclick = async () => {
     // 检查分镜表是否有未保存的修改
-    if (_sbDirty) {
+    if (typeof _sbDirty !== 'undefined' && _sbDirty) {
       const ok = await modalConfirm(t('sb.unsaved_confirm'));
       if (!ok) return;
       _sbDirty = false;

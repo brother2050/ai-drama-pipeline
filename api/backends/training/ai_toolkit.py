@@ -398,13 +398,15 @@ class AIToolkitTrainer:
 
     def _submit_training(self, char_id: str, dataset_name: str,
                          trigger_word: str, output_name: str,
-                         steps: int, lr_str: str, res_val: int) -> str:
+                         steps: int, lr_str: str, res_val: int,
+                         rank: int | None = None, conv_rank: int = 0) -> str:
         """构建配置 → 创建作业 → 启动作业。返回 job_id"""
         job_config = self._build_job_config(TrainingJobConfig(
             dataset_name=dataset_name, trigger_word=trigger_word,
             lora_name=output_name, steps=steps, learning_rate=lr_str,
-            rank=self._default_network_dim, resolution=res_val,
-            conv_rank=self._default_conv_dim))
+            rank=rank if rank is not None else self._default_network_dim,
+            resolution=res_val,
+            conv_rank=conv_rank if conv_rank > 0 else self._default_conv_dim))
 
         job = self._api_create_job(f"lora_{char_id}_{int(time.time())}", job_config)
         job_id = job.get("id", "")
@@ -547,7 +549,8 @@ class AIToolkitTrainer:
 
         # 2. 提交训练
         job_id = self._submit_training(char_id, dataset_name, trigger_word,
-                                       output_name, params.steps, lr_str, res_val)
+                                       output_name, params.steps, lr_str, res_val,
+                                       rank=params.rank, conv_rank=params.conv_rank)
 
         # 3. 等待完成
         self._poll_training(job_id, params.steps, params.progress_cb)

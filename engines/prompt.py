@@ -54,14 +54,14 @@ def _extract_body_features(prompt_en: str) -> str:
 # 性别标签检测
 _GENDER_TAGS = {"1boy", "1girl", "boy", "girl", "man", "woman", "male", "female"}
 _GENDER_INJECT = {"male": "1boy", "female": "1girl"}
+_GENDER_RE = re.compile(r'\b(?:' + '|'.join(re.escape(t) for t in _GENDER_TAGS) + r')\b', re.IGNORECASE)
 
 
 def _ensure_gender_tag(prompt_en: str, gender: str) -> str:
     """确保 prompt 包含性别标签。已有则不加，缺失则从 gender 字段补。"""
     if not gender:
         return prompt_en
-    lower = prompt_en.lower()
-    if any(tag in lower for tag in _GENDER_TAGS):
+    if _GENDER_RE.search(prompt_en):
         return prompt_en
     tag = _GENDER_INJECT.get(gender.lower(), "")
     return f"{tag}, {prompt_en}" if tag else prompt_en

@@ -38,6 +38,7 @@ class FFmpeg:
     def __init__(self, *, timeout: int = 1200):
         self._timeout = timeout
         self._args: list[str] = [_FFMPEG, "-y", "-hide_banner", "-loglevel", "warning"]
+        self._output = ""
 
     def input(self, path: str, **opts) -> "FFmpeg":
         for k, v in opts.items():
@@ -62,7 +63,7 @@ class FFmpeg:
         r = subprocess.run(self._args, capture_output=True, text=True, timeout=self._timeout)
         if r.returncode != 0:
             raise RuntimeError(f"FFmpeg 执行失败 (exit {r.returncode}): {r.stderr[-500:]}")
-        return getattr(self, "_output", "")
+        return self._output
 
     @staticmethod
     def concat(inputs: list[str], output: str, *, transition: str = "none",

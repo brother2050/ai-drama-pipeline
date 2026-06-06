@@ -24,7 +24,7 @@ class Wav2Lip:
         Path(output).parent.mkdir(parents=True, exist_ok=True)
         with open(video, "rb") as vf, open(audio, "rb") as af:
             r = self._client.post(f"{self._url}/process",
-                       files={"face": vf, "audio": af})
+                       files={"face": (Path(video).name, vf), "audio": (Path(audio).name, af)})
         r.raise_for_status()
         with open(output, "wb") as f:
             f.write(r.content)

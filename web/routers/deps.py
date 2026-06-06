@@ -1,6 +1,7 @@
 """API 路由共享依赖 — 配置访问、校验工具、任务提交"""
 from __future__ import annotations
 
+import fcntl
 import logging
 import re
 import threading
@@ -170,10 +171,22 @@ def yaml_list(yaml_dir: str, entity_key: str) -> list[dict]:
 
 
 def yaml_save(yaml_dir: str, entity_key: str, entity_id: str, data: dict) -> None:
-    """通用 YAML 实体保存（YAML 为唯一数据源）"""
+    """通用 YAML 实体保存（YAML 为唯一数据源，带文件锁防并发）"""
     d = _paths().config_entity_dir(yaml_dir)
     d.mkdir(parents=True, exist_ok=True)
     path = d / f"{entity_id}.yaml"
+    lock_path = d / f".{entity_id}.lock"
+    lock_path.touch(exist_ok=True)
+    with open(lock_path, "w") as _lf:
+        fcntl.flock(_lf, fcntl.LOCK_EX)
+        try:
+            _yaml_save_inner(path, entity_key, entity_id, data)
+        finally:
+            fcntl.flock(_lf, fcntl.LOCK_UN)
+
+
+def _yaml_save_inner(path: Path, entity_key: str, entity_id: str, data: dict) -> None:
+    """yaml_save 的实际逻辑（在锁内执行）"""
     file_data: dict = {}
     existing: dict = {}
     if path.exists():
@@ -191,8 +204,8 @@ def yaml_save(yaml_dir: str, entity_key: str, entity_id: str, data: dict) -> Non
             file_data = {}
             existing = {}
     merged = {**existing, **data, "id": entity_id}
-    # bible/bible_en: 深合并（前端可能只发送部分字段）
-    for nested_key in ("bible", "bible_en"):
+    # 嵌套字段深合并（前端可能只发送部分字段）
+    for nested_key in ("bible", "bible_en", "voice", "outfits"):
         if nested_key in merged and nested_key in existing and nested_key in data:
             if isinstance(merged[nested_key], dict) and isinstance(existing[nested_key], dict):
                 merged[nested_key] = {**existing[nested_key], **data[nested_key]}

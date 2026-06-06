@@ -297,15 +297,18 @@ function _collectShotFields(idx) {
   return s;
 }
 
-/** 保存 shots 到后端并刷新缓存 */
-async function _persistShots() {
-  // 转换 camera/shot_type 英文 key → 中文值（后端存中文）
-  const converted = shots.map(s => ({
+/** 保存前统一转换：英文 key → 中文值（所有保存路径必须调用） */
+function _prepareShotsForSave(shotsArr) {
+  return (shotsArr || []).map(s => ({
     ...s,
     camera: _cameraToBackend(s.camera),
     shot_type: _shotTypeToBackend(s.shot_type),
   }));
-  await api(`/storyboard/${ep}`, { method: 'POST', body: { shots: converted } });
+}
+
+/** 保存 shots 到后端并刷新缓存 */
+async function _persistShots() {
+  await api(`/storyboard/${ep}`, { method: 'POST', body: { shots: _prepareShotsForSave(shots) } });
   invalidateCache(`storyboard/${ep}`);
   invalidateCache(`res/${ep}`);
 }
@@ -330,7 +333,7 @@ async function deleteShot(idx) {
   const sid = _shotId(shots[idx], idx);
   if (!await modalConfirm(t('confirm.delete_shot', { id: sid }))) return;
   pushUndo(`${t('btn.delete')} ${sid}`); shots.splice(idx, 1);
-  try { await api(`/storyboard/${ep}`, { method: 'POST', body: { shots } }); invalidateCache(`storyboard/${ep}`); toast(t('toast.deleted')); renderShotsGrid(); } catch (e) { toast(e.message, 'error'); }
+  try { await api(`/storyboard/${ep}`, { method: 'POST', body: { shots: _prepareShotsForSave(shots) } }); invalidateCache(`storyboard/${ep}`); toast(t('toast.deleted')); renderShotsGrid(); } catch (e) { toast(e.message, 'error'); }
 }
 
 // ── 执行 ──
@@ -552,7 +555,7 @@ async function addShotFromPipeline() {
   const newShot = { ..._DEFAULT_SHOT(), episode: ep, shot_id: newId };
   shots.push(newShot);
   try {
-    await api(`/storyboard/${ep}`, { method: 'POST', body: { shots } });
+    await api(`/storyboard/${ep}`, { method: 'POST', body: { shots: _prepareShotsForSave(shots) } });
     invalidateCache(`storyboard/${ep}`);
     toast(t('toast.created'));
     renderShotsGrid();
@@ -589,6 +592,7 @@ window._shotTypeToBackend = _shotTypeToBackend;
 window._cameraFromBackend = _cameraFromBackend;
 window._shotTypeFromBackend = _shotTypeFromBackend;
 window._normalizeShotsFromBackend = _normalizeShotsFromBackend;
+window._prepareShotsForSave = _prepareShotsForSave;
 window._CAMERA_KEYS = _CAMERA_KEYS;
 window._SHOTTYPE_KEYS = _SHOTTYPE_KEYS;
 window._DEFAULT_SHOT = _DEFAULT_SHOT;
