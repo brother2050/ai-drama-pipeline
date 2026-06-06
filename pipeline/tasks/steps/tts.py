@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from engines.dialogue import DialogueLine, parse_dialogue, concat_wav
+from engines.dialogue import parse_dialogue, concat_wav
 from pipeline.tasks.helpers import _skip, _err, _done, _validate_output
 
 logger = logging.getLogger(__name__)
