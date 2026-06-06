@@ -29,7 +29,10 @@ def probe(path: str) -> dict[str, Any]:
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
         raise RuntimeError(f"媒体信息读取失败: {r.stderr[:200]}")
-    return json.loads(r.stdout)
+    try:
+        return json.loads(r.stdout)
+    except json.JSONDecodeError:
+        raise RuntimeError(f"媒体信息解析失败（ffprobe 输出非 JSON）: {r.stdout[:200]}")
 
 
 class FFmpeg:
