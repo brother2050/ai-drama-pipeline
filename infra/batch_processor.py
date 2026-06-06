@@ -25,6 +25,7 @@ def estimate_tokens(text: str) -> int:
     - CJK 汉字/标点：约 1 token/字
     - 英文单词：约 1 token/word（平均 4-5 chars/word）
     - 数字/标点/空格等：约 1 token/字符
+    - 字符级下界：len(text) // 3（防止长连续字符被低估为 1 token）
     """
     cjk = sum(1 for c in text if '\u4e00' <= c <= '\u9fff'  # CJK 统一汉字
               or '\u3000' <= c <= '\u303f'  # CJK 标点符号
@@ -34,7 +35,10 @@ def estimate_tokens(text: str) -> int:
     # 其他字符（数字、标点、空格等）：约 1 token/字符
     english_chars = sum(1 for c in text if 'a' <= c.lower() <= 'z')
     other = len(text) - cjk - english_chars
-    return max(1, cjk + english_words + other)
+    word_based = cjk + english_words + other
+    # 字符级下界：防止 "XXXXX..." 类长连续字符被低估为 1 token
+    char_floor = len(text) // 3
+    return max(1, word_based, char_floor)
 
 
 def _execute_batches(processor, batches, build_prompts, parse_result, on_progress) -> dict:
