@@ -310,7 +310,7 @@ class ImportValidator:
 # ── 角色数据规范化 ──────────────────────────────────────
 
 # bible 字段定义（中文原始数据，无 _en 后缀）
-_BIBLE_STR_FIELDS = ("core_traits", "speech_patterns")
+_BIBLE_STR_FIELDS = ("core_traits", "speech_patterns", "voice_description")
 _BIBLE_DICT_FIELDS = ("relationships", "emotional_range", "body_language")
 _BIBLE_LIST_FIELDS = ("habits", "taboos")
 

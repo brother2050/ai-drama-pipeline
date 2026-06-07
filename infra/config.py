@@ -619,10 +619,19 @@ class Config:
                 abspath = str(Path(p).resolve())
                 with _lock:
                     _cache.pop(abspath, None)
-        self._data = self._merge(self._path)
-        self._data["_project_dir"] = self._project_dir
+        # 先合并到临时变量，校验通过后再赋值（避免 validate 失败时 _data 被覆盖为损坏数据）
+        new_data = self._merge(self._path)
+        new_data["_project_dir"] = self._project_dir
+        old_data, old_warnings = self._data, self._warnings
+        self._data = new_data
         self._warnings = []
-        self._validate()
+        try:
+            self._validate()
+        except ValueError:
+            # 校验失败，回滚到旧数据
+            self._data, self._warnings = old_data, old_warnings
+            logger.error(f"配置重载校验失败，保留旧配置: {self._path}")
+            return
         self._record_mtimes()
         logger.info(f"配置已重载: {self._path}")
 

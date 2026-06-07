@@ -25,8 +25,8 @@ def _build_voice_config(char_data: dict) -> dict:
     char_voice = char_data.get("voice")
     if isinstance(char_voice, dict) and char_voice:
         voice_config = {**voice_config, **char_voice}
-    # 声音特征描述（角色配置中的 voice_description）
-    voice_desc = char_data.get("voice_description", "")
+    # 声音特征描述（角色配置中 bible 下的 voice_description）
+    voice_desc = (char_data.get("bible") or {}).get("voice_description", "")
     if voice_desc and "voice_description" not in voice_config:
         voice_config["voice_description"] = voice_desc
     return voice_config
