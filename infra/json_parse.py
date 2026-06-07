@@ -43,8 +43,8 @@ def llm_call_with_retry(llm: object, prompt: str, system: str, label: str,
             if result:
                 return result
             # 解析失败但无异常，记录原始输出便于诊断
-            logger.warning(f"  ⚠ {label} 解析失败（{attempt+1}/{retries}）: 无法解析为 JSON")
-            logger.debug(f"  └─ 原始输出预览: {raw[:200]}...")
+            logger.warning(f"  ⚠ {label} 解析失败（{attempt+1}/{retries}）: 无法解析为 JSON，"
+                           f"原始输出前 500 字: {raw[:500]}")
         except Exception as e:
             logger.warning(f"  ⚠ {label} 生成失败（{attempt+1}/{retries}）: {e}")
         if attempt < retries - 1:

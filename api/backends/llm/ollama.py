@@ -7,6 +7,14 @@ from infra.http_pool import get_client, auth_headers
 logger = logging.getLogger(__name__)
 
 
+def _ensure_client(client, timeout: float):
+    """检查 httpx.Client 是否可用，已关闭则从连接池获取新实例"""
+    if client.is_closed:
+        logger.warning("HTTP 客户端已关闭，自动重建")
+        return get_client(timeout=timeout)
+    return client
+
+
 def _try_learn_limits(model: str, error: Exception) -> None:
     """从 API 错误中学习模型限制（静默，不影响正常错误处理）"""
     try:
@@ -43,6 +51,7 @@ class OllamaLLM:
         if self._ctx > 0:
             return self._ctx
         try:
+            self._fast_client = _ensure_client(self._fast_client, 5)
             r = self._fast_client.post(f"{self._url}/api/show", json={"name": self._model})
             if r.status_code == 200:
                 params = r.json().get("model_info", {})
@@ -71,6 +80,7 @@ class OllamaLLM:
         top_k = kwargs.get("top_k", self._top_k)
         if top_k is not None:
             options["top_k"] = top_k
+        self._client = _ensure_client(self._client, self._timeout)
         try:
             r = self._client.post(f"{self._url}/api/chat", json={
                 "model": self._model, "messages": messages, "stream": False,
@@ -86,6 +96,7 @@ class OllamaLLM:
         """释放资源（共享连接池由 Container.shutdown_all 统一清理）"""
 
     def health_check(self) -> tuple[bool, str]:
+        self._fast_client = _ensure_client(self._fast_client, 5)
         try:
             r = self._fast_client.get(f"{self._url}/api/tags")
             return True, f"Ollama reachable (HTTP {r.status_code})"
@@ -148,6 +159,7 @@ class OpenAICompatLLM:
         top_p = kwargs.get("top_p", self._top_p)
         if top_p is not None:
             body["top_p"] = top_p
+        self._client = _ensure_client(self._client, self._timeout)
         try:
             r = self._client.post(f"{self._url}/chat/completions",
                                   json=body, headers=self._headers)
@@ -158,6 +170,7 @@ class OpenAICompatLLM:
             raise
 
     def health_check(self) -> tuple[bool, str]:
+        self._fast_client = _ensure_client(self._fast_client, 5)
         try:
             r = self._fast_client.get(f"{self._url}/models", headers=self._headers)
             return True, f"OpenAI-compat reachable (HTTP {r.status_code})"

@@ -152,7 +152,7 @@ def invalidate_ctx_cache():
     """失效 pipeline 上下文缓存（文件系统监控回调）
 
     当角色/场景 YAML 文件变化时调用，强制下次 _build_ctx 重建 Config + Container。
-    不调用 shutdown_all()，让旧实例自然过期（避免中断正在使用后端的任务）。
+    不主动关闭旧 Container — 后端实例自然过期，避免中断正在使用后端的任务。
     """
     global _ctx_cache
     with _cfg_cache_lock:
@@ -189,9 +189,12 @@ def _validate_config_path(config_path: str) -> str | None:
 def _build_ctx(config_path: str):
     """构建 Config + Container 上下文（带路径安全校验 + 进程内缓存）
 
-    Config 有 mtime 热重载，检测到重载时重建 Container。
+    Config 有 mtime 热重载，检测到重载时用 reload() 增量更新 Container（避免全量重建）。
     锁粒度：仅保护缓存读写，Config/Container 构建在锁外执行。
     使用双重检查锁：慢路径完成后再次检查缓存，避免重复创建。
+
+    Celery prefork 模型下每个 Worker 子进程单线程执行任务（worker_prefetch_multiplier=1），
+    但 Web 服务器是多线程的，因此需要线程安全。
     """
     global _ctx_cache
 
@@ -201,9 +204,14 @@ def _build_ctx(config_path: str):
             cfg, cont = _ctx_cache[1], _ctx_cache[2]
             if not cfg._check_reload():
                 return cfg, cont
-            logger.info("Config 热重载，重建 Container")
+            # Config 热重载：用 reload() 增量更新 Container，不全量重建
+            logger.info("Config 热重载，增量更新 Container")
+            changed = cont.reload(cfg.data)
+            if changed:
+                logger.info(f"  Container 已更新: {changed}")
+            return cfg, cont
 
-    # 慢路径：首次创建 或 热重载后重建（锁外执行，不阻塞其他 worker）
+    # 慢路径：首次创建（锁外执行，不阻塞其他 worker）
     _ensure_path()
     err = _validate_config_path(config_path)
     if err:
@@ -213,23 +221,13 @@ def _build_ctx(config_path: str):
     cfg = Config(config_path)
     cont = Container(cfg.data)
 
-    # 双重检查：另一个线程可能已经更新了缓存
+    # 双重检查：另一个线程可能已经创建了缓存
     with _ctx_lock:
         if _ctx_cache and _ctx_cache[0] == config_path:
             old_cfg = _ctx_cache[1]
-            # 如果其他线程已更新到同一 mtime，直接复用，丢弃当前创建的实例
+            # 如果其他线程已更新到同一 mtime，直接复用
             if old_cfg._mtimes == cfg._mtimes:
-                if hasattr(cont, 'shutdown_all'):
-                    cont.shutdown_all()
                 return _ctx_cache[1], _ctx_cache[2]
-        # 关闭旧 Container 的连接池（防止泄漏）
-        if _ctx_cache:
-            old_cont = _ctx_cache[2]
-            if hasattr(old_cont, 'shutdown_all'):
-                try:
-                    old_cont.shutdown_all()
-                except Exception as e:
-                    logger.debug(f"旧 Container 关闭: {e}")
         _ctx_cache = (config_path, cfg, cont)
     return cfg, cont
 

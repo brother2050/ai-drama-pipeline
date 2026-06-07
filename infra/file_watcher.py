@@ -67,10 +67,11 @@ class _YAMLFileHandler:
         except Exception as e:
             logger.warning(f"缓存失效钩子跳过: {e}")
 
-        # 3. ModelRegistry 单例缓存
+        # 3. ModelRegistry 单例缓存 — 重置 mtime 使下次访问自动重载
         try:
             from flow.model_registry import ModelRegistry
-            ModelRegistry.reload(ModelRegistry())
+            ModelRegistry._instance = None
+            ModelRegistry._instance_mtime = 0.0
         except Exception as e:
             logger.warning(f"ModelRegistry 缓存失效跳过: {e}")
 

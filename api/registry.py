@@ -329,6 +329,11 @@ class Container:
         return changed
 
     def shutdown_all(self):
+        """关闭所有后端实例并清空缓存
+
+        注意：不关闭全局 http_pool — 它有独立的进程退出钩子管理生命周期。
+        关闭全局池会导致其他代码中已获取的 httpx.Client 意外失效。
+        """
         with self._lock:
             for inst in self._instances.values():
                 if hasattr(inst, "shutdown"):
@@ -338,12 +343,6 @@ class Container:
                         logger.debug(f"{type(e).__name__}: {e}")
             self._instances.clear()
             self._snapshots.clear()
-        # 关闭共享 HTTP 连接池
-        try:
-            from infra.http_pool import shutdown_all as pool_shutdown
-            pool_shutdown()
-        except Exception:
-            logger.debug("HTTP 连接池关闭失败")
 
 
 # 全局单例

@@ -163,7 +163,7 @@ def get_storyboard(episode: int) -> dict:
 @router.post("/storyboard/{episode}")
 def save_storyboard(episode: int, req: StoryboardSaveRequest) -> dict:
     _check_episode(episode)
-    from infra.constants import VALID_EMOTIONS, VALID_SHOT_TYPES, VALID_CAMERAS
+    from infra.constants import VALID_EMOTIONS, VALID_SHOT_TYPES, VALID_CAMERAS, clip_duration
     shots = [s.model_dump() for s in req.shots]
     for shot in shots:
         shot["episode"] = episode
@@ -174,6 +174,7 @@ def save_storyboard(episode: int, req: StoryboardSaveRequest) -> dict:
             shot["shot_type"] = "中景"
         if shot.get("camera") and shot["camera"] not in VALID_CAMERAS:
             shot["camera"] = "固定"
+        shot["duration"] = clip_duration(shot.get("duration"))
     from engines.storyboard import save_storyboard
     try:
         save_storyboard(shots, episode)

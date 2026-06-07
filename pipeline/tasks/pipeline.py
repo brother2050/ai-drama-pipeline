@@ -304,6 +304,7 @@ def _apply_preset(config_path: str, preset: str) -> str:
         logger.warning(f"generation.image_steps 非法值: {base_steps!r}，跳过预设缩放")
         return config_path
     if not isinstance(base_res, (list, tuple)) or len(base_res) != 2:
+        logger.warning(f"generation.resolution 格式错误: {base_res!r}，跳过预设缩放")
         return config_path
     try:
         base_res = [int(v) for v in base_res]
