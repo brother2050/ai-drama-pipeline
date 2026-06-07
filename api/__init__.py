@@ -18,6 +18,8 @@ _loaded = False  # GIL 保证 bool 读写原子性，第一次检查在锁外安
 _register_lock = threading.Lock()
 _fail_count = 0  # 连续失败计数，避免日志洪泛
 _MAX_RETRIES = 3
+_last_fail_time = 0.0  # 上次失败时间戳
+_RETRY_COOLDOWN = 60.0  # 失败后冷却秒数，超时后允许重试
 
 
 def _ensure_registered():
@@ -26,15 +28,22 @@ def _ensure_registered():
     使用双重检查锁 (DCL)。Python GIL 保证 _loaded 的读写是原子的，
     因此第一次检查在锁外是安全的。如果需要去除 GIL 依赖（如 nogil Python），
     可改用 threading.Event。
+
+    失败后进入冷却期，冷却期过后允许重试（长运行进程如 Celery Worker 中，
+    YAML 文件可能临时不可用，需要恢复机制）。
     """
-    global _loaded, _fail_count
+    global _loaded, _fail_count, _last_fail_time
     if _loaded:
         return
     with _register_lock:
         if _loaded:
             return
         if _fail_count >= _MAX_RETRIES:
-            return  # 连续失败超过阈值，不再重试
+            # 冷却期过后允许重试
+            import time
+            if time.monotonic() - _last_fail_time < _RETRY_COOLDOWN:
+                return
+            _fail_count = 0  # 重置计数，允许重试
 
         from flow.model_registry import ModelRegistry
 
@@ -42,6 +51,8 @@ def _ensure_registered():
             reg = ModelRegistry()
         except Exception as e:
             _fail_count += 1
+            import time
+            _last_fail_time = time.monotonic()
             logger.error(f"加载模型注册表失败 ({_fail_count}/{_MAX_RETRIES}): {e}")
             return
         _fail_count = 0  # 成功后重置计数

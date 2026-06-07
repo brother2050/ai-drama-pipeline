@@ -10,6 +10,7 @@ import os
 import time
 from pathlib import Path
 
+from celery.exceptions import SoftTimeLimitExceeded
 from pipeline.celery_app import app
 from pipeline.tasks.helpers import (
     _load_shots,
@@ -118,6 +119,10 @@ def _run_shot_steps(self, config_path, episode, shot_id, force, ctx):
             _db_record_step(episode, shot_id, name, result)
             log = logger.info if result.get("status") == STATUS_DONE else logger.warning if result.get("status") == STATUS_ERROR else logger.info
             log(f"[{shot_id}] {name}: {result.get('status')} — {result.get('reason', '')}")
+        except SoftTimeLimitExceeded:
+            logger.warning(f"[{shot_id}] {name}: 超时（soft_time_limit）")
+            results[name] = {"shot_id": shot_id, "step": name, "status": STATUS_ERROR, "reason": "步骤执行超时"}
+            _db_record_step(episode, shot_id, name, results[name])
         except Exception as e:
             logger.error(f"[{shot_id}] {name}: 异常 — {e}", exc_info=True)
             results[name] = {"shot_id": shot_id, "step": name, "status": STATUS_ERROR, "reason": str(e)}
@@ -378,13 +383,16 @@ def run_all_task(self, config_path: str, episode: int, vertical: bool = False, f
 
 def _run_stage_prepare(config_path: str, episode: int, force: bool) -> dict:
     from pipeline.tasks.ai import ai_prepare_task
-    return ai_prepare_task.apply(args=[config_path, episode], kwargs={"force": force, "translate": True}).get(timeout=_TIMEOUT_PREPARE)
+    # 直接调用（同步），不走 Celery 队列 — 避免单 Worker 死锁
+    return ai_prepare_task(config_path, episode, force=force, translate=True)
 
 
 def _run_stage_produce(config_path: str, episode: int, force: bool) -> dict:
-    return produce_task.apply(args=[config_path, episode], kwargs={"force": force}).get(timeout=_TIMEOUT_PRODUCE)
+    # 直接调用（同步），不走 Celery 队列
+    return produce_task(config_path, episode, force=force)
 
 
 def _run_stage_post(config_path: str, episode: int, vertical: bool) -> dict:
     from pipeline.tasks.media_tasks import post_task
-    return post_task.apply(args=[config_path, episode], kwargs={"vertical": vertical}).get(timeout=_TIMEOUT_POST)
+    # 直接调用（同步），不走 Celery 队列
+    return post_task(config_path, episode, vertical=vertical)

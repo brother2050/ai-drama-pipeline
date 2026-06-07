@@ -236,8 +236,9 @@ def ensure_portrait(char_id: str, config: dict, container=None, force: bool = Fa
             _generating.pop(char_id, None)
         return ""
 
-    from infra.config import load_character
+    from infra.config import load_character, load_yaml_full
     char = load_character(paths, char_id)
+    data = load_yaml_full(char_file) if char_file.exists() else {"character": char}
 
     if not container:
         with _generating_lock:
@@ -327,7 +328,7 @@ def _generate_single_outfit(comfyui, wb, char_id: str, outfit_key: str,
 def _ensure_outfit_images(char_id: str, config: dict, container,
                           project_dir: str, portrait_dir: Path) -> None:
     """为角色的各 outfit 生成参考图（如果尚未存在）"""
-    from infra.config import ProjectPaths, load_character
+    from infra.config import ProjectPaths, load_character, load_yaml_full
     paths = ProjectPaths(project_dir)
     char_file = paths.character_yaml(char_id)
     if not char_file.exists():
@@ -337,6 +338,7 @@ def _ensure_outfit_images(char_id: str, config: dict, container,
     if not char or char == {"id": char_id}:
         logger.warning(f"加载角色配置失败 {char_id}")
         return
+    data = load_yaml_full(char_file)
     outfits = char.get("outfits", {})
     if not isinstance(outfits, dict) or not outfits:
         return
