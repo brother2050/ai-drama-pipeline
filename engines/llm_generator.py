@@ -183,11 +183,20 @@ def _generate_entities(llm: object, descriptions: list[str], expected_ids: list[
     # ID 注入 + 名称去重（包含已有实体名称，防止 LLM 生成重复名）
     used_names: set[str] = {e["name"] for e in (existing_entities or []) if e.get("name")}
     used_ids: set[str] = {e["id"] for e in (existing_entities or []) if e.get("id")}
+    # 预分配：LLM 返回的 id 已在 expected_ids 中时用 ID 匹配，否则用位置匹配
+    assigned_ids: set[str] = set()
     for i, entity in enumerate(entities):
         if not isinstance(entity, dict):
             continue
-        if expected_ids and i < len(expected_ids):
-            entity["id"] = expected_ids[i]
+        if expected_ids:
+            llm_id = entity.get("id", "")
+            if llm_id and llm_id in expected_ids and llm_id not in assigned_ids:
+                # LLM 返回了正确的 ID，用 ID 匹配（不依赖顺序）
+                assigned_ids.add(llm_id)
+            elif i < len(expected_ids) and expected_ids[i] not in assigned_ids:
+                # 位置匹配兜底
+                entity["id"] = expected_ids[i]
+                assigned_ids.add(expected_ids[i])
         # LLM 未返回 id 时生成默认 ID
         if not entity.get("id"):
             entity["id"] = f"{label}_{i+1}"
