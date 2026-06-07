@@ -184,14 +184,17 @@ def _import_json_append(builder, plan, project_dir, translation, root) -> dict:
 
 
 def _import_json_full(builder, plan, project_dir, translation, root) -> dict:
-    """全量模式导入（项目已存在时自动切换追加）"""
+    """全量模式导入（项目已存在时自动切换追加，并通知调用方）"""
     from scripts.project_builder import ProjectAlreadyExists
     try:
         project_dir = builder.build(plan, root)
     except ProjectAlreadyExists:
         if project_dir and project_dir.exists():
             logger.info(f"项目已存在，自动切换到追加模式: {project_dir}")
-            return _import_json_append(builder, plan, project_dir, translation, root)
+            result = _import_json_append(builder, plan, project_dir, translation, root)
+            result["mode_switched"] = True
+            result["warning"] = f"项目 '{plan.project_name}' 已存在，已自动切换为追加模式"
+            return result
         raise
     logger.info(f"导入完成: {project_dir} ({len(plan.characters)} 角色, {len(plan.scenes)} 场景, {len(plan.shots)} 镜头)")
     return {

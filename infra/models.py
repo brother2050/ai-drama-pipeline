@@ -260,6 +260,19 @@ class ImportValidator:
         existing_scene_ids: set[str] | None = None,
     ) -> list[str]:
         errors = []
+
+        # plan 内部 characters/scenes ID 重复检测
+        seen_char_ids: set[str] = set()
+        for c in plan.characters:
+            if c.id in seen_char_ids:
+                errors.append(f"characters: ID '{c.id}' 重复定义")
+            seen_char_ids.add(c.id)
+        seen_scene_ids: set[str] = set()
+        for s in plan.scenes:
+            if s.id in seen_scene_ids:
+                errors.append(f"scenes: ID '{s.id}' 重复定义")
+            seen_scene_ids.add(s.id)
+
         char_ids, scene_ids, existing_shots = _resolve_existing_ids(
             plan, project_dir, existing_char_ids, existing_scene_ids)
 

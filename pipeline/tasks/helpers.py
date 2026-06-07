@@ -403,8 +403,12 @@ def comfyui_generate(shot_id: str, step: str, comfyui, workflow: dict, out_dir: 
     if not files:
         return _err(shot_id, step, "ComfyUI 未返回任何文件")
 
+    src = files[0]
+    if not os.path.isfile(src):
+        return _err(shot_id, step, f"ComfyUI 输出文件不存在: {Path(src).name}")
+
     out_path = str(out_dir / output_name)
-    os.replace(files[0], out_path)
+    os.replace(src, out_path)
     err = _validate_output(out_path, step, min_size=min_size)
     if err:
         return _err(shot_id, step, err)

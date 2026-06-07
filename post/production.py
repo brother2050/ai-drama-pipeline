@@ -83,7 +83,8 @@ def _add_subtitles(concat_out: Path, srt_path: Path, episode: int, out_dir: Path
 
 
 def _generate_and_mix_bgm(concat_out: Path, shots: list[dict], cfg: Config,
-                          episode: int, out_dir: Path, cont: object = None) -> Path:
+                          episode: int, out_dir: Path, cont: object = None,
+                          video_durations: list[float] | None = None) -> Path:
     """自动生成配乐并混合，失败则跳过"""
     bgm_path = out_dir / "bgm.wav"
     if not bgm_path.exists():
@@ -95,7 +96,11 @@ def _generate_and_mix_bgm(concat_out: Path, shots: list[dict], cfg: Config,
             except Exception:
                 total_dur = 0
             if total_dur <= 0:
-                total_dur = sum(float(s.get("duration", 4)) for s in shots)
+                # 优先用已探测的视频时长，回退到分镜预期时长
+                if video_durations:
+                    total_dur = sum(video_durations)
+                else:
+                    total_dur = sum(float(s.get("duration", 4)) for s in shots)
             emotions = [s.get("emotion", "neutral") for s in shots if s.get("emotion")]
             mood = max(set(emotions), key=emotions.count) if emotions else "neutral"
             music_gen = MusicGenerator(config=dict(cfg.data), container=cont)
@@ -218,7 +223,8 @@ def run_post(config_path: str, episode: int, vertical: bool = False, cfg=None) -
         cont = Container(cfg.data)
     except Exception:
         cont = None
-    concat_out = _generate_and_mix_bgm(concat_out, shots, cfg, episode, out_dir, cont=cont)
+    concat_out = _generate_and_mix_bgm(concat_out, shots, cfg, episode, out_dir, cont=cont,
+                                       video_durations=video_durations)
     if vertical:
         concat_out = _to_vertical(concat_out, episode, out_dir)
     final_out = _rename_final(concat_out, episode, out_dir)

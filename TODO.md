@@ -1,7 +1,7 @@
 # TODO
 
 > 2026-06-07 全项目 5 链路审查（5 子代理 + 人工复核，约 20,000 行代码）
-> 已修复 38 项（含前次 27 项 + 本轮 11 项），见 git log。
+> 已修复 42 项（含前次 38 项 + 本轮 4 项），见 git log。
 > 以下为未修复项，均为低优先级或需产品决策。
 
 ---
@@ -10,13 +10,8 @@
 
 | 严重度 | 文件 | 问题 | 不修理由 |
 |--------|------|------|---------|
-| 🟡 中 | `pipeline/tasks/training_tasks.py` | 全量导入项目已存在时静默切换追加模式，用户无感知 | 需产品决策：报错 vs 覆盖 vs 追加 |
-| 🟢 低 | `pipeline/tasks/helpers.py` | `comfyui_generate` 的 `files[0]` 源文件存在性未检查 | 极端并发场景，概率极低 |
 | 🟢 低 | `post/subtitle.py` | 短镜头 `duration < transition_duration` 时字幕越界 | `MIN_DURATION=2` 已保护，实际罕见 |
-| 🟢 低 | `post/production.py` | BGM 回退用分镜预期时长而非已探测的 `video_durations` | 仅 ffprobe 失败时触发 |
 | 🟢 低 | `scripts/project_builder.py` | 并发 TOCTOU 竞态（读 DB 去重与写 DB 之间有窗口） | 个人项目单用户场景 |
-| 🟢 低 | `infra/models.py` | ImportPlan 内 characters/scenes ID 重复未检测 | LLM 生成 + 用户手动编辑均不易触发 |
-| 🟢 低 | `engines/workflow_inject.py` | PuLID config 参数未完全透传（扩展性问题） | 当前仅 fusion 受影响，已修复 |
 | 🟢 低 | `scripts/project_builder.py` | 追加导入非原子性（YAML 先写 DB 后写） | YAML 是配置文件非核心数据，重试即可 |
 
 ---
@@ -32,6 +27,10 @@
 
 | 修复 | 文件 | 说明 |
 |------|------|------|
+| 导入静默切换追加模式 | `training_tasks.py` | 返回 `mode_switched` + `warning` 通知调用方 |
+| comfyui_generate files[0] 未检查 | `helpers.py` | 源文件存在性防御检查 |
+| BGM 回退用预期时长 | `production.py` | 复用已探测的 `video_durations` |
+| ImportPlan ID 重复未检测 | `infra/models.py` | characters/scenes ID 重复校验 |
 | normalize_character 返回值丢弃 | `llm_generator.py` + `entity_utils.py` | `results[:] = [...]` 回写列表 |
 | transitions ffprobe "N/A" 崩溃 | `transitions.py` | `_safe_duration` 兜底 |
 | 单路音频转场标签引用错误 | `transitions.py` | `audio_inputs` → `audio_parts` |
