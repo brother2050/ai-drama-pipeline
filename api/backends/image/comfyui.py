@@ -22,6 +22,7 @@ class ComfyUI:
         self._api_key = config.get("api_key", "")
         self._client = get_client(timeout=self._timeout)
         self._fast_client = get_client(timeout=10)
+        self._uploaded: set[str] = set()  # 已上传文件缓存（进程内去重）
 
     @property
     def name(self): return "comfyui"
@@ -54,12 +55,19 @@ class ComfyUI:
     def upload_image(self, filepath: str, overwrite: bool = True, filename: str | None = None) -> dict:
         """上传图片到 ComfyUI 服务器（用于 IP-Adapter 等需要参考图的节点）
 
+        进程内缓存：同一文件名+文件大小不重复上传（同一 cover.png 被多个 shot 引用时）。
+
         Args:
             filepath: 本地文件路径
             overwrite: 是否覆盖同名文件
             filename: 自定义服务端文件名（None 则使用本地文件名）
         """
         upload_name = filename or Path(filepath).name
+        file_size = Path(filepath).stat().st_size
+        cache_key = f"{upload_name}:{file_size}"
+        if cache_key in self._uploaded:
+            logger.debug(f"跳过重复上传: {upload_name}")
+            return {"skipped": True}
         headers = auth_headers(self._api_key, content_type="")
         with open(filepath, "rb") as f:
             r = self._client.post(f"{self._url}/upload/image",
@@ -67,6 +75,7 @@ class ComfyUI:
                            data={"overwrite": str(overwrite).lower()},
                            headers=headers)
         r.raise_for_status()
+        self._uploaded.add(cache_key)
         return r.json()
 
     def generate(self, workflow: dict, output_dir: str) -> list[str]:

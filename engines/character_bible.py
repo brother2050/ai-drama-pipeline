@@ -47,16 +47,15 @@ class CharacterBible:
     """
 
     def __init__(self, project_dir: str):
-        self._project_dir = project_dir
+        from infra.config import ProjectPaths
+        self._paths = ProjectPaths(project_dir)
         self._cache: dict[str, dict] = {}       # bible（中文）
         self._cache_en: dict[str, dict] = {}     # bible_en（英文）
         self._mtimes: dict[str, float] = {}      # 文件 mtime 缓存
 
     def _is_fresh(self, char_id: str) -> bool:
         """检查缓存是否仍然有效（文件未修改）"""
-        from infra.config import ProjectPaths
-        paths = ProjectPaths(self._project_dir)
-        char_file = paths.character_yaml(char_id)
+        char_file = self._paths.character_yaml(char_id)
         if not char_file.exists():
             return char_id in self._cache  # 文件不存在时，缓存空 dict 也是有效的
         try:
@@ -67,9 +66,7 @@ class CharacterBible:
 
     def _update_mtime(self, char_id: str) -> None:
         """更新缓存的 mtime"""
-        from infra.config import ProjectPaths
-        paths = ProjectPaths(self._project_dir)
-        char_file = paths.character_yaml(char_id)
+        char_file = self._paths.character_yaml(char_id)
         try:
             self._mtimes[char_id] = char_file.stat().st_mtime
         except OSError:
@@ -146,9 +143,8 @@ class CharacterBible:
         if char_id in self._cache and self._is_fresh(char_id):
             return self._cache[char_id]
 
-        from infra.config import load_character, ProjectPaths
-        paths = ProjectPaths(self._project_dir)
-        char = load_character(paths, char_id)
+        from infra.config import load_character
+        char = load_character(self._paths, char_id)
         bible = char.get("bible", {})
         self._cache[char_id] = bible
         self._update_mtime(char_id)
@@ -159,9 +155,8 @@ class CharacterBible:
         if char_id in self._cache_en and self._is_fresh(char_id):
             return self._cache_en[char_id]
 
-        from infra.config import load_character, ProjectPaths
-        paths = ProjectPaths(self._project_dir)
-        char = load_character(paths, char_id)
+        from infra.config import load_character
+        char = load_character(self._paths, char_id)
         bible_en = char.get("bible_en", {})
         self._cache_en[char_id] = bible_en
         self._update_mtime(char_id)
@@ -177,9 +172,8 @@ class CharacterBible:
 
     def _save_bible(self, char_id: str, key: str, data: dict, cache: dict) -> None:
         """通用圣经保存（消除 save/save_en 重复）"""
-        from infra.config import ProjectPaths, load_yaml_full, save_yaml
-        paths = ProjectPaths(self._project_dir)
-        char_file = paths.character_yaml(char_id)
+        from infra.config import load_yaml_full, save_yaml
+        char_file = self._paths.character_yaml(char_id)
         if not char_file.exists():
             logger.warning(f"角色文件不存在: {char_file}")
             return
@@ -195,7 +189,6 @@ class CharacterBible:
 
     def get_all(self) -> dict[str, dict]:
         """获取所有角色的中文圣经数据"""
-        from infra.config import ProjectPaths, load_yaml_entities
-        paths = ProjectPaths(self._project_dir)
-        chars = load_yaml_entities(paths.characters_dir, "character")
+        from infra.config import load_yaml_entities
+        chars = load_yaml_entities(self._paths.characters_dir, "character")
         return {c["id"]: c.get("bible", {}) for c in chars if c.get("id")}

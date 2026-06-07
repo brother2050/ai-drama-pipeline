@@ -56,7 +56,7 @@ def inject_character_refs(builder: object, wf: dict, char_ids: list[str],
         return wf
 
     primary_id = char_ids[0]
-    primary_refs = builder._get_character_refs(primary_id, outfit=outfit)
+    primary_refs = builder._get_character_refs(primary_id, outfit=outfit, _no_auto_gen=True)
     existing_ip_nodes = find_nodes_by_class(wf, "IPAdapterAdvanced")
 
     if existing_ip_nodes:
@@ -69,7 +69,7 @@ def inject_character_refs(builder: object, wf: dict, char_ids: list[str],
 
         if len(char_ids) > 1:
             for secondary_id in char_ids[1:]:
-                secondary_refs = builder._get_character_refs(secondary_id, outfit=outfit)
+                secondary_refs = builder._get_character_refs(secondary_id, outfit=outfit, _no_auto_gen=True)
                 if secondary_refs:
                     secondary_weight = ip_config.get("secondary_weight",
                         max(0.3, ip_config.get("weight", 0.75) * 0.6))
@@ -94,14 +94,14 @@ def update_existing_ip_adapter(builder: object, wf: dict, char_ids: list[str],
                 wf[ip_nodes[0]]["inputs"][key] = ip_config[key]
 
     primary_id = char_ids[0]
-    primary_refs = builder._get_character_refs(primary_id, outfit=outfit)
+    primary_refs = builder._get_character_refs(primary_id, outfit=outfit, _no_auto_gen=True)
     char_nodes = find_character_load_image_nodes(wf)
     if primary_refs and char_nodes:
         wf[char_nodes[0]]["inputs"]["image"] = os.path.basename(primary_refs[0])
 
     if len(char_ids) > 1:
         for secondary_id in char_ids[1:]:
-            secondary_refs = builder._get_character_refs(secondary_id, outfit=outfit)
+            secondary_refs = builder._get_character_refs(secondary_id, outfit=outfit, _no_auto_gen=True)
             if secondary_refs:
                 secondary_weight = ip_config.get("secondary_weight",
                     max(0.3, weight * 0.6))
@@ -270,7 +270,7 @@ def inject_pulid_flux(builder: object, wf: dict, char_ids: list[str],
     primary_injected = False
 
     for char_id in char_ids:
-        refs = builder._get_character_refs(char_id, outfit=outfit)
+        refs = builder._get_character_refs(char_id, outfit=outfit, _no_auto_gen=True)
         if not refs:
             logger.warning(f"角色 '{char_id}' 无定妆照，跳过该角色的 PuLID-Flux 注入")
             continue
