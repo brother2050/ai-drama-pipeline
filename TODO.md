@@ -12,7 +12,7 @@
 | `infra/batch_processor.py` | 157 | ~~`_execute_with_retry` 返回的 `attempt` 是 0-indexed~~ ✅ 已修复 |
 | `engines/prompt.py` | 236 | `batch_generate_appearance_prompts` 返回类型注解 `dict[str, dict]`，但 `parse_result` 返回 `list | None`，元素类型不确定时 `item.get("prompt_en")` 可能 `AttributeError` |
 | `engines/prompt.py` | 330 | `_merge_translate_results` 重试中 `parsed.get(local_idx + 1, "")` 如果 LLM 返回编号不连续或跳号，结果丢失 |
-| `pipeline/tasks/steps/frame.py` | 53 | `_upload_reference_images` 中 `_has_consistency_nodes` 只检查 `IPAdapterAdvanced` 和 `ApplyPulidFlux` 两种节点，新增一致性方案时需手动更新 |
+| `pipeline/tasks/steps/frame.py` | 53 | ~~`_has_consistency_nodes` 硬编码~~ ✅ 已修复 |
 | `pipeline/tasks/steps/frame.py` | 70 | `_upload_one` 在线程池中并发修改共享 `wf` dict（不同 node_id），CPython GIL 下安全但 PEP 703 去 GIL 后会成 race condition |
 | `pipeline/tasks/steps/video.py` | 26 | `_upload_first_frame_if_needed` 中 `load_nodes[0]` 只更新第一个 LoadImage 节点，多节点时后续节点引用错误图片 |
 | `api/registry.py` | 142 | `Container.get` 锁外做 `not_implemented` 检查，可能基于旧注册表数据 |
