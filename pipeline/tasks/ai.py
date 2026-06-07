@@ -44,9 +44,9 @@ def _ai_storyboard_inner(self, config_path, episode, outline, duration, append):
     if char_ids or scene_ids:
         self.update_state(state="PROGRESS", meta={"step": "ai_storyboard", "progress": 60,
                           "message": f"正在生成 {len(char_ids)} 个角色、{len(scene_ids)} 个场景..."})
-    id_remap, warnings, err = _generate_entities_for_storyboard(llm, shots, char_ids, scene_ids, outline, style, genre, cfg.paths)
+    id_remap, warnings, err, entity_status = _generate_entities_for_storyboard(
+        llm, shots, char_ids, scene_ids, outline, style, genre, cfg.paths)
     if err:
-        # 实体生成失败不阻断分镜保存 — 分镜本身已生成成功，用户可后续补充实体
         logger.warning(f"实体生成失败（分镜仍会保存）: {err}")
         warnings.append(f"实体生成失败: {err}")
 
@@ -55,7 +55,6 @@ def _ai_storyboard_inner(self, config_path, episode, outline, duration, append):
         from engines.entity_utils import remap_shot_ids
         remap_shot_ids(shots, id_remap)
     self.update_state(state="PROGRESS", meta={"step": "ai_storyboard", "progress": 90, "message": "正在保存..."})
-    # 写入前验证分镜数据完整性
     from engines.storyboard import validate_shot
     invalid_shots = []
     for s in shots:
@@ -66,10 +65,14 @@ def _ai_storyboard_inner(self, config_path, episode, outline, duration, append):
         logger.warning(f"分镜数据校验: {len(invalid_shots)} 个镜头有问题: {'; '.join(invalid_shots[:5])}")
     (append_storyboard if append else save_storyboard)(shots, episode)
 
+    # 准确报告生成的实体（按类型分组，不依赖 id_remap 顺序）
+    gen_chars = list(id_remap.keys())[:len(char_ids)] if entity_status.get("char_ok") else []
+    gen_scenes = list(id_remap.keys())[len(char_ids):] if entity_status.get("scene_ok") else []
+
     result = {"status": STATUS_DONE, "episode": episode, "count": len(shots),
               "total_duration": sum(int(s.get("duration", 4)) for s in shots), "shots": shots,
-              "generated_characters": list(id_remap.keys())[:len(char_ids)],
-              "generated_scenes": list(id_remap.keys())[len(char_ids):]}
+              "generated_characters": gen_chars,
+              "generated_scenes": gen_scenes}
     if warnings:
         result["warnings"] = warnings
     return result
@@ -93,8 +96,11 @@ def _generate_entities_for_storyboard(llm, shots, char_ids, scene_ids, outline, 
     """生成角色+场景，返回 (id_remap, warnings, error_or_None)
 
     实体生成失败不视为致命错误 — 分镜本身已生成成功，用户可后续补充实体。
+    但会准确报告哪些实体类型生成成功/失败。
     """
     id_remap, warnings = {}, []
+    char_ok, scene_ok = False, False
+
     if char_ids:
         result = _generate_entities_for_storyboard_core(
             llm, shots, char_ids, outline, style, genre, paths, "character", "ch")
@@ -103,6 +109,7 @@ def _generate_entities_for_storyboard(llm, shots, char_ids, scene_ids, outline, 
         else:
             id_remap.update(result.get("id_remap", {}))
             warnings.extend(result.get("warnings", []))
+            char_ok = True
     if scene_ids:
         result = _generate_entities_for_storyboard_core(
             llm, shots, scene_ids, outline, style, genre, paths, "scene", "sc")
@@ -111,7 +118,10 @@ def _generate_entities_for_storyboard(llm, shots, char_ids, scene_ids, outline, 
         else:
             id_remap.update(result.get("id_remap", {}))
             warnings.extend(result.get("warnings", []))
-    return id_remap, warnings, None
+            scene_ok = True
+
+    # 用标记区分成功生成的实体类型，避免 id_remap 混合导致误报
+    return id_remap, warnings, None, {"char_ok": char_ok, "scene_ok": scene_ok}
 
 
 def _generate_entities_for_storyboard_core(llm, shots, entity_ids, outline, style, genre, paths, entity_key, prefix) -> dict:
