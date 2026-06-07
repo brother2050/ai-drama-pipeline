@@ -288,12 +288,12 @@ def _apply_preset(config_path: str, preset: str) -> str:
         return config_path
     if preset == "high":
         overrides = {
-            "image_steps": int(base_steps * 1.4),
-            "resolution": [min(1920, int(base_res[0] * 1.5)), min(1080, int(base_res[1] * 1.5))],
+            "image_steps": round(base_steps * 1.4),
+            "resolution": [min(1920, round(base_res[0] * 1.5)), min(1080, round(base_res[1] * 1.5))],
         }
     elif preset == "standard":
         overrides = {
-            "image_steps": int(base_steps * 1.2),
+            "image_steps": round(base_steps * 1.2),
         }
     else:
         return config_path
