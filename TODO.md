@@ -1,7 +1,7 @@
 # TODO
 
 > 2026-06-07 全项目 5 链路审查（5 子代理 + 人工复核，约 20,000 行代码）
-> 已修复 51 项（含前次 45 项 + 本轮 6 项），见 git log。
+> 已修复 55 项（含前次 45 项 + 本轮 10 项），见 git log。
 
 ---
 
@@ -57,3 +57,7 @@
 | stagger 时序竞态 | `concurrency.py` | 读+写同一把锁 |
 | ai_toolkit 子进程资源泄漏 | `ai_toolkit_api.py` | try/finally + terminate/kill |
 | generated_characters 混入场景 ID | `ai.py` | entity_status 标记分组报告 |
+| workflow 缓存无 mtime 失效 | `engines/workflow_builder.py` | 缓存 (data, mtime) 元组，文件变化自动重载 |
+| prompt 变量字典冗余计算 | `engines/prompt_compiler.py` | style/genre 先算一次再复用 |
+| stagger last_start 竞态窗口 | `infra/concurrency.py` | 锁内统一更新 last_start |
+| _check_outfit_reference 冗余别名导入 | `infra/models.py` | 直接用模块级已导入的函数名 |
