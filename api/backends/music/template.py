@@ -18,8 +18,12 @@ class TemplateMusic:
                  mood: str = "neutral", bpm: int = 120) -> str:
         Path(output).parent.mkdir(parents=True, exist_ok=True)
         duration = max(1, min(300, duration))  # 1秒 ~ 5分钟
-        # 用 ffmpeg 生成简单音调
-        freq = {"happy": 440, "sad": 330, "angry": 520, "neutral": 400}.get(mood, 400)
+        # 用 ffmpeg 生成简单音调（每种情绪对应不同频率）
+        freq = {
+            "happy": 440, "sad": 330, "angry": 520, "romantic": 392,
+            "worried": 370, "surprised": 480, "smug": 460, "serious": 350,
+            "calm": 400, "determined": 450, "fearful": 310, "action": 500,
+        }.get(mood, 400)
         from infra.ffmpeg import ffmpeg_path
         ffmpeg = ffmpeg_path()
         cmd = [ffmpeg, "-y", "-f", "lavfi", "-i",

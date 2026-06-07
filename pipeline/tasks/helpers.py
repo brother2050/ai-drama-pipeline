@@ -222,6 +222,14 @@ def _build_ctx(config_path: str):
                 if hasattr(cont, 'shutdown_all'):
                     cont.shutdown_all()
                 return _ctx_cache[1], _ctx_cache[2]
+        # 关闭旧 Container 的连接池（防止泄漏）
+        if _ctx_cache:
+            old_cont = _ctx_cache[2]
+            if hasattr(old_cont, 'shutdown_all'):
+                try:
+                    old_cont.shutdown_all()
+                except Exception as e:
+                    logger.debug(f"旧 Container 关闭: {e}")
         _ctx_cache = (config_path, cfg, cont)
     return cfg, cont
 
