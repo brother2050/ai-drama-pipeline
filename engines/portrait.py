@@ -47,7 +47,6 @@ class ViewGenParams:
     project_dir: str = ""
     view_key: str = ""
 
-# 五视图配置：文件名 → (shot_type, camera, 描述)
 # 五视图配置：文件名 → (shot_type, camera, 描述, view_key)
 _FIVE_VIEWS = [
     ("cover.png",        "特写",     "固定", "正面",  "front"),
@@ -191,10 +190,12 @@ def _update_view_refs(char: dict, char_id: str, generated_urls: list[str]) -> No
 def ensure_portrait(char_id: str, config: dict, container=None, force: bool = False) -> str:
     """确保角色有定妆照（五视图），没有则生成
 
-    生成三张图：
-      - cover.png 正面特写
-      - side.png  侧面特写
-      - back.png  背面特写
+    生成五张图：
+      - cover.png        正面特写
+      - left_side.png    左侧特写
+      - right_side.png   右侧特写
+      - back.png         背面特写
+      - three_quarter.png 3/4 侧特写
 
     配置项 portraits.auto_outfit:
       - False（默认）: 只生成五视图，不遍历 outfits
