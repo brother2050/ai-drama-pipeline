@@ -44,7 +44,8 @@ def calibrate_storyboard(llm: object, params: object) -> list[dict]:
     logger.info("Stage 1/3: 叙事骨架...")
     skeleton = llm_call_with_retry(llm, context, tpl("shot_stage1_system"), "叙事骨架", max_tokens=4096)
     if not skeleton or not isinstance(skeleton, list):
-        logger.error("Stage 1 失败，回退到单次生成")
+        reason = "LLM 返回空" if not skeleton else f"LLM 返回非列表类型: {type(skeleton).__name__}"
+        logger.error(f"Stage 1 失败（{reason}），回退到单次生成")
         return _fallback_generate(llm, params)
 
     shots = _postprocess_stage1(skeleton, episode, strict=True)
