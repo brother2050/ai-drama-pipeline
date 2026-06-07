@@ -1,74 +1,37 @@
 # TODO
 
 > 2026-06-07 全项目深度审查遗留项（3 子代理 + 人工审查，约 20,000 行代码）
-> 已修复的项见 git log。以下为未修复项，按严重程度分类。
+> 已修复 27 项，见 git log。以下为未修复项。
 
 ---
 
-## HIGH — 建议后续修复
+## 未修复项
 
-| 文件 | 行号 | 问题 |
-|---|---|---|
-| `infra/batch_processor.py` | 157 | ~~`_execute_with_retry` 返回的 `attempt` 是 0-indexed~~ ✅ 已修复 |
-| `engines/prompt.py` | 236 | ~~`batch_generate_appearance_prompts` 返回类型注解 `dict[str, dict]`，但 `parse_result` 返回 `list | None`，元素类型不确定时 `item.get("prompt_en")` 可能 `AttributeError`~~ ✅ 已修复 |
-| `engines/prompt.py` | 330 | ~~`_merge_translate_results` 重试中 `parsed.get(local_idx + 1, "")` 如果 LLM 返回编号不连续或跳号，结果丢失~~ ✅ 已修复 |
-| `pipeline/tasks/steps/frame.py` | 53 | ~~`_has_consistency_nodes` 硬编码~~ ✅ 已修复 |
-| `pipeline/tasks/steps/frame.py` | 70 | `_upload_one` 在线程池中并发修改共享 `wf` dict（不同 node_id），CPython GIL 下安全但 PEP 703 去 GIL 后会成 race condition |
-| `pipeline/tasks/steps/video.py` | 26 | ~~`_upload_first_frame_if_needed` 中 `load_nodes[0]` 只更新第一个 LoadImage 节点，多节点时后续节点引用错误图片~~ ✅ 已修复 |
-| `api/registry.py` | 142 | `Container.get` 锁外做 `not_implemented` 检查，可能基于旧注册表数据 |
-| `infra/concurrency_groups.py` | 102 | ~~`acquire_backend` 异常路径的锁泄漏风险：`lock.acquire()` 本身抛异常时 `finally` 不释放~~ ✅ 已修复 |
+| 文件 | 行号 | 严重度 | 问题 | 审查结论 |
+|---|---|---|---|---|
+| `pipeline/tasks/steps/frame.py` | 70 | HIGH | `_upload_one` 在线程池中并发修改共享 `wf` dict | 误报 — wf 修改在主线程，不并发 |
+| `api/registry.py` | 142 | HIGH | `Container.get` 锁外做 `not_implemented` 检查 | 可接受 — 快速失败优化，create 在锁内 |
+| `engines/workflow_inject.py` | 190 | MEDIUM | `inject_ip_adapter_chain` 和 `inject_pulid_flux_chain` 大量重复代码 | 架构重构，个人项目不值得 |
+| `engines/prompt_compiler.py` | 145 | MEDIUM | `compile_text` 变量替换只支持 `\w+` 模式 | 功能增强，当前够用 |
+| `engines/portrait.py` | 94 | MEDIUM | 重入保护 TTL 竞态 | 误报 — `_generating_lock` 已保护 check-and-set |
+| `pipeline/tasks/pipeline.py` | 166 | MEDIUM | `_retry_failed` 用 `force=True` 但未跳过 `_try_mark_running_atomic` | 误报 — retry 在所有 shot 完成后执行，无并发 |
+| `pipeline/tasks/helpers.py` | 254 | MEDIUM | `PrepareParams` 10 个字段的 dataclass | YAGNI — named parameter 有意义 |
+| `pipeline/tasks/training_tasks.py` | 120 | MEDIUM | `_try_mark_running_atomic(0, char_id, "train_lora")` 硬编码 `episode=0` | 合理 — 训练是角色级操作，episode=0 是哨兵值 |
+| `pipeline/tasks/training_tasks.py` | 147 | MEDIUM | 直接导入 `ai_toolkit.TrainLoraParams` | YAGNI — DI 过度抽象 |
+| `infra/config.py` | 89 | MEDIUM | `ProjectPaths.projects_dir` 硬编码 `parent.parent` | 合适 — 项目结构固定 |
+| `infra/models.py` | 180 | MEDIUM | `ImportValidator.validate_references` 内执行 DB 查询 | 可接受 — 验证需要查 DB |
+| `infra/http_pool.py` | 73 | MEDIUM | `get_client` double-checked locking 线程安全 | 理论问题，CPython GIL 下安全 |
+| `infra/hooks.py` | — | LOW | 钩子系统支持 4 种类型，当前只用 2 种 | YAGNI |
+| `infra/monitor.py` | — | LOW | WatchDog LRU 淘汰功能 `max_active=0` | YAGNI |
+| `infra/safe_executor.py` | 60 | LOW | `SafeExecutionError` 属性从未被读取 | YAGNI |
+| `infra/concurrency.py` | 58 | LOW | `stagger` 时序不精确 | 理论问题，实际影响极小 |
+| `engines/dialogue.py` | 75 | LOW | `concat_wav` 用 `raw.find(b"data")` 搜索 chunk | 理论问题，WAV 格式足够可靠 |
+| `pipeline/tasks/steps/tts.py` | 74 | LOW | voice_config 构建逻辑重复 | YAGNI — 只重复 3 行 |
+| `pipeline/tasks/steps/lipsync.py` | 28 | LOW | 存在性检查 + force 跳过模式重复 | YAGNI — 只重复 2 行 |
+| `pipeline/tasks/portrait_tasks.py` | 109 | LOW | `_outfits_batch_inner` 同步阻塞调用 Celery | 设计问题，个人项目可接受 |
+| `pipeline/tasks/training_tasks.py` | 88 | LOW | `os.replace` 不是原子的 | POSIX 系统上是原子的 |
 
-## MEDIUM — 可选修复
+## 架构级观察（已审查，不修）
 
-| 文件 | 行号 | 问题 |
-|---|---|---|
-| `engines/workflow_inject.py` | 190 | `inject_ip_adapter_chain` 和 `inject_pulid_flux_chain` 大量重复代码，可抽象为通用链式注入函数 |
-| `engines/prompt_compiler.py` | 85 | ~~模板缓存无刷新~~ ✅ 已修复 |
-| `engines/prompt_compiler.py` | 145 | `compile_text` 变量替换只支持 `\w+` 模式，不支持 `${shot.action}` 命名空间变量 |
-| `engines/portrait.py` | 94 | 重入保护 TTL 竞态：两线程同时检测到 TTL 过期时都会生成同一角色的定妆照 |
-| `engines/portrait.py` | 115 | ~~docstring 过时~~ ✅ 已修复 |
-| `engines/shot_calibrator.py` | 72 | ~~fallback 不记录原因~~ ✅ 已修复 |
-| `engines/quality_gate.py` | 200 | ~~`_check_all_audio` 中 dialogue 空值检测不完整：`"..."`、`"——"` 等被视为有效台词~~ ✅ 已修复 |
-| `engines/workflow.py` | 90 | ~~回退返回全部 LoadImage~~ ✅ 已修复 |
-| `pipeline/tasks/pipeline.py` | 166 | `_retry_failed` 用 `force=True` 但未跳过 `_try_mark_running_atomic`，可能与仍在执行的原任务并发 |
-| `pipeline/tasks/pipeline.py` | 208 | ~~`_apply_preset` 中 `int(base_steps * 1.4)` 截断~~ ✅ 已修复 |
-| `pipeline/tasks/helpers.py` | 254 | `PrepareParams` 10 个字段的 dataclass 本质是把 10 个函数参数换成了 10 个 dataclass 字段，未减少复杂度 |
-| `pipeline/tasks/media_tasks.py` | 62 | ~~`tts_single_task` 用 `cont.get("tts")` 而非 fallback~~ ✅ 已修复 |
-| `pipeline/tasks/training_tasks.py` | 120 | `_try_mark_running_atomic(0, char_id, "train_lora")` 硬编码 `episode=0`，与其他任务可能冲突 |
-| `pipeline/tasks/training_tasks.py` | 147 | 直接导入 `api.backends.training.ai_toolkit.TrainLoraParams`，违反 DI 容器抽象 |
-| `pipeline/tasks/seko.py` | 71 | ~~`_parse_seko_characters` 中 `safe_id` 重复~~ ✅ 已修复 |
-| `infra/config.py` | 89 | `ProjectPaths.projects_dir` 硬编码 `parent.parent` 路径假设，symlink 或不同部署路径会指向错误位置 |
-| `infra/models.py` | 180 | `ImportValidator.validate_references` 纯验证函数内执行 DB 查询，违反关注点分离 |
-| `infra/toolcheck.py` | 51 | ~~`_hc_openai` 中 URL 拼接：`http://localhost:8000/api/v1` → `endswith("/v1")` 为 True 正确，但 `http://localhost:8000/api/v2` 会变成 `.../v2/v1`~~ ✅ 已修复 |
-| `infra/database/schema.py` | 1 | ~~init_schema 不使用事务~~ ✅ 已修复 |
-| `infra/http_pool.py` | 73 | `get_client` 的 double-checked locking 中 closed client 的 `is_closed` 属性线程安全性不确定 |
-| `infra/json_parse.py` | 106 | ~~`ast.literal_eval` 对 LLM 输出使用，超长嵌套 Python 字面量可能导致 DoS~~ ✅ 已修复 |
-| `infra/retry.py` | 16 | ~~`max_retries` 参数语义：代码和 docstring 一致（含首次执行），但与 `safe_executor.py` 的 `retries` 命名不统一~~ ✅ 已修复 |
-
-## LOW / YAGNI — 不修
-
-| 文件 | 行号 | 问题 |
-|---|---|---|
-| `infra/hooks.py` | — | 钩子系统支持 4 种类型（init/cleanup/health_check/cache_invalidate），当前只用 2 种 |
-| `infra/monitor.py` | — | WatchDog LRU 淘汰功能 `max_active=0`（未使用） |
-| `infra/safe_executor.py` | 60 | `SafeExecutionError` 的 `task_id`/`attempts`/`last_error` 属性从未被读取 |
-| `infra/batch_processor.py` | 116 | ~~`_get_limits` fallback 值 `context_window=8192` 对现代 LLM 偏小，可能导致过度分批~~ ✅ 已修复 |
-| `infra/concurrency.py` | 58 | `stagger` 时序在并行环境下不精确（任务 0 的 `last_start` 未更新时任务 1 已开始计算） |
-| `infra/database/storyboard_db.py` | 138 | ~~`batch_upsert_shots` 逐行执行而非批量（`save_episode_shots` 用 `execute_values`）~~ ✅ 已修复 |
-| `engines/consistency_checker.py` | 110 | ~~`_check_emotion_transition` 中 `BLOCKED_TRANSITIONS` 在函数体内每次重建 set~~ ✅ 已修复 |
-| `engines/consistency_checker.py` | 110 | ~~`VALID_EMOTIONS` 在函数体内重复导入，应移至模块顶层~~ ✅ 已修复 |
-| `engines/shot_utils.py` | 35 | ~~`postprocess_shots` 引号清理只检查首尾字符，不处理嵌套/不平衡引号~~ ✅ 已修复 |
-| `engines/dialogue.py` | 75 | `concat_wav` 用 `raw.find(b"data")` 搜索 chunk 标记，理论上可能误匹配 |
-| `engines/character_bible.py` | 120 | ~~`get_tags` 嵌套字典只合并一层，深层字段不会被覆盖~~ ✅ 已修复 |
-| `pipeline/tasks/steps/tts.py` | 74 | 单条/多条台词分支中 `voice_config` 构建和 TTS 调用逻辑重复 |
-| `pipeline/tasks/steps/lipsync.py` | 28 | 存在性检查 + force 跳过模式在 tts/frame/video/lipsync 中完全重复 |
-| `pipeline/tasks/steps/lipsync.py` | 30 | ~~`synced_path` 先赋值为 `Path` 后赋值为 `str`，类型不一致~~ ✅ 已修复 |
-| `pipeline/tasks/portrait_tasks.py` | 109 | `_outfits_batch_inner` 中 `apply().get(timeout=300)` 同步阻塞调用 Celery 任务 |
-| `pipeline/tasks/training_tasks.py` | 88 | `_rename_lora_result` 中 `not new_path.exists()` 检查后 `os.replace` 不是原子的 |
-
-## 架构级观察
-
-1. **重试逻辑碎片化** — `retry.py`、`safe_executor.py`、`json_parse.py` 各有不同职责（简单重试/错误边界+超时+降级/LLM+JSON解析），统一会过度抽象。**YAGNI，不修。**
-2. **项目名解析重复** — config 层解析目录路径，db 层解析项目名+缓存，职责不同。**YAGNI，不修。**
-3. ~~**状态值无枚举约束**~~ ✅ 已修复 — schema.py 添加 CHECK 约束（status IN 5 种值，duration [2,8]）
-4. ~~**DB 校验与 Pydantic 校验不统一**~~ ✅ 已修复 — models.py + web/schemas 引用 MIN_DURATION/MAX_DURATION 常量
+1. **重试逻辑碎片化** — 3 处重试各有不同职责，统一会过度抽象。**YAGNI。**
+2. **项目名解析重复** — config 层和 db 层职责不同。**YAGNI。**
