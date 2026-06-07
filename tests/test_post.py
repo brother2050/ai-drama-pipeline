@@ -111,6 +111,35 @@ class TestSubtitle:
         assert "你好" in content
         assert "Hello" in content
 
+    def test_generate_srt_uses_video_durations(self, tmp_path):
+        """video_durations 优先于 shot.duration"""
+        from post.subtitle import generate_srt
+        shots = [
+            {"dialogue": "A", "duration": 4},
+            {"dialogue": "B", "duration": 4},
+        ]
+        out = str(tmp_path / "test.srt")
+        generate_srt(shots, out, video_durations=[3.7, 5.2])
+        content = Path(out).read_text(encoding="utf-8")
+        # shot0: 0.0 → 3.7
+        assert "00:00:00,000 --> 00:00:03,700" in content
+        # shot1: 3.7 → 3.7 + 5.2 = 8.9
+        assert "00:00:03,700 --> 00:00:08,900" in content
+
+    def test_generate_srt_video_durations_with_transition(self, tmp_path):
+        """video_durations + 转场"""
+        from post.subtitle import generate_srt
+        shots = [
+            {"dialogue": "A", "duration": 4},
+            {"dialogue": "B", "duration": 4},
+        ]
+        out = str(tmp_path / "test.srt")
+        generate_srt(shots, out, transition_duration=0.5, video_durations=[3.7, 5.2])
+        content = Path(out).read_text(encoding="utf-8")
+        # shot0: 0.0 → 3.7
+        # shot1: max(0.5, 5.2-0.5)=4.7, start=3.7, end=8.4
+        assert "00:00:03,700 --> 00:00:08,400" in content
+
 
 # ══════════════════════════════════════════════════════════
 #  post/production.py

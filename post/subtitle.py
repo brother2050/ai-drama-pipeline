@@ -20,15 +20,20 @@ def _sanitize_dialogue(text: str) -> str:
 
 def generate_srt(shots: list[dict], output: str, *,
                  transition_duration: float = 0.0,
-                 bilingual: bool = False) -> str:
-    """从分镜表生成 SRT 字幕"""
+                 bilingual: bool = False,
+                 video_durations: list[float] | None = None) -> str:
+    """从分镜表生成 SRT 字幕
+
+    Args:
+        video_durations: 各镜头视频的实际时长（probe 得到），优先于 shot.duration
+    """
     Path(output).parent.mkdir(parents=True, exist_ok=True)
     lines = []
     idx = 1
     current_time = 0.0
 
     for i, shot in enumerate(shots):
-        duration = _safe_duration(shot)
+        duration = video_durations[i] if video_durations and i < len(video_durations) else _safe_duration(shot)
         start = current_time
         current_time += max(0.5, duration - transition_duration) if i > 0 and transition_duration > 0 else duration
 

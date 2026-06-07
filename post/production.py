@@ -89,12 +89,18 @@ def _generate_and_mix_bgm(concat_out: Path, shots: list[dict], cfg: Config,
     if not bgm_path.exists():
         try:
             from post.music import MusicGenerator
-            total_dur = sum(float(s.get("duration", 4)) for s in shots)
+            from infra.ffmpeg import probe as ffprobe
+            try:
+                total_dur = float(ffprobe(str(concat_out)).get("format", {}).get("duration", 0))
+            except Exception:
+                total_dur = 0
+            if total_dur <= 0:
+                total_dur = sum(float(s.get("duration", 4)) for s in shots)
             emotions = [s.get("emotion", "neutral") for s in shots if s.get("emotion")]
             mood = max(set(emotions), key=emotions.count) if emotions else "neutral"
             music_gen = MusicGenerator(config=dict(cfg.data), container=cont)
             music_gen.generate(total_dur, str(bgm_path), mood=mood)
-            logger.info(f"配乐自动生成: {bgm_path} (时长 {total_dur}s, 情绪 {mood})")
+            logger.info(f"配乐自动生成: {bgm_path} (时长 {total_dur:.1f}s, 情绪 {mood})")
         except Exception as e:
             logger.warning(f"配乐自动生成失败（跳过）: {e}")
     if not bgm_path.exists():
@@ -133,8 +139,8 @@ def _rename_final(concat_out: Path, episode: int, out_dir: Path) -> Path:
         shutil.copy2(str(concat_out), str(final_out))
         try:
             os.unlink(str(concat_out))
-        except OSError:
-            pass
+        except OSError as e:
+            logger.warning(f"清理源文件失败: {concat_out} ({e})")
     logger.info(f"最终输出: {final_out}")
     return final_out
 
@@ -174,6 +180,17 @@ def run_post(config_path: str, episode: int, vertical: bool = False, cfg=None) -
     from engines.storyboard import load_storyboard
     shots = load_storyboard(episode=episode)
 
+    # 探测各镜头视频实际时长（供 SRT 和 BGM 使用）
+    from infra.ffmpeg import probe as ffprobe
+    video_durations: list[float] = []
+    for v in videos:
+        try:
+            info = ffprobe(str(v))
+            dur = float(info.get("format", {}).get("duration", 0))
+            video_durations.append(dur if dur > 0 else 4.0)
+        except Exception:
+            video_durations.append(4.0)
+
     # 重新生成 SRT
     srt_path = paths.episode_srt(episode)
     if shots:
@@ -181,7 +198,8 @@ def run_post(config_path: str, episode: int, vertical: bool = False, cfg=None) -
             from post.subtitle import generate_srt
             bilingual = cfg.get("post_production.bilingual_subtitle", False)
             td = cfg.get("post_production.transition_duration", 0.5)
-            generate_srt(shots, str(srt_path), transition_duration=td, bilingual=bilingual)
+            generate_srt(shots, str(srt_path), transition_duration=td,
+                         bilingual=bilingual, video_durations=video_durations)
             logger.info(f"SRT 已重新生成: {srt_path}" + ("（双语）" if bilingual else ""))
         except (OSError, ValueError, KeyError) as e:
             logger.warning(f"SRT 重新生成失败（使用已有文件）: {e}")

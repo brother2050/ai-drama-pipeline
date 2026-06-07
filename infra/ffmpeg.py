@@ -123,10 +123,21 @@ class FFmpeg:
     @staticmethod
     def mix_audio(video: str, audio: str, output: str, *,
                   video_vol: float = 1.0, audio_vol: float = 0.15) -> str:
-        """混合视频音频"""
-        cmd = [_FFMPEG, "-y", "-i", video, "-i", audio,
-               "-filter_complex", f"[0:a]volume={video_vol}[va];[1:a]volume={audio_vol}[ba];[va][ba]amix=inputs=2",
-               "-c:v", "copy", "-shortest", output]
+        """混合视频音频。视频无音频流时自动合成静音流。"""
+        # 检测视频是否有音频流
+        info = probe(video)
+        has_audio = any(s.get("codec_type") == "audio" for s in info.get("streams", []))
+        if has_audio:
+            filter_complex = f"[0:a]volume={video_vol}[va];[1:a]volume={audio_vol}[ba];[va][ba]amix=inputs=2"
+            cmd = [_FFMPEG, "-y", "-i", video, "-i", audio,
+                   "-filter_complex", filter_complex,
+                   "-c:v", "copy", "-shortest", output]
+        else:
+            filter_complex = f"[1:a]volume={audio_vol}[ba]"
+            cmd = [_FFMPEG, "-y", "-i", video, "-i", audio,
+                   "-filter_complex", filter_complex,
+                   "-map", "0:v", "-map", "[ba]",
+                   "-c:v", "copy", "-shortest", output]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=1200)
         if r.returncode != 0:
             raise RuntimeError(f"音频混合失败: {r.stderr[-300:]}")
