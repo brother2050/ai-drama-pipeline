@@ -66,11 +66,11 @@ def postprocess_shots(shots: list[dict], episode: int, *, strict: bool = False) 
                 # 剥离外层匹配引号对（可能多层嵌套，循环剥离）
                 while len(val) >= 2 and val[0] == open_q and val[-1] == close_q:
                     val = val[1:-1].strip()
-            # 剥离残留的未闭合引号（首尾单侧）
-            for q in (open_q for open_q, _ in pairs):
-                if val and val[0] == q:
+            # 剥离残留的未闭合引号（仅当匹配引号对不存在时）
+            for open_q, close_q in pairs:
+                if val and val[0] == open_q and close_q not in val[1:]:
                     val = val[1:].strip()
-                if val and val[-1] == q:
+                if val and val[-1] == close_q and open_q not in val[:-1]:
                     val = val[:-1].strip()
             if val:
                 shot[k] = val
