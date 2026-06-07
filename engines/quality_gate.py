@@ -262,7 +262,13 @@ class QualityGate:
         for shot in shots:
             sid = shot.get("shot_id", "")
             dialogue = shot.get("dialogue", "").strip()
-            if not sid or not dialogue or set(dialogue) <= {".", "…", " ", "-", "—", "~"}:
+            if not sid or not dialogue:
+                continue
+            # 剥离标点/空白/省略号后检查是否有实质内容
+            import string
+            strip_chars = string.whitespace + string.punctuation + '…—。，、！？：；""''「」'
+            meaningful = dialogue.strip(strip_chars)
+            if not meaningful:
                 continue
             audio = out_dir / f"s{sid}" / "audio.wav"
             if not audio.exists():

@@ -32,7 +32,7 @@ def lipsync_core(shot_id: str, cont, out_dir: Path, *, force: bool = False) -> d
     if not force and synced_path.exists():
         return _skip(shot_id, STEP_LIPSYNC, "口型同步视频已存在")
 
-    synced_path = str(out_dir / "synced.mp4")
+    synced_out = str(synced_path)
     from infra.globals import get_watchdog, get_concurrency_groups
     from infra.safe_executor import safe_run
     wd = get_watchdog()
@@ -42,13 +42,13 @@ def lipsync_core(shot_id: str, cont, out_dir: Path, *, force: bool = False) -> d
         with groups.acquire(STEP_LIPSYNC):
             with wd.track(f"{shot_id}:lipsync", backend=STEP_LIPSYNC):
                 lipsync_inst, _ = cont.get_with_fallback(STEP_LIPSYNC)
-                lipsync_inst.sync(str(video_path), str(audio_path), synced_path)
+                lipsync_inst.sync(str(video_path), str(audio_path), synced_out)
 
     try:
         safe_run(_do_lipsync, retries=2, base_delay=1.0, task_id=f"{shot_id}:lipsync")
     except Exception as e:
         return _err(shot_id, STEP_LIPSYNC, f"口型同步失败: {e}")
-    err = _validate_output(synced_path, STEP_LIPSYNC, min_size=10000)
+    err = _validate_output(synced_out, STEP_LIPSYNC, min_size=10000)
     if err:
         return _err(shot_id, STEP_LIPSYNC, err)
-    return _done(shot_id, STEP_LIPSYNC, synced_path)
+    return _done(shot_id, STEP_LIPSYNC, synced_out)

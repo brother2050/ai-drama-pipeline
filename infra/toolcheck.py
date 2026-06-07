@@ -182,8 +182,10 @@ def _hc_openai(name: str, hc: dict, cfg: dict, backend: str, result_type: str = 
             return _result(False, backend, result_type, "服务已就绪，但未启用（请在设置中开启）")
         return _result(False, backend, result_type, "LLM 未启用")
     check_url = url.rstrip("/")
-    if not check_url.endswith("/v1"):
-        check_url += "/v1"
+    # 移除已有版本路径（/v1, /v2, /api/v1 等），避免 /api/v2/v1 拼接错误
+    import re
+    check_url = re.sub(r'/(?:api/)?v\d+$', '', check_url)
+    check_url += "/v1"
     headers = _resolve_auth(cfg, hc.get("api_key_from", ""))
     ok = _url_ok(check_url, "/models", headers=headers)
     reason = "" if ok else f"LLM 服务不可达 ({url})"
