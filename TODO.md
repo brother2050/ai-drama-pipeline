@@ -1,18 +1,13 @@
 # TODO
 
 > 2026-06-07 全项目 5 链路审查（5 子代理 + 人工复核，约 20,000 行代码）
-> 已修复 42 项（含前次 38 项 + 本轮 4 项），见 git log。
-> 以下为未修复项，均为低优先级或需产品决策。
+> 已修复 45 项（含前次 42 项 + 本轮 3 项），见 git log。
 
 ---
 
-## 未修复项
+## 遗留项
 
-| 严重度 | 文件 | 问题 | 不修理由 |
-|--------|------|------|---------|
-| 🟢 低 | `post/subtitle.py` | 短镜头 `duration < transition_duration` 时字幕越界 | `MIN_DURATION=2` 已保护，实际罕见 |
-| 🟢 低 | `scripts/project_builder.py` | 并发 TOCTOU 竞态（读 DB 去重与写 DB 之间有窗口） | 个人项目单用户场景 |
-| 🟢 低 | `scripts/project_builder.py` | 追加导入非原子性（YAML 先写 DB 后写） | YAML 是配置文件非核心数据，重试即可 |
+> 无遗留项。
 
 ---
 
@@ -23,10 +18,13 @@
 
 ---
 
-## 已修复项（本轮 git log）
+## 已修复项（完整历史）
 
 | 修复 | 文件 | 说明 |
 |------|------|------|
+| 字幕越界 | `post/subtitle.py` | 最后一条字幕不再被 transition_duration 截短 |
+| TOCTOU 竞态 | `scripts/project_builder.py` | 移除应用层 DB 去重读取，改用 DB 级 upsert |
+| 追加导入非原子性 | `scripts/project_builder.py` | DB 级 upsert 保证幂等，plan 内部去重 |
 | 导入静默切换追加模式 | `training_tasks.py` | 返回 `mode_switched` + `warning` 通知调用方 |
 | comfyui_generate files[0] 未检查 | `helpers.py` | 源文件存在性防御检查 |
 | BGM 回退用预期时长 | `production.py` | 复用已探测的 `video_durations` |

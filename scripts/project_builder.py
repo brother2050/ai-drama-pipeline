@@ -172,35 +172,30 @@ class ProjectBuilder:
         return added
 
     def _append_shots(self, plan) -> tuple[int, int]:
-        """追加分镜（去重），返回 (新增数, 跳过数)"""
+        """追加分镜（DB 级 upsert 去重），返回 (写入数, plan 内重复数)
+
+        去重由 PostgreSQL ON CONFLICT DO UPDATE 保证，不在应用层读 DB 做 TOCTOU 检查。
+        plan 内部同 (episode, shot_id) 重复出现的计为 dupes，只写入一次。
+        """
         from engines.storyboard import append_storyboard
         if not plan.shots:
             return 0, 0
-        existing_ids: set[tuple[int, str]] = set()
-        try:
-            from infra.database.pool import get_pool
-            from infra.database.storyboard_db import get_all_shots
-            for row in get_all_shots(get_pool()):
-                sid = row.get("shot_id", "")
-                ep = row.get("episode", 0)
-                if sid:
-                    existing_ids.add((ep, sid))
-        except Exception as e:
-            logger.debug(f"读取已有镜头 ID 跳过: {e}")
-
-        new_shots, skipped = [], 0
+        # 仅检测 plan 内部重复（不读 DB）
+        seen: set[tuple[int, str]] = set()
+        dupes = 0
+        unique_shots: list[dict] = []
         for s in plan.shots:
             d = s.model_dump()
             ep = int(d.get("episode", 1) or 1)
-            if (ep, d.get("shot_id")) in existing_ids:
-                skipped += 1
-                logger.info(f"  跳过重复镜头: ep{ep}/{d['shot_id']}")
+            key = (ep, d.get("shot_id", ""))
+            if key in seen:
+                dupes += 1
                 continue
-            existing_ids.add((ep, d["shot_id"]))
-            new_shots.append(d)
-        if new_shots:
-            append_storyboard(new_shots)
-        return len(new_shots), skipped
+            seen.add(key)
+            unique_shots.append(d)
+        if unique_shots:
+            append_storyboard(unique_shots)
+        return len(unique_shots), dupes
 
     def _append_inner(self, plan, project_dir: Path) -> dict:
         """追加核心逻辑（在 project_scope 内执行）"""

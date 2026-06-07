@@ -97,8 +97,8 @@ class TestSubtitle:
         generate_srt(shots, out, transition_duration=0.5)
         content = Path(out).read_text(encoding="utf-8")
         # shot0: span=4.0 (第一条无转场扣减)
-        # shot1: span=max(0.5, 4-0.5)=3.5, start=4.0, end=7.5
-        assert "00:00:04,000 --> 00:00:07,500" in content
+        # shot1 (last): span=4.0 (最后一条用完整 duration，不扣转场)
+        assert "00:00:04,000 --> 00:00:08,000" in content
 
     def test_generate_srt_bilingual(self, tmp_path):
         from post.subtitle import generate_srt
@@ -127,7 +127,7 @@ class TestSubtitle:
         assert "00:00:03,700 --> 00:00:08,900" in content
 
     def test_generate_srt_video_durations_with_transition(self, tmp_path):
-        """video_durations + 转场"""
+        """video_durations + 转场（最后一条用完整 duration）"""
         from post.subtitle import generate_srt
         shots = [
             {"dialogue": "A", "duration": 4},
@@ -137,8 +137,26 @@ class TestSubtitle:
         generate_srt(shots, out, transition_duration=0.5, video_durations=[3.7, 5.2])
         content = Path(out).read_text(encoding="utf-8")
         # shot0: 0.0 → 3.7
-        # shot1: max(0.5, 5.2-0.5)=4.7, start=3.7, end=8.4
-        assert "00:00:03,700 --> 00:00:08,400" in content
+        # shot1 (last): 3.7 → 3.7 + 5.2 = 8.9 (最后一条用完整 duration)
+        assert "00:00:03,700 --> 00:00:08,900" in content
+
+    def test_generate_srt_transition_3_shots(self, tmp_path):
+        """3 镜头转场：中间镜头扣转场，最后镜头不扣"""
+        from post.subtitle import generate_srt
+        shots = [
+            {"dialogue": "A", "duration": 4},
+            {"dialogue": "B", "duration": 4},
+            {"dialogue": "C", "duration": 3},
+        ]
+        out = str(tmp_path / "test.srt")
+        generate_srt(shots, out, transition_duration=0.5)
+        content = Path(out).read_text(encoding="utf-8")
+        # shot0: 0.0 → 4.0
+        # shot1: 4.0 → 4.0 + max(0.5, 4-0.5) = 7.5
+        # shot2 (last): 7.5 → 7.5 + 3 = 10.5
+        assert "00:00:00,000 --> 00:00:04,000" in content
+        assert "00:00:04,000 --> 00:00:07,500" in content
+        assert "00:00:07,500 --> 00:00:10,500" in content
 
 
 # ══════════════════════════════════════════════════════════
