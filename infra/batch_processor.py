@@ -118,7 +118,7 @@ class AdaptiveBatchProcessor:
                 return reg.get_model_limits(model)
         except Exception as e:
             logger.debug(f"模型限制查询失败，使用默认值: {e}")
-        return {"context_window": 8192, "max_output": 4096}
+        return {"context_window": 32768, "max_output": 8192}
 
     def process(
         self,

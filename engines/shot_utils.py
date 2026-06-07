@@ -56,15 +56,24 @@ def postprocess_shots(shots: list[dict], episode: int, *, strict: bool = False) 
         from infra.constants import clip_duration
         shot["duration"] = clip_duration(shot.get("duration"))
 
-        # 清理引号（含中文引号）
+        # 清理引号（含中文引号）：剥离外层匹配引号对 + 残留的未闭合引号
         for k in ("dialogue", "action_en", "dialogue_en"):
             val = shot.get(k, "")
-            if val and len(val) >= 2:
-                pairs = [("\"", "\""), ("'", "'"), (""", """), ("「", "」")]
-                for open_q, close_q in pairs:
-                    if val[0] == open_q and val[-1] == close_q:
-                        shot[k] = val[1:-1]
-                        break
+            if not val or len(val) < 2:
+                continue
+            pairs = [("\"", "\""), ("'", "'"), ("\u201c", "\u201d"), ("\u300c", "\u300d")]
+            for open_q, close_q in pairs:
+                # 剥离外层匹配引号对（可能多层嵌套，循环剥离）
+                while len(val) >= 2 and val[0] == open_q and val[-1] == close_q:
+                    val = val[1:-1].strip()
+            # 剥离残留的未闭合引号（首尾单侧）
+            for q in (open_q for open_q, _ in pairs):
+                if val and val[0] == q:
+                    val = val[1:].strip()
+                if val and val[-1] == q:
+                    val = val[:-1].strip()
+            if val:
+                shot[k] = val
 
         # emotion 校验
         if shot.get("emotion", "neutral") not in VALID_EMOTIONS:

@@ -19,10 +19,18 @@ from __future__ import annotations
 import logging
 
 from engines.shot_utils import parse_char_ids
+from infra.constants import VALID_EMOTIONS
 
 logger = logging.getLogger(__name__)
 
 __all__ = ["ConsistencyChecker", "check_consistency"]
+
+# 情绪跳变黑名单（不合理的跳变，其余均允许）
+_BLOCKED_TRANSITIONS = frozenset({
+    ("happy", "fearful"), ("fearful", "happy"),
+    ("romantic", "angry"), ("angry", "romantic"),
+    ("calm", "angry"), ("angry", "calm"),
+})
 
 
 def check_consistency(
@@ -203,15 +211,7 @@ class ConsistencyChecker:
 
     def _check_emotion_transition(self, shots: list[dict]) -> list[str]:
         """检查情绪逻辑过渡：相邻镜头情绪不应剧烈跳变"""
-        from infra.constants import VALID_EMOTIONS
         errors = []
-
-        # 情绪跳变黑名单（不合理的跳变，其余均允许）
-        BLOCKED_TRANSITIONS = {
-            ("happy", "fearful"), ("fearful", "happy"),
-            ("romantic", "angry"), ("angry", "romantic"),
-            ("calm", "angry"), ("angry", "calm"),
-        }
 
         for i in range(len(shots)):
             emotion = shots[i].get("emotion", "neutral")
@@ -232,7 +232,7 @@ class ConsistencyChecker:
             if shots[i - 1].get("scene_id") != shots[i].get("scene_id"):
                 continue
             transition = (prev_emotion, emotion)
-            if transition in BLOCKED_TRANSITIONS:
+            if transition in _BLOCKED_TRANSITIONS:
                 errors.append(
                     f"镜头 {shots[i].get('shot_id', '?')}: 情绪跳变 "
                     f"({prev_emotion} → {emotion})，建议添加过渡镜头"

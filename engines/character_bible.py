@@ -98,14 +98,11 @@ class CharacterBible:
         en = self.load_en(char_id)
         if not zh and not en:
             return ""
-        # 深度合并：中文打底，英文覆盖已翻译字段（嵌套字典逐字段合并）
+        # 深度合并：中文打底，英文覆盖已翻译字段
         source = dict(zh)
         if en:
-            for k, v in en.items():
-                if isinstance(v, dict) and isinstance(source.get(k), dict):
-                    source[k] = {**source[k], **v}
-                else:
-                    source[k] = v
+            from infra.config import deep_merge
+            source = deep_merge(source, en)
         if not source:
             return ""
 
