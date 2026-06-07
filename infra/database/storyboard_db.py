@@ -146,7 +146,7 @@ def upsert_shot(pool, episode: int, shot_id: str, data: dict):
 
 
 def batch_upsert_shots(pool, shots: list[tuple[int, str, dict]]) -> int:
-    """批量写入/更新镜头（单连接 + 单事务，保证原子性）
+    """批量写入/更新镜头（单连接 + 单事务，execute_values 批量插入）
 
     Args:
         shots: [(episode, shot_id, data), ...] 列表
@@ -156,16 +156,19 @@ def batch_upsert_shots(pool, shots: list[tuple[int, str, dict]]) -> int:
     """
     project = _get_project()
     cols = ", ".join(_INSERT_COLS)
-    ph = ", ".join(["%s"] * len(_INSERT_COLS))
-    sql = f"INSERT INTO shots ({cols}) VALUES ({ph}) ON CONFLICT (project, episode, shot_id) DO UPDATE SET {_UPSERT_SET}"
-    count = 0
+    # execute_values 要求 SQL 中只有一个 %s 占位符
+    sql = f"INSERT INTO shots ({cols}) VALUES %s ON CONFLICT (project, episode, shot_id) DO UPDATE SET {_UPSERT_SET}"
+    values = []
+    for episode, shot_id, data in shots:
+        data = {**data}
+        _sanitize_duration(data)
+        values.append(_values(project, episode, {**data, "shot_id": shot_id}))
+    if not values:
+        return 0
     with query(pool) as cur:
-        for episode, shot_id, data in shots:
-            data = {**data}
-            _sanitize_duration(data)
-            cur.execute(sql, _values(project, episode, {**data, "shot_id": shot_id}))
-            count += 1
-    return count
+        from psycopg2.extras import execute_values
+        execute_values(cur, sql, values, page_size=100)
+    return len(values)
 
 
 def delete_episode(pool, episode: int) -> int:

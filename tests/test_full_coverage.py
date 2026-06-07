@@ -837,7 +837,7 @@ class TestInfrastructure:
                 raise ValueError("not yet")
             return "ok"
 
-        result = retry(flaky, max_retries=3, base_delay=0.01)
+        result = retry(flaky, retries=3, base_delay=0.01)
         assert result == "ok"
         assert calls["count"] == 3
 

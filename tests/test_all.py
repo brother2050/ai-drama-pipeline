@@ -74,7 +74,7 @@ def test_retry():
             raise ValueError("not yet")
         return "ok"
 
-    result = retry(flaky, max_retries=5, base_delay=0.01)
+    result = retry(flaky, retries=5, base_delay=0.01)
     assert result == "ok"
     assert call_count == 3
     print("✅ 重试机制正常")

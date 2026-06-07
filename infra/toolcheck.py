@@ -29,7 +29,7 @@ def _url_ok(url: str, path: str = "/", headers: dict | None = None) -> bool:
         def _check():
             r = get_fast_client().get(f"{url}{path}", headers=headers)
             return r.status_code in (200, 401, 403)
-        return retry(_check, max_retries=2, base_delay=0.5)
+        return retry(_check, retries=2, base_delay=0.5)
     except ImportError as e:
         logger.debug(f"{type(e).__name__}: {e}")
     except Exception:
