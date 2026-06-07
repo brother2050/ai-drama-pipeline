@@ -76,7 +76,8 @@ def tts_single_task(self, config_path: str, text: str, voice_config: dict | None
     tag = hashlib.md5(f"{text}{time.time()}".encode()).hexdigest()[:8]
     output = str(preview_dir / f"preview_{tag}.wav")
     try:
-        result = cont.get("tts").synthesize(text, output, voice_config=voice_config or {}, emotion=emotion, language=language)
+        tts_backend, _ = cont.get_with_fallback("tts")
+        result = tts_backend.synthesize(text, output, voice_config=voice_config or {}, emotion=emotion, language=language)
         rel_path = str(Path(result).relative_to(paths.root))
         return {"status": STATUS_DONE, "path": rel_path, "text": text}
     except Exception as e:
