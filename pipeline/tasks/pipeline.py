@@ -284,7 +284,18 @@ def _apply_preset(config_path: str, preset: str) -> str:
     base_res = gen.get("resolution")
     if not base_steps or not base_res:
         return config_path
+    # 类型安全：YAML 手动编辑可能产生字符串，需转为数值
+    try:
+        base_steps = int(base_steps)
+    except (ValueError, TypeError):
+        logger.warning(f"generation.image_steps 非法值: {base_steps!r}，跳过预设缩放")
+        return config_path
     if not isinstance(base_res, (list, tuple)) or len(base_res) != 2:
+        return config_path
+    try:
+        base_res = [int(v) for v in base_res]
+    except (ValueError, TypeError):
+        logger.warning(f"generation.resolution 非法值: {base_res!r}，跳过预设缩放")
         return config_path
     if preset == "high":
         overrides = {

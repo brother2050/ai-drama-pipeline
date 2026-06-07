@@ -16,6 +16,29 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["DialogueLine", "parse_dialogue", "concat_wav"]
 
+
+def _extract_wav_data_chunk(raw: bytes) -> bytes | None:
+    """从 WAV 文件中精确提取 data chunk 的 PCM 数据。
+
+    按 RIFF chunk 结构遍历（每个 chunk: 4字节ID + 4字节长度 + 数据），
+    不依赖 find(b"data") 的字节搜索，避免误匹配。
+    """
+    if len(raw) < 12 or raw[:4] != b"RIFF" or raw[8:12] != b"WAVE":
+        return None
+    pos = 12  # 跳过 RIFF header
+    while pos + 8 <= len(raw):
+        chunk_id = raw[pos:pos + 4]
+        chunk_size = struct.unpack_from("<I", raw, pos + 4)[0]
+        if chunk_id == b"data":
+            data_start = pos + 8
+            data_end = min(data_start + chunk_size, len(raw))
+            return raw[data_start:data_end]
+        # 跳过非 data chunk（+8 是 ID + size 字段，chunk 数据按偶数对齐）
+        pos += 8 + chunk_size
+        if chunk_size % 2 == 1:
+            pos += 1  # RIFF chunk 偶数对齐填充
+    return None
+
 # 无台词标记
 _EMPTY_DIALOGUE = {".", "…"}
 
@@ -93,11 +116,12 @@ def concat_wav(parts: list[str | Path], output: str | Path) -> str:
                         f"(sr={sr}/bps={bps}/ch={ch}) vs 首文件 "
                         f"(sr={sample_rate}/bps={bits_per_sample}/ch={channels})，跳过")
                     continue
-            # 提取 data chunk
-            idx = raw.find(b"data")
-            if idx >= 0:
-                size = struct.unpack_from("<I", raw, idx + 4)[0]
-                pcm_chunks.append(raw[idx + 8: idx + 8 + size])
+            # 按 chunk 结构定位 data chunk（跳过 fmt/JUNK 等非 data chunk）
+            pcm = _extract_wav_data_chunk(raw)
+            if pcm is not None:
+                pcm_chunks.append(pcm)
+            else:
+                logger.warning(f"WAV 文件无有效 data chunk: {Path(p).name}，跳过")
         else:
             pcm_chunks.append(raw)
 

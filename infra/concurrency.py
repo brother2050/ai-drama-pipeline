@@ -43,15 +43,19 @@ def run_staggered_sync(
 
     def _run_one(idx: int):
         nonlocal completed_count
-        # 错开：等待距上一个任务启动后 stagger_ms
+        # 错开：等待距上一个任务启动后 stagger_ms（读+写在同一把锁内，消除竞态）
         if idx > 0:
             with start_lock:
                 now = time.monotonic()
                 wait = max(0, stagger_ms / 1000 - (now - last_start[0]))
+                if wait > 0:
+                    # 在锁内更新 last_start，确保后续任务基于正确的基准时间
+                    last_start[0] = now + wait
             if wait > 0:
                 time.sleep(wait)
-        with start_lock:
-            last_start[0] = time.monotonic()
+        else:
+            with start_lock:
+                last_start[0] = time.monotonic()
         try:
             result = tasks[idx]()
             with lock:
