@@ -110,7 +110,7 @@ def delete_episode(episode: int) -> dict:
     p = _paths()
     ep_dir = p.episode_dir(episode)
     if not ep_dir.exists():
-        raise_not_found("第{episode}集")
+        raise_not_found(f"第{episode}集")
     # DB 先删（失败则中止，避免文件删了 DB 残留孤儿记录）
     removed_shots = 0
     try:

@@ -71,6 +71,8 @@ class ProjectBuilder:
         if project_dir.exists():
             raise ProjectAlreadyExists(f"项目 '{plan.project_name}' 已存在，请更换名称或删除已有项目")
 
+        active_file = projects_dir(root) / ".active"
+        prev_active = active_file.read_text(encoding="utf-8").strip() if active_file.exists() else ""
         try:
             _ensure_project_dirs(project_dir)
             paths = ProjectPaths(project_dir)
@@ -88,7 +90,6 @@ class ProjectBuilder:
             self._write_scenes(plan, paths)
 
             # 设置活动项目（必须在 DB 写入前）
-            active_file = projects_dir(root) / ".active"
             active_file.write_text(str(project_dir), encoding="utf-8")
             from infra.database._db import _reset_project_cache
             _reset_project_cache()
@@ -99,6 +100,14 @@ class ProjectBuilder:
             return project_dir
 
         except Exception:
+            # 恢复之前的活动项目指针
+            try:
+                if prev_active:
+                    active_file.write_text(prev_active, encoding="utf-8")
+                elif active_file.exists():
+                    active_file.unlink()
+            except OSError:
+                pass
             if project_dir.exists():
                 shutil.rmtree(project_dir, ignore_errors=True)
             raise

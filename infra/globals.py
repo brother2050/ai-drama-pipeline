@@ -64,13 +64,6 @@ def init_globals(
             "llm": 4,                   # LLM 通常可以并行
         })
 
-    # 执行全局初始化钩子（锁外，避免死锁）
-    from infra.hooks import run_hooks
-    try:
-        run_hooks("init")
-    except Exception as e:
-        logger.error(f"初始化钩子执行失败: {e}")
-
     logger.info(f"全局基础设施初始化完成: "
                  f"watchdog(busy={busy_timeout}s), "
                  f"health_cache(ttl={health_ttl}s), "

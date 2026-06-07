@@ -91,7 +91,7 @@ class ImportShot(BaseModel):
     dialogue: str = Field("......", max_length=500)
     camera: str = Field("", max_length=50)
     shot_type: str = Field("", max_length=50)
-    duration: int = Field(4, ge=MIN_DURATION, le=MAX_DURATION)
+    duration: float = Field(4.0, ge=float(MIN_DURATION), le=float(MAX_DURATION))
     emotion: str = Field("neutral", max_length=30)
     outfit: str = Field("default", max_length=50)
     # ── 可选：预翻译（提供则跳过 prepare） ──
@@ -117,14 +117,14 @@ class ImportShot(BaseModel):
     @field_validator("duration", mode="before")
     @classmethod
     def coerce_duration(cls, v):
-        """兼容 LLM 返回 str/int/float，统一转为 int"""
+        """兼容 LLM 返回 str/int/float，统一转为 float"""
         if isinstance(v, (int, float)):
-            return int(v)
+            return float(v)
         if isinstance(v, str):
             try:
-                return int(v)
+                return float(v)
             except ValueError:
-                return 4
+                return 4.0
         return v
 
 

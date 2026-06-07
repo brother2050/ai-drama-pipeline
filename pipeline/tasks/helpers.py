@@ -317,11 +317,6 @@ def _err(shot_id, step, reason): return {"shot_id": shot_id, "step": step, "stat
 def _done(shot_id, step, path, **kw): return {"shot_id": shot_id, "step": step, "status": STATUS_DONE, "path": path, **kw}
 
 
-def _init_ctx(config_path: str):
-    """初始化通用上下文: Config + Container（用于非 _prepare 的任务）"""
-    return _build_ctx(config_path)
-
-
 def _validate_output(path: str, step: str, *, min_size: int = 0) -> str | None:
     """轻量质量校验 — 检查文件是否存在、大小、格式完整性。返回错误信息或 None。"""
     p = Path(path)
