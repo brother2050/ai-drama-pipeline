@@ -222,15 +222,16 @@ def _yaml_save_inner(path: Path, entity_key: str, entity_id: str, data: dict) ->
     save_yaml(path, out)
 
 
-def parse_entity(req) -> tuple[str, dict]:
+def parse_entity(req, *, clear_fields: set[str] | None = None) -> tuple[str, dict]:
     """Pydantic 模型 → (entity_id, data)
 
     exclude_none: 前端未发送的可选字段（None）不覆盖已有值。
-    额外排除空字符串：前端不发送的默认空串字段（如 appearance_prompt_en、body_features）
-    不应清空 AI 生成的已有值。
+    额外排除空字符串：前端默认空串字段不应清空 AI 生成的已有值。
+    clear_fields: 用户显式要求清空的字段（允许空串覆盖）。
     """
     data = req.model_dump(exclude_none=True)
-    data = {k: v for k, v in data.items() if v != ""}
+    preserve = clear_fields or set()
+    data = {k: v for k, v in data.items() if v != "" or k in preserve}
     return data.pop("id"), data
 
 

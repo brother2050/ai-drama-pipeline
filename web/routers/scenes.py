@@ -23,7 +23,8 @@ def list_scenes() -> dict:
 
 @router.post("/scenes")
 def save_scene(req: SceneData) -> dict:
-    scene_id, data = parse_entity(req)
+    _CLEARABLE = {"description_en", "lighting_en"}
+    scene_id, data = parse_entity(req, clear_fields=_CLEARABLE)
     yaml_save("scenes", "scene", scene_id, data)
     return {"status": "ok", "id": scene_id}
 
