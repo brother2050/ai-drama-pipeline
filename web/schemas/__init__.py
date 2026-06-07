@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, field_validator
 import re
 
 from infra.models import validate_id
+from infra.constants import MIN_DURATION, MAX_DURATION
 
 __all__ = [
     "StepRequest", "TTSRequest", "PostRequest", "MusicRequest",
@@ -332,7 +333,7 @@ class StoryboardShotData(BaseModel):
     dialogue_en: str = Field("", max_length=1000)
     camera: str = Field("", max_length=50)
     shot_type: str = Field("", max_length=50)
-    duration: int = Field(4, ge=2, le=8)
+    duration: int = Field(4, ge=MIN_DURATION, le=MAX_DURATION)
     emotion: str = Field("neutral", max_length=30)
     outfit: str = Field("default", max_length=50)
     language: str = Field("zh", max_length=5)

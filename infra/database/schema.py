@@ -1,7 +1,15 @@
-"""数据库 Schema — 面向新用户，干净建表，无迁移逻辑"""
+"""数据库 Schema — 面向新用户，干净建表，无迁移逻辑
+
+CHECK 约束：
+- shots.duration: [2, 8] — 与 infra.constants.MIN_DURATION/MAX_DURATION 一致
+- generation_status.status: 5 种合法状态 — 与 infra.constants.STATUS_* 一致
+"""
 from __future__ import annotations
 
 __all__ = ["init_schema"]
+
+# 状态值 CHECK 约束（与 infra.constants.STATUS_* 保持一致）
+_STATUS_VALUES = "('pending', 'running', 'done', 'error', 'skipped')"
 
 _CREATE_SHOTS = """
 CREATE TABLE IF NOT EXISTS shots (
@@ -16,7 +24,7 @@ CREATE TABLE IF NOT EXISTS shots (
     dialogue_en TEXT DEFAULT '',
     camera TEXT DEFAULT '',
     shot_type TEXT DEFAULT '',
-    duration REAL DEFAULT 4,
+    duration REAL DEFAULT 4 CHECK (duration >= 2 AND duration <= 8),
     emotion TEXT DEFAULT 'neutral',
     outfit TEXT DEFAULT 'default',
     language TEXT DEFAULT 'zh',
@@ -27,14 +35,14 @@ CREATE TABLE IF NOT EXISTS shots (
 )
 """
 
-_CREATE_GENERATION_STATUS = """
+_CREATE_GENERATION_STATUS = f"""
 CREATE TABLE IF NOT EXISTS generation_status (
     id SERIAL PRIMARY KEY,
     project TEXT NOT NULL DEFAULT 'default',
     episode INTEGER NOT NULL,
     shot_id TEXT NOT NULL,
     stage TEXT NOT NULL,
-    status TEXT DEFAULT 'pending',
+    status TEXT DEFAULT 'pending' CHECK (status IN {_STATUS_VALUES}),
     path TEXT DEFAULT '',
     error TEXT DEFAULT '',
     elapsed REAL DEFAULT 0,

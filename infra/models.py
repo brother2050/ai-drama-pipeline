@@ -12,6 +12,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field, field_validator
 
+from infra.constants import MIN_DURATION, MAX_DURATION
+
 logger = logging.getLogger(__name__)
 
 __all__ = [
@@ -89,7 +91,7 @@ class ImportShot(BaseModel):
     dialogue: str = Field("......", max_length=500)
     camera: str = Field("", max_length=50)
     shot_type: str = Field("", max_length=50)
-    duration: int = Field(4, ge=2, le=8)
+    duration: int = Field(4, ge=MIN_DURATION, le=MAX_DURATION)
     emotion: str = Field("neutral", max_length=30)
     outfit: str = Field("default", max_length=50)
     language: str = Field("zh", max_length=5)
