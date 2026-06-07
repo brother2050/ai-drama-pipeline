@@ -439,9 +439,8 @@ class WorkflowBuilder:
                                        outfit: str, img_backend: str) -> dict:
         """注入角色 LoRA 和一致性方案（IP-Adapter / PuLID）
 
-        注意: 返回新 copy，不修改传入的 wf。
+        注意: 就地修改 wf，由 build_first_frame 负责初始 deepcopy。
         """
-        wf = copy.deepcopy(wf)
 
         # 一致性方案选择
         consistency = self.models.get("consistency_method",
