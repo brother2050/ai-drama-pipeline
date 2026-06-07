@@ -44,7 +44,7 @@
 1. 分镜字段多（16+ 列），人工填写极易出错
 2. 角色/场景需要单独导入，CSV 无法承载完整项目
 3. 需要手动匹配角色/场景 ID，出错率高
-4. CSV 作为分镜表的内部存储格式可以，但不适合作为导入格式
+4. 分镜表存储已迁移到 PostgreSQL，CSV 仅作为导出格式
 
 ---
 
@@ -340,10 +340,11 @@ class ProjectBuilder:
             for scene in plan.scenes:
                 save_yaml(paths.scene_yaml(scene.id), {"scene": scene.model_dump()})
 
-            # 5. 写入分镜 CSV
+            # 5. 写入分镜到 PostgreSQL
             if plan.shots:
                 shots = [s.model_dump() for s in plan.shots]
-                save_storyboard(paths.storyboard_csv, shots, episode=1, append=False)
+                from engines.storyboard import save_storyboard
+                save_storyboard(shots, episode=1)
 
             # 6. 写入完成（YAML 为唯一数据源，无需额外同步）
 
@@ -417,11 +418,10 @@ def import_json_task(self, plan_data: dict) -> dict:
         is_append = plan.append
 
         # 2. 追加模式：加载已有项目的角色/场景/镜头 ID
-        existing_char_ids, existing_scene_ids, existing_shot_ids = None, None, None
+        existing_char_ids, existing_scene_ids = None, None
         if is_append:
             existing_char_ids = {c["id"] for c in load_yaml_entities(char_dir, "character")}
             existing_scene_ids = {s["id"] for s in load_yaml_entities(scene_dir, "scene")}
-            existing_shot_ids = 读取已有CSV中的shot_id集合
 
         # 3. 引用一致性校验
         errors = ImportValidator.validate_references(plan, project_dir if is_append else None)
@@ -723,10 +723,10 @@ def get_translation_status(plan: ImportPlan) -> dict:
 
 | 现有模块 | 复用方式 |
 |---------|---------|
-| `engines/storyboard.py` | `save_storyboard()` 写 CSV |
+| `engines/storyboard.py` | `save_storyboard()` 写入 PostgreSQL |
 | `infra/config.py` | `ProjectPaths` / `save_yaml` 写配置 |
 | `scripts/project_mgr.py` | `_ensure_project_dirs()` / `_scaffold_default_config()` 创建项目 |
-| `infra/database/` | 分镜/生成状态/集 DB 操作（角色/场景以 YAML 为唯一数据源） |
+| `infra/database/` | 分镜/生成状态 DB 操作（角色/场景以 YAML 为唯一数据源） |
 | `config/system.yaml` | 风格/题材预设读取 |
 
 ---
@@ -734,13 +734,15 @@ def get_translation_status(plan: ImportPlan) -> dict:
 ## 十、文件清单
 
 ```
-新增/修改：
-  web/schemas/__init__.py      +ImportPlan.append / ImportValidator 适配追加模式
-  pipeline/tasks.py            +import_json_task（全量+追加双模式）
-  cli.py                       +import 命令（--append 选项）
-  web/routers/api.py           POST /api/import/json（JSON 中 append=true）
-  scripts/project_builder.py   +ProjectBuilder.append() 增量追加
-  docs/script-import-design.md 更新设计文档 + 分批提示词模板
+核心文件：
+  infra/models.py              ImportPlan / ImportValidator / normalize_character
+  pipeline/tasks/training_tasks.py  import_json_task（全量+追加双模式）
+  cli/io.py                    import / export 命令
+  web/routers/imports.py       项目管理 / 导入 / Seko / 训练路由
+  scripts/project_builder.py   ProjectBuilder 原子性构建
+  scripts/project_mgr.py       项目管理（新建/切换/删除）
+  engines/storyboard.py        save_storyboard / append_storyboard（DB 写入）
+  docs/internal/script-import-design.md  本文档
 ```
 
 ---

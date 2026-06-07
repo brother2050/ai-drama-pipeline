@@ -20,7 +20,7 @@
 | **IP-Adapter Plus** | 基于 ip-adapter-plus-face 模型的角色面部一致性（SD1.5/SDXL 后端） |
 | **PuLID-Flux** | 基于 PuLID 的 Flux 面部一致性（Flux 后端，推荐） |
 | **安全加固** | 输入校验、路径遍历防护、速率限制 |
-| **143 项测试** | 集成测试 + Celery Mock + 前端 E2E + 导入测试 |
+| **257 项测试** | 集成测试 + Celery Mock + 前端 E2E + 导入测试 |
 
 ---
 
@@ -710,15 +710,20 @@ llm:
 ## 🧪 测试
 
 ```bash
-# 运行全部测试（143 项）
+# 运行全部测试（257 项）
 pytest tests/ -v
 
 # 分类运行
-pytest tests/test_all.py -v       # 基础功能（27 项）
-pytest tests/test_api.py -v       # API 集成测试（32 项）
-pytest tests/test_celery.py -v    # Celery 任务测试（16 项）
-pytest tests/test_e2e.py -v       # 前端 E2E 测试（31 项）
-pytest tests/test_core.py -v      # 核心引擎测试（27 项）
+pytest tests/test_all.py -v           # 基础功能
+pytest tests/test_api.py -v           # API 集成测试
+pytest tests/test_celery.py -v        # Celery 任务测试
+pytest tests/test_e2e.py -v           # 前端 E2E 测试
+pytest tests/test_core.py -v          # 核心引擎测试
+pytest tests/test_dialogue.py -v      # 对话解析测试
+pytest tests/test_post.py -v          # 后期处理测试
+pytest tests/test_session_changes.py -v  # 会话变更回归测试
+pytest tests/test_append.py -v        # 追加导入测试
+pytest tests/test_full_coverage.py -v # 覆盖率补充测试
 ```
 
 ---
@@ -727,7 +732,11 @@ pytest tests/test_core.py -v      # 核心引擎测试（27 项）
 
 ```
 ai-drama-pipeline/
-├── cli.py                        # 统一 CLI 入口（Click + Rich）
+├── cli/                          # CLI 入口（Click + Rich）
+│   ├── __init__.py               #   主命令组 + 共享工具（Celery 轮询/环境检测）
+│   ├── __main__.py               #   python -m cli 支持
+│   ├── io.py                     #   import / export 命令
+│   └── system.py                 #   serve / worker / status / env / clean 命令
 ├── pyproject.toml                # 依赖与构建配置
 ├── .env.example                  # 环境变量模板
 │
@@ -749,16 +758,16 @@ ai-drama-pipeline/
 │   ├── prompt.py                 #   Prompt 构建 + LLM 翻译（批量/单条）
 │   ├── prompt_compiler.py        #   Mustache 风格模板编译器（从 prompt_templates.yaml 加载）
 │   ├── llm_generator.py          #   LLM 内容生成（分镜/角色/场景）
-│   ├── shot_calibrator.py        #   多阶段分镜校准（3 阶段：骨架→描述→Prompt）
-│   ├── shot_utils.py             #   镜头工具（后处理、文本清理）
-│   ├── workflow_builder.py       #   ComfyUI 工作流构建（首帧/视频）
+│   ├── shot_utils.py             #   镜头工具（后处理、文本清理、角色 ID 解析）
+│   ├── workflow_builder.py       #   ComfyUI 工作流构建（首帧/视频，含 mtime 缓存）
 │   ├── workflow.py               #   工作流节点查找/参数注入
 │   ├── workflow_inject.py        #   一致性方案注入（IP-Adapter/PuLID/LoRA）
 │   ├── portrait.py               #   定妆照生成（五视图 + 服装图）
 │   ├── multi_char.py             #   多人同框 prompt 处理
 │   ├── character_bible.py        #   角色圣经系统（跨镜头一致性）
 │   ├── consistency_checker.py    #   分镜一致性校验（服装/角色/场景/情绪）
-│   └── quality_gate.py           #   质量门禁系统（管线各阶段自动检查）
+│   ├── quality_gate.py           #   质量门禁系统（管线各阶段自动检查）
+│   └── entity_utils.py           #   实体生成公共工具（统一角色/场景的生成+保存逻辑）
 │
 ├── pipeline/                     # Celery 异步任务
 │   ├── celery_app.py             #   Celery 配置 + 统一错误格式 + Worker 启动钩子
@@ -788,19 +797,25 @@ ai-drama-pipeline/
 │
 ├── infra/                        # 基础设施
 │   ├── config.py                 #   配置管理（mtime 缓存 + 热重载 + 注册表默认值合并）
-│   ├── constants.py              #   共享常量（情绪/景别/运镜/状态码）
+│   ├── constants.py              #   共享常量（情绪/景别/运镜/状态码/步骤名）
 │   ├── models.py                 #   共享数据模型（ImportPlan/ImportValidator/normalize_character）
 │   ├── toolcheck.py              #   工具可用性检测（注册表驱动，零 if-elif）
 │   ├── ffmpeg.py                 #   FFmpeg 封装（链式 API）
 │   ├── transitions.py            #   转场拼接（xfade offset 精确计算）
 │   ├── gpu.py                    #   GPU / 生成参数配置
 │   ├── retry.py                  #   指数退避重试
+│   ├── safe_executor.py          #   安全执行器（任务级错误边界 + 超时 + 降级）
 │   ├── http_pool.py              #   HTTP 连接池（httpx，按 base_url+timeout 缓存）
 │   ├── network.py                #   网络工具（端口检测）
 │   ├── json_parse.py             #   LLM JSON 解析（容错：截断修复/代码块提取/单引号兼容）
 │   ├── asset_tracker.py          #   ComfyUI 资产跟踪（PostgreSQL 持久化）
-│   ├── batch_processor.py        #   自适应批处理器（双重约束分批 + 错误驱动学习）
+│   ├── batch_processor.py        #   自适应批处理器（三重约束分批 + 错误驱动学习）
 │   ├── concurrency.py            #   并发控制（错开启动 + 信号量限流）
+│   ├── concurrency_groups.py     #   并发组（互斥锁按资源组管理）
+│   ├── monitor.py                #   任务监控（超时检测 + 空闲淘汰 + 健康检查缓存）
+│   ├── hooks.py                  #   后端钩子系统（init/cleanup/health_check/cache_invalidate）
+│   ├── globals.py                #   全局基础设施实例（看门狗/健康缓存/并发组）
+│   ├── file_watcher.py           #   文件系统监控（YAML 变化自动失效缓存）
 │   └── database/                 #   PostgreSQL（分镜表/生成状态/资产跟踪）
 │       ├── schema.py             #     表结构定义（CREATE IF NOT EXISTS）
 │       ├── pool.py               #     连接池（ThreadedConnectionPool）
