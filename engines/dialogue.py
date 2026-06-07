@@ -7,9 +7,12 @@
 """
 from __future__ import annotations
 
+import logging
 import struct
 from dataclasses import dataclass
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["DialogueLine", "parse_dialogue", "concat_wav"]
 
@@ -79,6 +82,17 @@ def concat_wav(parts: list[str | Path], output: str | Path) -> str:
                 sample_rate = struct.unpack_from("<I", raw, 24)[0]
                 bits_per_sample = struct.unpack_from("<H", raw, 34)[0]
                 channels = struct.unpack_from("<H", raw, 22)[0]
+            elif len(raw) >= 44:
+                # 校验后续文件参数一致性
+                sr = struct.unpack_from("<I", raw, 24)[0]
+                bps = struct.unpack_from("<H", raw, 34)[0]
+                ch = struct.unpack_from("<H", raw, 22)[0]
+                if sr != sample_rate or bps != bits_per_sample or ch != channels:
+                    logger.warning(
+                        f"WAV 参数不一致: {Path(p).name} "
+                        f"(sr={sr}/bps={bps}/ch={ch}) vs 首文件 "
+                        f"(sr={sample_rate}/bps={bits_per_sample}/ch={channels})，跳过")
+                    continue
             # 提取 data chunk
             idx = raw.find(b"data")
             if idx >= 0:
