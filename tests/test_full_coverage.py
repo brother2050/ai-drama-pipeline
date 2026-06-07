@@ -250,17 +250,6 @@ class TestLLMGenerator:
         assert len(scenes) == 1
         assert scenes[0]["id"] == "room"
 
-    def test_expand_outline(self):
-        """大纲扩写"""
-        from engines.llm_generator import expand_outline
-
-        class FakeLLM:
-            def chat(self, prompt, system="", **kw):
-                return "扩写后的大纲：Alice走进客厅，看到桌上的信封..."
-
-        result = expand_outline(FakeLLM(), "Alice enters room")
-        assert "扩写" in result
-
 
 # ══════════════════════════════════════════════════════════
 #  4. Prompt 编译

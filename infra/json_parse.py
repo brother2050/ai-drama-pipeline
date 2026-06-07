@@ -20,7 +20,7 @@ __all__ = ["parse_llm_json", "llm_call_with_retry"]
 
 def llm_call_with_retry(llm: object, prompt: str, system: str, label: str,
                         max_tokens: int = 4096, retries: int = 3) -> list | dict | None:
-    """LLM 调用 + 重试 + JSON 解析（共享工具，消除 llm_generator/shot_calibrator 重复）
+    """LLM 调用 + 重试 + JSON 解析（共享工具，消除 llm_generator 重复）
 
     Args:
         llm: LLM 后端实例（需有 .chat() 方法）

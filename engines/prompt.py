@@ -270,7 +270,7 @@ def build_prompt(params: PromptBuildParams) -> str:
     from infra.constants import ERR_NOT_PREPARED
     if params.scene_desc and not params.scene_desc.isascii():
         logger.warning(f"场景描述仍为中文，{ERR_NOT_PREPARED}")
-    # 优先使用 image_prompt_en（shot_calibrator AI 富化结果），回退到 action_en
+    # 优先使用 image_prompt_en（AI 富化结果），回退到 action_en
     action_en = params.shot.get("image_prompt_en", "").strip()
     if not action_en:
         action_en = params.shot.get("action_en", "").strip()

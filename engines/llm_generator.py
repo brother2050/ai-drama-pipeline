@@ -22,8 +22,7 @@ class StoryboardGenParams:
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["StoryboardGenParams", "generate_storyboard", "generate_characters", "generate_scenes",
-           "expand_outline"]
+__all__ = ["StoryboardGenParams", "generate_storyboard", "generate_characters", "generate_scenes"]
 
 
 # ══════════════════════════════════════════════════════════
@@ -217,20 +216,6 @@ def _generate_entities(llm: object, descriptions: list[str], expected_ids: list[
 
 # ══════════════════════════════════════════════════════════
 #  大纲扩写
-# ══════════════════════════════════════════════════════════
-
-
-def expand_outline(llm: object, outline: str) -> str:
-    """扩写简短大纲为详细版本"""
-    if not outline.strip():
-        return outline
-    try:
-        return llm.chat(outline, system=tpl("expand_outline_system"), max_tokens=2048)
-    except Exception as e:
-        logger.error(f"大纲扩写失败: {e}", exc_info=True)
-        return outline
-
-
 # ══════════════════════════════════════════════════════════
 #  内部工具
 # ══════════════════════════════════════════════════════════
