@@ -27,6 +27,7 @@ _TIMEOUT_SHOT = 1800        # 单镜头
 _TIMEOUT_PREPARE = 3600     # 准备阶段（LLM 翻译）
 _TIMEOUT_PRODUCE = 7200     # 生产阶段（多镜头）
 _TIMEOUT_POST = 1800        # 后期合成
+_TIMEOUT_RUN_ALL = 14400    # 全流程（prepare + produce + post）
 @app.task(bind=True, name="pipeline_shot", soft_time_limit=_TIMEOUT_SHOT)
 def shot_task(self, config_path: str, episode: int, shot_data: dict, force: bool = False) -> dict:
     shot_id = shot_data.get("shot_id", "")
@@ -341,7 +342,7 @@ def produce_task(self, config_path: str, episode: int, vertical: bool = False, f
         return {"status": STATUS_DONE, "episode": episode, "shots": results}
 
 
-@app.task(bind=True, name="pipeline_run_all", soft_time_limit=_TIMEOUT_PRODUCE * 2)
+@app.task(bind=True, name="pipeline_run_all", soft_time_limit=_TIMEOUT_RUN_ALL)
 def run_all_task(self, config_path: str, episode: int, vertical: bool = False, force: bool = False) -> dict:
     """一键全流程 — prepare → produce → post
 

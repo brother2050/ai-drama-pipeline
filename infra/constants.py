@@ -10,7 +10,6 @@ __all__ = [
     "CAMERA_MAP", "VALID_CAMERAS",
     "STATUS_PENDING", "STATUS_RUNNING", "STATUS_DONE", "STATUS_ERROR", "STATUS_SKIPPED",
     "STEP_TTS", "STEP_FIRST_FRAME", "STEP_VIDEO", "STEP_LIPSYNC",
-    "PIPELINE_STEPS",
     "clip_duration",
 ]
 
@@ -22,7 +21,6 @@ STEP_TTS = "tts"
 STEP_FIRST_FRAME = "first_frame"
 STEP_VIDEO = "video"
 STEP_LIPSYNC = "lipsync"
-PIPELINE_STEPS = [STEP_TTS, STEP_FIRST_FRAME, STEP_VIDEO, STEP_LIPSYNC]
 
 # ══════════════════════════════════════════════════════════
 #  情绪
