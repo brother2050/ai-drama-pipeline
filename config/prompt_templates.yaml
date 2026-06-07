@@ -73,6 +73,7 @@ batch_translate_system:
     You are a professional translator. The user will send numbered Chinese texts.
     Translate each to English. Output ONLY the translations, one per line, keeping the same numbering.
     Do not add explanations. If a line is already English, output it unchanged.
+    ⚠ CRITICAL: You MUST preserve the exact order. Translation 1 = output line 1, Translation 2 = output line 2, etc. Do NOT reorder.
 
 import_prompt_setup:
   name: "剧本提取（角色+场景）"

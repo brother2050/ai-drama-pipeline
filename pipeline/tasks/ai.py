@@ -311,8 +311,11 @@ def ai_prepare_task(self, config_path: str, episode: int,
 
 
 def _serialize_dict_values(d: dict) -> str:
-    """将 dict 值序列化为编号文本（翻译用），保留空值占位"""
-    return "\n".join(f"{i+1}. {v}" for i, v in enumerate(d.values()))
+    """将 dict 序列化为带 key 的编号文本（翻译用）
+
+    格式: "1. key: value" — LLM 能看到 key，翻译时不会打乱 key-value 对应关系。
+    """
+    return "\n".join(f"{i+1}. {k}: {v}" for i, (k, v) in enumerate(d.items()))
 
 
 def _serialize_list_items(items: list) -> str:
@@ -322,6 +325,10 @@ def _serialize_list_items(items: list) -> str:
 
 def _deserialize_numbered(raw: str, keys: list | None = None, originals: dict | None = None) -> dict | list:
     """将编号文本反序列化为 dict 或 list
+
+    支持两种格式:
+      - 带 key: "1. core_traits: translated text"
+      - 纯值:   "1. translated text"
 
     Args:
         raw: LLM 返回的编号文本
@@ -336,7 +343,18 @@ def _deserialize_numbered(raw: str, keys: list | None = None, originals: dict | 
     if keys is not None:
         result = {}
         for i, k in enumerate(keys):
-            translated = lines[i].strip() if i < len(lines) else ""
+            if i < len(lines):
+                text = lines[i]
+                # 带 key 格式: "key: value" → 提取 value
+                if ": " in text:
+                    parsed_key, _, parsed_val = text.partition(": ")
+                    parsed_key = parsed_key.strip()
+                    # key 匹配时用 value；key 不匹配时整行当 value（LLM 可能改了 key 名）
+                    translated = parsed_val.strip() if parsed_key == k else text
+                else:
+                    translated = text
+            else:
+                translated = ""
             orig_val = (originals or {}).get(k, "")
             result[k] = translated or orig_val
         return result
@@ -354,7 +372,7 @@ def _collect_bible_texts(char: dict, cid: str, all_texts: list[str],
         bible_en = {}
 
     # 简单字符串字段
-    for field in ("core_traits", "speech_patterns"):
+    for field in ("core_traits", "speech_patterns", "voice_description"):
         if bible.get(field) and (force or not bible_en.get(field)):
             all_texts.append(bible[field])
             text_meta.append(("character.bible", cid, field, field))
@@ -404,7 +422,8 @@ def _collect_translation_texts(paths, force: bool = False) -> tuple[list[str], l
             if isinstance(outfits, dict):
                 for okey, odata in outfits.items():
                     if isinstance(odata, dict) and odata.get("description") and (force or not odata.get("description_en")):
-                        all_texts.append(odata["description"])
+                        # 带 key 前缀：LLM 翻译时能区分不同 outfit，防止重排序错位
+                        all_texts.append(f"[{okey}] {odata['description']}")
                         text_meta.append(("character.outfits", f"{cid}.{okey}", "description", "description_en"))
             _collect_bible_texts(char, cid, all_texts, text_meta, force)
 
@@ -510,7 +529,9 @@ def _load_entity_cache(text_meta, results, entity_type, yaml_fn, entity_key) -> 
 
         elif etype == f"{entity_type}.outfits":
             cid, okey = eid.split(".", 1)
-            _ensure(cid).setdefault(entity_key, {}).setdefault("outfits", {}).setdefault(okey, {})[tgt_field] = results[i]
+            # 剥离翻译前添加的 [key] 前缀（LLM 可能保留也可能丢弃）
+            translated = re.sub(r'^\[\w+\]\s*', '', results[i]) if results[i] else results[i]
+            _ensure(cid).setdefault(entity_key, {}).setdefault("outfits", {}).setdefault(okey, {})[tgt_field] = translated
 
         elif etype == f"{entity_type}.bible":
             # 翻译写入 bible_en（不是 bible）
