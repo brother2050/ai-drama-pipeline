@@ -127,7 +127,6 @@ def _outfit_single_inner(self, config_path: str, char_id: str, outfit_key: str) 
                                                     project_dir=str(paths.root), comfyui=comfyui))
         wb.load_workflows()
 
-        outfits = char.get("outfits", {})
         generation = char.get("portrait_generation", 0)
         seed = _outfit_seed(char_id, generation, outfit_key)
         cover_path = paths.character_asset_dir(char_id) / "cover.png"

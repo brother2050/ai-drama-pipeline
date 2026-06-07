@@ -20,7 +20,7 @@ import random
 import threading
 import time
 import traceback
-from typing import Any, Callable, TypeVar
+from typing import Callable, TypeVar
 
 logger = logging.getLogger(__name__)
 
