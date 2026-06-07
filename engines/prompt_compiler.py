@@ -26,7 +26,7 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from infra.constants import is_ascii_only
+
 
 logger = logging.getLogger(__name__)
 
@@ -268,7 +268,7 @@ class PromptCompiler:
                 parts.append(val)
         # action 需要 ASCII 检查（SD1.5/SDXL 的 CLIP 编码器不支持中文）
         action = variables.get("action", "")
-        if action and is_ascii_only(action):
+        if action and action.isascii():
             parts.append(action)
         # 无角色时跳过 emotion（避免场景图带 "neutral expression" tag）
         if variables.get("character"):
@@ -311,7 +311,7 @@ class PromptCompiler:
         character = variables.get("character", "")
         action = variables.get("action", "")
         emotion = variables.get("emotion", "neutral")
-        action_ok = action and is_ascii_only(action)
+        action_ok = action and action.isascii()
         parts_2 = []
         if character:
             parts_2.append(character[0].upper() + character[1:] if character else "")

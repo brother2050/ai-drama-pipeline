@@ -34,8 +34,7 @@ class BatchDeleteRequest(BaseModel):
         if not cleaned:
             raise ValueError("至少需要一个 ID")
         for x in cleaned:
-            if not re.match(r"^[a-zA-Z0-9_\-\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]+$", x):
-                raise ValueError(f"无效的 ID: {x}")
+            validate_id(x, allow_chinese=True)
         return cleaned
 
 
@@ -50,8 +49,7 @@ class StoryboardBatchDeleteRequest(BaseModel):
         if not cleaned:
             raise ValueError("至少需要一个镜头 ID")
         for x in cleaned:
-            if not re.match(r"^[a-zA-Z0-9_\-\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]+$", x):
-                raise ValueError(f"无效的镜头 ID: {x}")
+            validate_id(x)
         return cleaned
 
 

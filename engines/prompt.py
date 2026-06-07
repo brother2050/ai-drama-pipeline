@@ -4,7 +4,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 
-from infra.constants import is_ascii_only
+
 from infra.batch_processor import estimate_tokens as _estimate_tokens
 from engines.prompt_compiler import tpl
 
@@ -259,7 +259,7 @@ def build_prompt(params: PromptBuildParams) -> str:
 
     # ── 检查是否已准备（中文警告） ──
     from infra.constants import ERR_NOT_PREPARED
-    if params.scene_desc and not is_ascii_only(params.scene_desc):
+    if params.scene_desc and not params.scene_desc.isascii():
         logger.warning(f"场景描述仍为中文，{ERR_NOT_PREPARED}")
     # 优先使用 image_prompt_en（shot_calibrator AI 富化结果），回退到 action_en
     action_en = params.shot.get("image_prompt_en", "").strip()
@@ -267,7 +267,7 @@ def build_prompt(params: PromptBuildParams) -> str:
         action_en = params.shot.get("action_en", "").strip()
     if not action_en:
         raw_action = params.shot.get("action", "")
-        if raw_action and not is_ascii_only(raw_action):
+        if raw_action and not raw_action.isascii():
             logger.warning(f"动作描述仍为中文（action_en 缺失），{ERR_NOT_PREPARED}")
 
     # ── 使用 PromptCompiler 编译 ──
@@ -329,7 +329,7 @@ def translate_to_english(text: str, llm: object = None) -> str:
     """中文→英文翻译（LLM）。失败返回空串，不回退到原文。"""
     if not text:
         return ""
-    if is_ascii_only(text):
+    if text.isascii():
         return text
     if not llm:
         logger.warning(f"LLM 不可用，跳过翻译: {text[:50]}...")
@@ -377,7 +377,7 @@ def _split_translate_texts(texts: list[str]) -> tuple[list[int], list[str], list
     for i, t in enumerate(texts):
         if not t:
             results[i] = ""
-        elif is_ascii_only(t):
+        elif t.isascii():
             results[i] = t
         else:
             need_idx.append(i)

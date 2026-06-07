@@ -116,7 +116,7 @@ class QualityGate:
 
     def _check_translation_complete(self, project_dir: str, episode: int | None) -> dict:
         """检查翻译完整性：所有角色/场景/分镜都有英文版"""
-        from infra.constants import is_ascii_only
+        
         chars, scenes = self._load_chars_scenes(project_dir)
         missing = []
 
@@ -124,14 +124,14 @@ class QualityGate:
             prompt_en = char.get("appearance_prompt_en", "")
             if not prompt_en:
                 missing.append(f"角色 {char.get('name', char.get('id', '?'))} 缺英文外貌 prompt")
-            elif not is_ascii_only(prompt_en):
+            elif not prompt_en.isascii():
                 missing.append(f"角色 {char.get('name', char.get('id', '?'))} 的 appearance_prompt_en 仍为中文")
 
         for scene in scenes.values():
             desc_en = scene.get("description_en", "")
             if not desc_en:
                 missing.append(f"场景 {scene.get('name', scene.get('id', '?'))} 缺英文描述")
-            elif not is_ascii_only(desc_en):
+            elif not desc_en.isascii():
                 missing.append(f"场景 {scene.get('name', scene.get('id', '?'))} 的 description_en 仍为中文")
 
         if missing:

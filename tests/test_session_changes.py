@@ -343,38 +343,6 @@ class TestLoadShotsSignature:
 
 
 # ══════════════════════════════════════════════════════════
-#  8. str.isascii() 替代（4f4014d）
-# ══════════════════════════════════════════════════════════
-
-class TestAsciiCheck:
-    """验证 is_ascii_only 使用 str.isascii()"""
-
-    def test_chinese(self):
-        from infra.constants import is_ascii_only
-        assert is_ascii_only("你好") is False
-
-    def test_english(self):
-        from infra.constants import is_ascii_only
-        assert is_ascii_only("hello") is True
-
-    def test_mixed(self):
-        from infra.constants import is_ascii_only
-        assert is_ascii_only("hello你好") is False
-
-    def test_empty(self):
-        from infra.constants import is_ascii_only
-        assert is_ascii_only("") is True
-
-    def test_special_chars(self):
-        from infra.constants import is_ascii_only
-        assert is_ascii_only("café") is False  # é is non-ASCII
-
-    def test_numbers_and_symbols(self):
-        from infra.constants import is_ascii_only
-        assert is_ascii_only("123!@#") is True
-
-
-# ══════════════════════════════════════════════════════════
 #  9. StatusRecord 移除（4f4014d）
 # ══════════════════════════════════════════════════════════
 

@@ -323,9 +323,14 @@ def _is_default_storyboard(config_path: str, shots: list[dict]) -> bool:
             default_scenes <= shot_scenes)
 
 
-def _skip(shot_id, step, reason): return {"shot_id": shot_id, "step": step, "status": STATUS_SKIPPED, "reason": reason}
-def _err(shot_id, step, reason): return {"shot_id": shot_id, "step": step, "status": STATUS_ERROR, "reason": reason}
-def _done(shot_id, step, path, **kw): return {"shot_id": shot_id, "step": step, "status": STATUS_DONE, "path": path, **kw}
+def _skip(shot_id, step, reason):
+    return {"shot_id": shot_id, "step": step, "status": STATUS_SKIPPED, "reason": reason}
+
+def _err(shot_id, step, reason):
+    return {"shot_id": shot_id, "step": step, "status": STATUS_ERROR, "reason": reason}
+
+def _done(shot_id, step, path, **kw):
+    return {"shot_id": shot_id, "step": step, "status": STATUS_DONE, "path": path, **kw}
 
 
 def _init_ctx(config_path: str):
