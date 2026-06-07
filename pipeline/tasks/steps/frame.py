@@ -73,12 +73,14 @@ def _upload_reference_images(wf: dict, shot: dict, wb, comfyui, paths) -> dict:
     from engines.workflow import find_character_load_image_nodes as _find_char_nodes
     from infra.asset_tracker import comfyui_asset_name
 
-    # 仅在工作流含 IP-Adapter/PuLID 节点时区分角色/场景节点；
+    # 仅在工作流含一致性节点时区分角色/场景节点；
     # 无一致性节点时 find_character_load_image_nodes 会回退到全部 LoadImage，
     # 此时置空集合，让所有节点走场景上传路径（避免误杀场景图失败）
     _char_node_ids = _find_char_nodes(wf)
+    from flow.model_registry import ModelRegistry
+    _consistency_types = ModelRegistry().get_consistency_node_types()
     _has_consistency_nodes = any(
-        wf.get(nid, {}).get("class_type") in ("IPAdapterAdvanced", "ApplyPulidFlux")
+        wf.get(nid, {}).get("class_type") in _consistency_types
         for nid in wf
     )
     _char_node_set = set(_char_node_ids) if _has_consistency_nodes else set()

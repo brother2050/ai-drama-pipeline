@@ -359,6 +359,20 @@ class ModelRegistry:
         return {name: meta for name, meta in self._data.get("consistency_methods", {}).items()
                 if name != "none"}
 
+    def get_consistency_node_types(self) -> set[str]:
+        """返回所有一致性方案所需的 ComfyUI 节点类型集合
+
+        用于运行时检测工作流是否包含一致性节点。
+        """
+        types = set()
+        for name, meta in self._data.get("consistency_methods", {}).items():
+            if name == "none":
+                continue
+            node_type = meta.get("required_comfyui_node", "")
+            if node_type:
+                types.add(node_type)
+        return types
+
     # ══════════════════════════════════════════════════════════
     #  LLM 模型限制查询（自适应批处理器使用）
     # ══════════════════════════════════════════════════════════
