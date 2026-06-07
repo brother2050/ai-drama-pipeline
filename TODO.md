@@ -43,7 +43,7 @@
 | `infra/database/schema.py` | 1 | ~~init_schema 不使用事务~~ ✅ 已修复 |
 | `infra/http_pool.py` | 73 | `get_client` 的 double-checked locking 中 closed client 的 `is_closed` 属性线程安全性不确定 |
 | `infra/json_parse.py` | 106 | ~~`ast.literal_eval` 对 LLM 输出使用，超长嵌套 Python 字面量可能导致 DoS~~ ✅ 已修复 |
-| `infra/retry.py` | 16 | `max_retries` 参数语义：代码和 docstring 一致（含首次执行），但与 `safe_executor.py` 的 `retries` 命名不统一 |
+| `infra/retry.py` | 16 | ~~`max_retries` 参数语义：代码和 docstring 一致（含首次执行），但与 `safe_executor.py` 的 `retries` 命名不统一~~ ✅ 已修复 |
 
 ## LOW / YAGNI — 不修
 
@@ -54,7 +54,7 @@
 | `infra/safe_executor.py` | 60 | `SafeExecutionError` 的 `task_id`/`attempts`/`last_error` 属性从未被读取 |
 | `infra/batch_processor.py` | 116 | `_get_limits` fallback 值 `context_window=8192` 对现代 LLM 偏小，可能导致过度分批 |
 | `infra/concurrency.py` | 58 | `stagger` 时序在并行环境下不精确（任务 0 的 `last_start` 未更新时任务 1 已开始计算） |
-| `infra/database/storyboard_db.py` | 138 | `batch_upsert_shots` 逐行执行而非批量（`save_episode_shots` 用 `execute_values`） |
+| `infra/database/storyboard_db.py` | 138 | ~~`batch_upsert_shots` 逐行执行而非批量（`save_episode_shots` 用 `execute_values`）~~ ✅ 已修复 |
 | `engines/consistency_checker.py` | 110 | `_check_emotion_transition` 中 `BLOCKED_TRANSITIONS` 在函数体内每次重建 set |
 | `engines/consistency_checker.py` | 110 | `VALID_EMOTIONS` 在函数体内重复导入，应移至模块顶层 |
 | `engines/shot_utils.py` | 35 | `postprocess_shots` 引号清理只检查首尾字符，不处理嵌套/不平衡引号 |
