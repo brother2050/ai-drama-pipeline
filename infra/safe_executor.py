@@ -4,41 +4,33 @@
 1. 结构化异常捕获（区分可重试/不可重试错误）
 2. 带退避的重试（指数退避 + 抖动）
 3. 降级执行（主方案失败时自动切换备选方案）
-4. 批量执行的错误隔离（单个失败不影响整体）
 
 与 infra/retry.py 的区别：
 - retry.py 是简单的重试循环
-- safe_executor 提供完整的错误边界、降级、批量隔离
+- safe_executor 提供完整的错误边界和降级
 
 用法:
-    # 单任务安全执行
     result = safe_run(tts_generate, args=(text,), fallback=silent_audio)
-
-    # 批量隔离执行
-    results = safe_map(process_shot, shots, continue_on_error=True)
-
-    # 装饰器
-    @safe_task(retries=2, fallback=None)
-    def risky_operation(...): ...
 """
 from __future__ import annotations
 
 import concurrent.futures
-import functools
 import logging
 import random
 import threading
 import time
 import traceback
-from typing import Any, Callable, TypeVar
+from typing import Callable, TypeVar
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
 
-__all__ = ["safe_run", "safe_map", "safe_task", "SafeExecutionError"]
+__all__ = ["safe_run", "SafeExecutionError"]
 
 # 共享线程池（超时模式复用，避免反复创建销毁）
+# 注意：Python 线程无法强制终止，超时后仅通过 cancel_event 协作取消。
+# 如需强制终止，改用 ProcessPoolExecutor（但要求 fn 可 pickle，实例方法不可）。
 _shared_pool: concurrent.futures.ThreadPoolExecutor | None = None
 _shared_pool_lock = threading.Lock()
 
@@ -50,6 +42,19 @@ def _shared_executor() -> concurrent.futures.ThreadPoolExecutor:
             if _shared_pool is None:
                 _shared_pool = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="safe_exec")
     return _shared_pool
+
+
+# 注册清理钩子：进程退出时关闭进程池
+try:
+    from infra.hooks import on_cleanup
+    def _shutdown_pool():
+        global _shared_pool
+        if _shared_pool is not None:
+            _shared_pool.shutdown(wait=False, cancel_futures=True)
+            _shared_pool = None
+    on_cleanup(priority=90)(_shutdown_pool)
+except ImportError:
+    pass
 
 
 class SafeExecutionError(Exception):
@@ -166,75 +171,3 @@ def safe_run(
     wrapped.attempts = retries
     wrapped.last_error = last_exc
     raise wrapped from last_exc
-
-
-def safe_map(
-    fn: Callable[..., T],
-    items: list[Any],
-    *,
-    continue_on_error: bool = True,
-    retries: int = 1,
-    fallback: Any = None,
-    task_id_fn: Callable[[Any, int], str] | None = None,
-) -> list[T | Exception]:
-    """批量安全执行 — 单个失败不影响其他
-
-    Args:
-        fn: 对每个元素执行的函数
-        items: 输入列表
-        continue_on_error: True 时失败项返回 fallback，False 时立即抛出
-        retries: 每项的重试次数
-        fallback: 失败项的降级值
-        task_id_fn: (item, index) -> task_id 生成器
-
-    Returns:
-        与 items 等长的结果列表，失败项为 fallback 值或 Exception
-    """
-    results: list[Any] = []
-    errors = 0
-
-    for i, item in enumerate(items):
-        tid = task_id_fn(item, i) if task_id_fn else f"item_{i}"
-        try:
-            result = safe_run(fn, args=(item,), retries=retries, fallback=fallback, task_id=tid)
-            results.append(result)
-        except SafeExecutionError as e:
-            errors += 1
-            if continue_on_error:
-                results.append(fallback)
-                logger.warning(f"[SafeExecutor] {tid}: 失败跳过 — {e}")
-            else:
-                raise
-
-    if errors:
-        logger.warning(f"[SafeExecutor] 批量执行完成: {len(items)} 项, {errors} 项失败")
-
-    return results
-
-
-def safe_task(
-    retries: int = 2,
-    base_delay: float = 1.0,
-    retryable: tuple[type[Exception], ...] = (Exception,),
-    fallback: Any = None,
-):
-    """装饰器版安全执行器
-
-    用法:
-        @safe_task(retries=3, fallback="")
-        def fetch_data(url: str) -> str:
-            return requests.get(url).text
-    """
-    def decorator(fn):
-        @functools.wraps(fn)
-        def wrapper(*args, **kwargs):
-            return safe_run(
-                fn, args, kwargs,
-                retries=retries,
-                base_delay=base_delay,
-                retryable=retryable,
-                fallback=fallback,
-                task_id=fn.__name__,
-            )
-        return wrapper
-    return decorator
