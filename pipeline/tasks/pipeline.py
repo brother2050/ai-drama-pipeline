@@ -42,7 +42,7 @@ def shot_task(self, config_path: str, episode: int, shot_data: dict, force: bool
         return _shot_task_inner(self, config_path, episode, shot_data, shot_id, force)
 
 
-def _shot_task_inner(self, config_path: str, episode: int, shot_data: dict, shot_id: str, force: bool) -> dict:
+def _shot_task_inner(task, config_path: str, episode: int, shot_data: dict, shot_id: str, force: bool) -> dict:
     """shot_task 核心逻辑（在 project_scope 内执行）"""
     from pipeline.tasks.helpers import _build_ctx
     from infra.database.pool import get_pool
@@ -71,7 +71,7 @@ def _shot_task_inner(self, config_path: str, episode: int, shot_data: dict, shot
     shot_data["duration"] = clip_duration(shot_data.get("duration"))
     ctx["shot"] = shot_data
 
-    results = _run_shot_steps(self, config_path, episode, shot_id, force, ctx)
+    results = _run_shot_steps(task, config_path, episode, shot_id, force, ctx)
     errors = [k for k, v in results.items() if v.get("status") == STATUS_ERROR]
     return {"shot_id": shot_id, "status": STATUS_ERROR if errors else STATUS_DONE,
             "done": [k for k, v in results.items() if v.get("status") == STATUS_DONE],
@@ -92,7 +92,7 @@ def _preload_shot_data(cfg):
         return None, None
 
 
-def _run_shot_steps(self, config_path, episode, shot_id, force, ctx):
+def _run_shot_steps(task, config_path, episode, shot_id, force, ctx):
     """执行单镜头的 4 个步骤（tts → first_frame → video → lipsync）"""
     steps = [(STEP_TTS, _run_tts), (STEP_FIRST_FRAME, _run_first_frame), (STEP_VIDEO, _run_video), (STEP_LIPSYNC, _run_lipsync)]
     skip_deps = {STEP_VIDEO: [STEP_FIRST_FRAME], STEP_LIPSYNC: [STEP_VIDEO, STEP_TTS]}
@@ -108,8 +108,8 @@ def _run_shot_steps(self, config_path, episode, shot_id, force, ctx):
             logger.warning(f"[{shot_id}] {name}: 跳过（前置步骤 {', '.join(failed_deps)} 失败）")
             continue
 
-        if self:
-            self.update_state(state="PROGRESS", meta={"step": name, "shot_id": shot_id,
+        if task:
+            task.update_state(state="PROGRESS", meta={"step": name, "shot_id": shot_id,
                 "progress": int((i + 1) / len(steps) * 100), "message": f"[{shot_id}] {name} ({i+1}/{len(steps)})"})
         try:
             t0 = time.time()
@@ -135,18 +135,18 @@ def _run_shot_steps(self, config_path, episode, shot_id, force, ctx):
 #  集级任务
 # ══════════════════════════════════════════════════════════
 
-def _iterate_shots(self, config_path: str, episode: int, shots: list[dict], progress_base: int = 0, progress_range: int = 100, *, force: bool = False, concurrent: bool = False):
+def _iterate_shots(task, config_path: str, episode: int, shots: list[dict], progress_base: int = 0, progress_range: int = 100, *, force: bool = False, concurrent: bool = False):
     """逐镜头执行 shot_task，返回结果列表。失败镜头自动重试一次。"""
     total = len(shots)
     results = []
     failed_indices = []
 
     if concurrent and total > 1:
-        results, failed_indices = _run_concurrent(self, config_path, episode, shots, force, progress_base, progress_range)
+        results, failed_indices = _run_concurrent(task, config_path, episode, shots, force, progress_base, progress_range)
     else:
-        results, failed_indices = _run_serial(self, config_path, episode, shots, force, progress_base, progress_range)
+        results, failed_indices = _run_serial(task, config_path, episode, shots, force, progress_base, progress_range)
 
-    _retry_failed(self, config_path, episode, shots, results, failed_indices, progress_base, progress_range, total)
+    _retry_failed(task, config_path, episode, shots, results, failed_indices, progress_base, progress_range, total)
     return results
 
 
@@ -165,13 +165,13 @@ def _run_shot_direct(config_path: str, episode: int, shot: dict, force: bool) ->
         return _shot_task_inner(None, config_path, episode, shot, shot_id, force)
 
 
-def _run_serial(self, config_path, episode, shots, force, progress_base, progress_range):
+def _run_serial(task, config_path, episode, shots, force, progress_base, progress_range):
     """串行执行所有镜头（直接调用，不经过 Celery 队列）"""
     total = len(shots)
     results, failed_indices = [], []
     for i, shot in enumerate(shots):
         shot_id = shot.get("shot_id", f"{i+1:03d}")
-        self.update_state(state="PROGRESS", meta={"step": "shot", "shot_id": shot_id,
+        task.update_state(state="PROGRESS", meta={"step": "shot", "shot_id": shot_id,
             "progress": int(progress_base + i / total * progress_range), "current": i + 1, "total": total,
             "message": f"[{i+1}/{total}] 镜头 {shot_id}"})
         try:
@@ -185,7 +185,7 @@ def _run_serial(self, config_path, episode, shots, force, progress_base, progres
     return results, failed_indices
 
 
-def _run_concurrent(self, config_path, episode, shots, force, progress_base, progress_range):
+def _run_concurrent(task, config_path, episode, shots, force, progress_base, progress_range):
     """错开并发执行所有镜头（直接调用，不经过 Celery 队列）"""
     from infra.concurrency import run_staggered_sync
     total = len(shots)
@@ -194,7 +194,7 @@ def _run_concurrent(self, config_path, episode, shots, force, progress_base, pro
     def _make_task(i, shot):
         shot_id = shot.get("shot_id", f"{i+1:03d}")
         def _run():
-            self.update_state(state="PROGRESS", meta={"step": "shot", "shot_id": shot_id,
+            task.update_state(state="PROGRESS", meta={"step": "shot", "shot_id": shot_id,
                 "progress": int(progress_base + i / total * progress_range), "current": i + 1, "total": total,
                 "message": f"[{i+1}/{total}] 镜头 {shot_id}"})
             return _run_shot_direct(config_path, episode, shot, force)
@@ -203,7 +203,7 @@ def _run_concurrent(self, config_path, episode, shots, force, progress_base, pro
     tasks = [_make_task(i, shot) for i, shot in enumerate(shots)]
     try:
         raw_results = run_staggered_sync(tasks, max_concurrent=2, stagger_ms=3000,
-            on_progress=lambda c, t, m: self.update_state(state="PROGRESS",
+            on_progress=lambda c, t, m: task.update_state(state="PROGRESS",
                 meta={"step": "shots", "progress": int(progress_base + c / total * progress_range),
                       "message": f"[{c}/{t}] {m}"}))
     except Exception as e:
@@ -229,7 +229,7 @@ def _run_concurrent(self, config_path, episode, shots, force, progress_base, pro
     return results, failed_indices
 
 
-def _retry_failed(self, config_path, episode, shots, results, failed_indices, progress_base, progress_range, total):
+def _retry_failed(task, config_path, episode, shots, results, failed_indices, progress_base, progress_range, total):
     """重试失败的镜头（仅一次）。就地修改 results 列表。"""
     if not failed_indices:
         return
@@ -237,7 +237,7 @@ def _retry_failed(self, config_path, episode, shots, results, failed_indices, pr
     for retry_idx, i in enumerate(failed_indices):
         shot = shots[i]
         shot_id = shot.get("shot_id", f"{i+1:03d}")
-        self.update_state(state="PROGRESS", meta={"step": "retry", "shot_id": shot_id,
+        task.update_state(state="PROGRESS", meta={"step": "retry", "shot_id": shot_id,
             "progress": int(progress_base + retry_idx / len(failed_indices) * progress_range),
             "message": f"重试镜头 {shot_id} ({retry_idx+1}/{len(failed_indices)})..."})
         try:

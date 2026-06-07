@@ -76,7 +76,7 @@ def _run_video(config_path: str, episode: int, shot_id: str, *,
                cfg=None, cont=None, shot: dict | None = None, **kw) -> dict:
     cfg, cont, shot, err = _prepare(PrepareParams(
         config_path=config_path, episode=episode, shot_id=shot_id,
-        step=STEP_VIDEO, tool="comfyui", need_shot=True, force=force, cfg=cfg, cont=cont, shot=shot))
+        step=STEP_VIDEO, tool="comfyui", force=force, cfg=cfg, cont=cont, shot=shot))
     if err:
         return err
     return video_core(shot_id, cfg, cont, cfg.paths.shot_dir(episode, shot_id),
@@ -123,7 +123,7 @@ def _step_task(self, step: str, fn, config_path: str, episode: int, shot_id: str
     return result
 
 
-@app.task(bind=True, name="pipeline_step_tts", soft_time_limit=120)
+@app.task(bind=True, name="pipeline_step_tts", soft_time_limit=180)
 def step_tts(self, config_path, episode, shot_id, force=False):
     return _step_task(self, STEP_TTS, _run_tts, config_path, episode, shot_id, force=force)
 

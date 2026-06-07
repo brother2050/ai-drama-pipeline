@@ -144,7 +144,7 @@ def _try_mark_running_atomic(episode: int, shot_id: str, step: str) -> bool:
             finally:
                 cur.close()
     except Exception as e:
-        logger.warning(f"DB mark_running 降级: {e}")
+        logger.error(f"DB mark_running 降级（并发控制失效）: {e}")
         return True  # DB 不可用时放行
 
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from pathlib import Path
 
 from engines.dialogue import parse_dialogue, concat_wav
@@ -9,6 +10,11 @@ from infra.constants import STEP_TTS
 from pipeline.tasks.helpers import _skip, _err, _done, _validate_output
 
 logger = logging.getLogger(__name__)
+
+# 模块级锁 — 角色数据缓存并发保护（M3 修复：消除延迟创建的理论竞态）
+_tts_cache_lock = threading.Lock()
+_tts_chars: dict[str, dict] | None = None
+_tts_chars_dir: str | None = None
 
 
 def _build_voice_config(char_data: dict) -> dict:
@@ -57,16 +63,14 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
     if characters:
         all_chars = characters
     else:
+        global _tts_chars, _tts_chars_dir
         config_dir = str(cfg.paths.config_dir)
-        if not hasattr(tts_core, "_cache_lock"):
-            import threading
-            tts_core._cache_lock = threading.Lock()
-        with tts_core._cache_lock:
-            if not hasattr(tts_core, "_chars") or tts_core._chars_dir != config_dir:
+        with _tts_cache_lock:
+            if _tts_chars is None or _tts_chars_dir != config_dir:
                 from infra.config import load_yaml_entities
-                tts_core._chars = {c["id"]: c for c in load_yaml_entities(cfg.paths.characters_dir, "character")}
-                tts_core._chars_dir = config_dir
-        all_chars = tts_core._chars
+                _tts_chars = {c["id"]: c for c in load_yaml_entities(cfg.paths.characters_dir, "character")}
+                _tts_chars_dir = config_dir
+        all_chars = _tts_chars
 
     from infra.globals import get_watchdog, get_concurrency_groups
     from infra.safe_executor import safe_run
@@ -139,6 +143,7 @@ from infra.hooks import on_cache_invalidate  # noqa: E402
 
 @on_cache_invalidate(priority=50)
 def _clear_tts_char_cache():
-    if hasattr(tts_core, "_chars"):
-        tts_core._chars = {}
-        tts_core._chars_dir = None  # 强制下次重新加载
+    global _tts_chars, _tts_chars_dir
+    with _tts_cache_lock:
+        _tts_chars = None
+        _tts_chars_dir = None
