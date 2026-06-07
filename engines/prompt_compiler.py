@@ -88,7 +88,17 @@ class PromptCompiler:
             templates_path = Path(__file__).resolve().parent.parent / "config" / "prompt_templates.yaml"
         self._path = Path(templates_path)
         self._templates: dict[str, str] = {}
+        self._mtime: float = 0.0
         self._load_templates()
+
+    def _check_reload(self) -> None:
+        """检测模板文件变化，自动重载"""
+        try:
+            mtime = self._path.stat().st_mtime
+            if mtime != self._mtime:
+                self._load_templates()
+        except OSError:
+            pass
 
     def _load_templates(self) -> None:
         """从 YAML 文件加载模板"""
@@ -102,12 +112,14 @@ class PromptCompiler:
             for key, val in data.items():
                 if isinstance(val, dict) and "template" in val:
                     self._templates[key] = val["template"]
+            self._mtime = self._path.stat().st_mtime
             logger.debug(f"加载 {len(self._templates)} 个 prompt 模板")
         except Exception as e:
             logger.warning(f"加载 prompt 模板失败: {e}")
 
     def get(self, template_id: str) -> str:
-        """获取原始模板文本"""
+        """获取原始模板文本（文件变化时自动重载）"""
+        self._check_reload()
         return self._templates.get(template_id, "")
 
     def list_templates(self) -> list[str]:
