@@ -9,7 +9,7 @@
 
 | 文件 | 行号 | 问题 |
 |---|---|---|
-| `infra/batch_processor.py` | 157 | `_execute_with_retry` 返回的 `attempt` 是 0-indexed，`_execute_batches` 累加到 `total_retries` 时少计一次；异常分支 `total_retries += _max_retries + 1` 多计一次 |
+| `infra/batch_processor.py` | 157 | ~~`_execute_with_retry` 返回的 `attempt` 是 0-indexed~~ ✅ 已修复 |
 | `engines/prompt.py` | 236 | `batch_generate_appearance_prompts` 返回类型注解 `dict[str, dict]`，但 `parse_result` 返回 `list | None`，元素类型不确定时 `item.get("prompt_en")` 可能 `AttributeError` |
 | `engines/prompt.py` | 330 | `_merge_translate_results` 重试中 `parsed.get(local_idx + 1, "")` 如果 LLM 返回编号不连续或跳号，结果丢失 |
 | `pipeline/tasks/steps/frame.py` | 53 | `_upload_reference_images` 中 `_has_consistency_nodes` 只检查 `IPAdapterAdvanced` 和 `ApplyPulidFlux` 两种节点，新增一致性方案时需手动更新 |
@@ -31,9 +31,9 @@
 | `engines/quality_gate.py` | 200 | `_check_all_audio` 中 dialogue 空值检测不完整：`"..."`、`"——"` 等被视为有效台词 |
 | `engines/workflow.py` | 90 | `find_character_load_image_nodes` 无一致性节点时返回所有 LoadImage（含场景图），可能误注入 |
 | `pipeline/tasks/pipeline.py` | 166 | `_retry_failed` 用 `force=True` 但未跳过 `_try_mark_running_atomic`，可能与仍在执行的原任务并发 |
-| `pipeline/tasks/pipeline.py` | 208 | `_apply_preset` 中 `int(base_steps * 1.4)` 截断而非四舍五入 |
+| `pipeline/tasks/pipeline.py` | 208 | ~~`_apply_preset` 中 `int(base_steps * 1.4)` 截断~~ ✅ 已修复 |
 | `pipeline/tasks/helpers.py` | 254 | `PrepareParams` 10 个字段的 dataclass 本质是把 10 个函数参数换成了 10 个 dataclass 字段，未减少复杂度 |
-| `pipeline/tasks/media_tasks.py` | 62 | `tts_single_task` 用 `cont.get("tts")` 而非 `cont.get_with_fallback("tts")`，主后端不可用时直接失败 |
+| `pipeline/tasks/media_tasks.py` | 62 | ~~`tts_single_task` 用 `cont.get("tts")` 而非 fallback~~ ✅ 已修复 |
 | `pipeline/tasks/training_tasks.py` | 120 | `_try_mark_running_atomic(0, char_id, "train_lora")` 硬编码 `episode=0`，与其他任务可能冲突 |
 | `pipeline/tasks/training_tasks.py` | 147 | 直接导入 `api.backends.training.ai_toolkit.TrainLoraParams`，违反 DI 容器抽象 |
 | `pipeline/tasks/seko.py` | 71 | `_parse_seko_characters` 中 `safe_id` 生成可能产生重复（去特殊字符后同名） |
