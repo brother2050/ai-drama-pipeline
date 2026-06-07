@@ -1,7 +1,7 @@
 # TODO
 
-> 2026-06-07 全项目 5 链路审查（5 子代理 + 人工复核，约 20,000 行代码）
-> 已修复 55 项（含前次 45 项 + 本轮 10 项），见 git log。
+> 2026-06-07 全项目 5 链路审查（5 子代理 + 人工复核，约 25,000 行代码）
+> 已修复 63 项（含前次 45 项 + 前轮 10 项 + 本轮 8 项），见 git log。
 
 ---
 
@@ -19,6 +19,8 @@
 4. **Config 热重载线程安全** — 依赖 CPython GIL，个人项目单进程场景安全。
 5. **`fcntl` 平台依赖** — 仅 Linux/macOS，个人部署场景足够。
 6. **`Container._TYPE_KEY` 类变量** — 单实例使用，无实际竞态风险。
+7. **Config 缓存层叠加** — `helpers.py` 和 `deps.py` 各有 Config 缓存，叠加在 `Config._check_reload()` 上。重构收益低，暂不统一。
+8. **重试逻辑 4 处** — `retry.py`/`safe_executor.py`/`batch_processor.py`/`json_parse.py` 各有侧重，统一会过度抽象。**YAGNI。**
 
 ---
 
@@ -61,3 +63,10 @@
 | prompt 变量字典冗余计算 | `engines/prompt_compiler.py` | style/genre 先算一次再复用 |
 | stagger last_start 竞态窗口 | `infra/concurrency.py` | 锁内统一更新 last_start |
 | _check_outfit_reference 冗余别名导入 | `infra/models.py` | 直接用模块级已导入的函数名 |
+| delete_episode 缺少 f-string | `web/routers/storyboard.py` | 错误信息显示字面 `{episode}` 而非实际集数 |
+| .active 指针部分导入失败不恢复 | `scripts/project_builder.py` | 保存 prev_active，异常时恢复 |
+| ImportShot.duration 类型 int | `infra/models.py` | DB 用 REAL，clip_duration 返回 float，统一为 float |
+| 死代码 on_init | `infra/hooks.py` | 从未注册，连同 globals.py 的 run_hooks("init") 删除 |
+| 死代码 _init_ctx | `pipeline/tasks/helpers.py` | 从未调用，直接用 _build_ctx |
+| 死代码 get_or_check / get_cached | `infra/monitor.py` | 被 get_or_check_full 取代 / 从未调用 |
+| 死代码 is_available / stats | `infra/concurrency_groups.py` | 从未调用，is_available 有 TOCTOU 问题 |
