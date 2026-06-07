@@ -210,8 +210,8 @@ def parse_llm_json(text: str) -> object | None:
     if result is not None:
         return result
 
-    # 4. 单引号 → Python dict
-    if "'" in text and '"' not in text:
+    # 4. 单引号 → Python dict（限制长度防止 ast.literal_eval DoS）
+    if "'" in text and '"' not in text and len(text) < 50000:
         try:
             import ast
             return ast.literal_eval(text)
