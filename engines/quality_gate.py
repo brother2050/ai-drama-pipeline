@@ -252,6 +252,7 @@ class QualityGate:
         if episode is None:
             return {"ok": True}
         from engines.storyboard import load_storyboard
+        import string
         paths = self._paths(project_dir)
         out_dir = paths.episode_dir(episode)
         if not out_dir.exists():
@@ -265,7 +266,6 @@ class QualityGate:
             if not sid or not dialogue:
                 continue
             # 剥离标点/空白/省略号后检查是否有实质内容
-            import string
             strip_chars = string.whitespace + string.punctuation + '…—。，、！？：；""''「」'
             meaningful = dialogue.strip(strip_chars)
             if not meaningful:
