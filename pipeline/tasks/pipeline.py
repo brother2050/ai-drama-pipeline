@@ -359,7 +359,7 @@ def run_all_task(self, config_path: str, episode: int, vertical: bool = False, f
     with project_scope(project_name):
         stages = [
             ("prepare", lambda: _run_stage_prepare(config_path, episode, force)),
-            ("produce", lambda: _run_stage_produce(config_path, episode, force)),
+            ("produce", lambda: _run_stage_produce(config_path, episode, force, vertical)),
             ("post",    lambda: _run_stage_post(config_path, episode, vertical)),
         ]
         total = len(stages)
@@ -387,9 +387,9 @@ def _run_stage_prepare(config_path: str, episode: int, force: bool) -> dict:
     return ai_prepare_task(config_path, episode, force=force, translate=True)
 
 
-def _run_stage_produce(config_path: str, episode: int, force: bool) -> dict:
+def _run_stage_produce(config_path: str, episode: int, force: bool, vertical: bool = False) -> dict:
     # 直接调用（同步），不走 Celery 队列
-    return produce_task(config_path, episode, force=force)
+    return produce_task(config_path, episode, vertical=vertical, force=force)
 
 
 def _run_stage_post(config_path: str, episode: int, vertical: bool) -> dict:
