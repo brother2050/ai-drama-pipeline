@@ -66,9 +66,9 @@
 | `pipeline/tasks/portrait_tasks.py` | 109 | `_outfits_batch_inner` 中 `apply().get(timeout=300)` 同步阻塞调用 Celery 任务 |
 | `pipeline/tasks/training_tasks.py` | 88 | `_rename_lora_result` 中 `not new_path.exists()` 检查后 `os.replace` 不是原子的 |
 
-## 架构级观察（不立即修改，记录供参考）
+## 架构级观察
 
-1. **重试逻辑碎片化** — `retry.py`、`safe_executor.py`、`json_parse.py`、`batch_processor.py` 各自实现指数退避，策略不统一（有的有抖动，有的没有）。建议统一为一个重试引擎。
-2. **项目名解析重复** — `infra/config.py:get_active_project_dir` 和 `infra/database/_db.py:_get_project` 各自读 `.active` 文件，应统一入口。
-3. **状态值无枚举约束** — `STATUS_*` 常量在 `constants.py` 定义，但 DB schema 中 `status` 列是 `TEXT`，无 CHECK 约束。拼写错误不会被 DB 层拦截。
-4. **DB 校验与 Pydantic 校验不统一** — `storyboard_db.py` 的 `_sanitize_duration` 和 `models.py` 的 `ImportShot.duration` 使用不同的范围常量，变化时可能不同步。
+1. **重试逻辑碎片化** — `retry.py`、`safe_executor.py`、`json_parse.py` 各有不同职责（简单重试/错误边界+超时+降级/LLM+JSON解析），统一会过度抽象。**YAGNI，不修。**
+2. **项目名解析重复** — config 层解析目录路径，db 层解析项目名+缓存，职责不同。**YAGNI，不修。**
+3. ~~**状态值无枚举约束**~~ ✅ 已修复 — schema.py 添加 CHECK 约束（status IN 5 种值，duration [2,8]）
+4. ~~**DB 校验与 Pydantic 校验不统一**~~ ✅ 已修复 — models.py + web/schemas 引用 MIN_DURATION/MAX_DURATION 常量
