@@ -26,7 +26,7 @@
 | `engines/prompt_compiler.py` | 85 | `PromptCompiler` 模板缓存无刷新机制，修改 `prompt_templates.yaml` 后需重启进程 |
 | `engines/prompt_compiler.py` | 145 | `compile_text` 变量替换只支持 `\w+` 模式，不支持 `${shot.action}` 命名空间变量 |
 | `engines/portrait.py` | 94 | 重入保护 TTL 竞态：两线程同时检测到 TTL 过期时都会生成同一角色的定妆照 |
-| `engines/portrait.py` | 115 | docstring 说"生成三张图"实际生成 5 张，过时 |
+| `engines/portrait.py` | 115 | ~~docstring 过时~~ ✅ 已修复 |
 | `engines/shot_calibrator.py` | 72 | `_fallback_generate` 静默回退到单次生成，不记录原始错误原因 |
 | `engines/quality_gate.py` | 200 | `_check_all_audio` 中 dialogue 空值检测不完整：`"..."`、`"——"` 等被视为有效台词 |
 | `engines/workflow.py` | 90 | `find_character_load_image_nodes` 无一致性节点时返回所有 LoadImage（含场景图），可能误注入 |
@@ -36,7 +36,7 @@
 | `pipeline/tasks/media_tasks.py` | 62 | ~~`tts_single_task` 用 `cont.get("tts")` 而非 fallback~~ ✅ 已修复 |
 | `pipeline/tasks/training_tasks.py` | 120 | `_try_mark_running_atomic(0, char_id, "train_lora")` 硬编码 `episode=0`，与其他任务可能冲突 |
 | `pipeline/tasks/training_tasks.py` | 147 | 直接导入 `api.backends.training.ai_toolkit.TrainLoraParams`，违反 DI 容器抽象 |
-| `pipeline/tasks/seko.py` | 71 | `_parse_seko_characters` 中 `safe_id` 生成可能产生重复（去特殊字符后同名） |
+| `pipeline/tasks/seko.py` | 71 | ~~`_parse_seko_characters` 中 `safe_id` 重复~~ ✅ 已修复 |
 | `infra/config.py` | 89 | `ProjectPaths.projects_dir` 硬编码 `parent.parent` 路径假设，symlink 或不同部署路径会指向错误位置 |
 | `infra/models.py` | 180 | `ImportValidator.validate_references` 纯验证函数内执行 DB 查询，违反关注点分离 |
 | `infra/toolcheck.py` | 51 | `_hc_openai` 中 URL 拼接：`http://localhost:8000/api/v1` → `endswith("/v1")` 为 True 正确，但 `http://localhost:8000/api/v2` 会变成 `.../v2/v1` |
