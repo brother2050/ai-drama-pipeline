@@ -436,7 +436,12 @@ class WorkflowBuilder:
 
     def _inject_character_consistency(self, wf: dict, char_ids: list[str],
                                        outfit: str, img_backend: str) -> dict:
-        """注入角色 LoRA 和一致性方案（IP-Adapter / PuLID）"""
+        """注入角色 LoRA 和一致性方案（IP-Adapter / PuLID）
+
+        注意: 返回新 copy，不修改传入的 wf。
+        """
+        wf = copy.deepcopy(wf)
+
         # 一致性方案选择
         consistency = self.models.get("consistency_method",
                                       self.config.get("consistency_method", "auto"))

@@ -113,8 +113,10 @@ def update_existing_ip_adapter(builder: object, wf: dict, char_ids: list[str],
 
 def inject_ip_adapter_plus(wf: dict, char_id: str, ref_images: list[str],
                            ip_config: dict) -> dict:
-    """完整注入 IP-Adapter Plus 子图（IPAdapterModelLoader + CLIPVisionLoader + IPAdapterAdvanced + LoadImage）"""
-    wf = copy.deepcopy(wf)
+    """完整注入 IP-Adapter Plus 子图（IPAdapterModelLoader + CLIPVisionLoader + IPAdapterAdvanced + LoadImage）
+
+    注意: 就地修改 wf，调用方需确保已 deepcopy。
+    """
 
     ksampler = find_first_node(wf, "KSampler")
     if not ksampler:
@@ -177,11 +179,13 @@ def _build_ip_adapter_nodes(wf: dict, ksampler: str, model_source: str,
 
 def inject_ip_adapter_chain(wf: dict, char_id: str, ref_images: list[str],
                              weight: float = 0.45, ip_config: dict | None = None) -> dict:
-    """链式注入第二个角色的 IP-Adapter（串联在已有 IP-Adapter 之后）"""
+    """链式注入第二个角色的 IP-Adapter（串联在已有 IP-Adapter 之后）
+
+    注意: 就地修改 wf，调用方需确保已 deepcopy。
+    """
     if not ref_images:
         logger.warning(f"inject_ip_adapter_chain: ref_images 为空，跳过 {char_id}")
         return wf
-    wf = copy.deepcopy(wf)
     if ip_config is None:
         ip_config = {}
 
@@ -248,9 +252,10 @@ def inject_ip_adapter_chain(wf: dict, char_id: str, ref_images: list[str],
 
 def inject_pulid_flux(builder: object, wf: dict, char_ids: list[str],
                       pulid_config: dict, outfit: str = "") -> dict:
-    """注入 PuLID-Flux 面部一致性节点（Flux 后端专用）"""
-    wf = copy.deepcopy(wf)
+    """注入 PuLID-Flux 面部一致性节点（Flux 后端专用）
 
+    注意: 就地修改 wf，调用方需确保已 deepcopy。
+    """
     if not char_ids:
         return wf
     weight = pulid_config.get("weight", 0.9)
@@ -324,11 +329,13 @@ def _inject_pulid_nodes(wf: dict, ksampler: str, model_source: str,
 
 def inject_pulid_flux_chain(wf: dict, char_id: str, ref_images: list[str],
                              weight: float = 0.6, pulid_config: dict | None = None) -> dict:
-    """链式注入第二个角色的 PuLID-Flux（串联在已有 PuLID 之后）"""
+    """链式注入第二个角色的 PuLID-Flux（串联在已有 PuLID 之后）
+
+    注意: 就地修改 wf，调用方需确保已 deepcopy。
+    """
     if not ref_images:
         logger.warning(f"inject_pulid_flux_chain: ref_images 为空，跳过 {char_id}")
         return wf
-    wf = copy.deepcopy(wf)
     if pulid_config is None:
         pulid_config = {}
 
@@ -450,13 +457,14 @@ def inject_lora(wf: dict, lora_path: str, strength: float = 0.7,
 
     在 UNETLoader/CheckpointLoader 之后、KSampler 之前插入 LoraLoader 节点。
 
+    注意: 就地修改 wf，调用方需确保已 deepcopy。
+
     Args:
         lora_name: ComfyUI 服务端的 LoRA 文件名。由调用方决定命名策略：
             - 字符 LoRA: comfyui_asset_name()（带 project hash 防跨项目碰撞）
             - 风格 LoRA: os.path.basename()（用户手动放置，保持原名）
             - None: 回退到 os.path.basename()
     """
-    wf = copy.deepcopy(wf)
 
     ksampler = find_first_node(wf, "KSampler")
     if not ksampler:
