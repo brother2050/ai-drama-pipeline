@@ -237,8 +237,8 @@ def _check_outfit_reference(shot, i: int, plan: ImportPlan, char_ids: set[str],
     char_outfits = char.outfits if char else None
     if not char_outfits and project_dir and project_dir.exists():
         try:
-            from infra.config import ProjectPaths as _PP, load_yaml_entities as _le
-            for e in _le(_PP(project_dir).characters_dir, "character"):
+            from infra.config import ProjectPaths, load_yaml_entities
+            for e in load_yaml_entities(ProjectPaths(project_dir).characters_dir, "character"):
                 if e.get("id") == primary_char:
                     char_outfits = e.get("outfits", {})
                     break

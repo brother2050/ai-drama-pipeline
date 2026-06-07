@@ -51,8 +51,7 @@ class WorkflowBuilderConfig:
     no_auto_gen: bool = False  # 禁止自动触发定妆照生成（防止递归）
 
 
-_wf_cache: dict[str, dict] = {}  # 进程级缓存（按文件路径 key）
-# 开发提示: 修改 workflow JSON 模板后需重启 worker 才能生效（缓存无 mtime 失效）
+_wf_cache: dict[str, tuple[dict, float]] = {}  # 进程级缓存（按文件路径 key → (data, mtime)）
 
 
 class WorkflowBuilder:
@@ -142,7 +141,7 @@ class WorkflowBuilder:
             self._apply_gpu(self.video_wf, "video", gpu_cfg, sampler_types)
 
     def _load_wf(self, name: str) -> dict:
-        # 进程级缓存：同一文件只从磁盘读取一次
+        # 进程级缓存：mtime 变化时自动重载
         path = os.path.join(self.wf_dir, name)
         if os.path.exists(path):
             cache_key = os.path.normpath(path)
@@ -155,11 +154,17 @@ class WorkflowBuilder:
             else:
                 logger.debug(f"工作流不存在: {path} (也检查了 {root_wf})")
                 return {}
+        try:
+            mtime = os.path.getmtime(path)
+        except OSError:
+            mtime = 0.0
         if cache_key in _wf_cache:
-            return _wf_cache[cache_key]
+            data, cached_mtime = _wf_cache[cache_key]
+            if cached_mtime == mtime:
+                return data
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
-        _wf_cache[cache_key] = data
+        _wf_cache[cache_key] = (data, mtime)
         return data
 
     def _apply_gpu(self, wf: dict, stage: str, gpu_cfg: dict, sampler_types: set[str]) -> None:

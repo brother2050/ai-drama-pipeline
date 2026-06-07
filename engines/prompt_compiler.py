@@ -56,11 +56,11 @@ def _build_first_frame_vars(style, genre, scene, character, action,
                             emotion, emotion_desc, shot_type, shot_type_desc,
                             camera, camera_desc) -> dict:
     """构建首帧 prompt 变量字典"""
+    style_tag = f"{style} style" if style else ""
+    genre_tag = f"{genre} atmosphere" if genre else ""
     return {
-        "style": f"{style} style" if style else "",
-        "style_tag": f"{style} style" if style else "",
-        "genre": f"{genre} atmosphere" if genre else "",
-        "genre_tag": f"{genre} atmosphere" if genre else "",
+        "style": style_tag, "style_tag": style_tag,
+        "genre": genre_tag, "genre_tag": genre_tag,
         "scene": scene, "scene_desc": scene,
         "character": character, "character_desc": character,
         "action": action, "emotion": emotion, "emotion_desc": emotion_desc,

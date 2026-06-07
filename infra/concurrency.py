@@ -49,8 +49,9 @@ def run_staggered_sync(
                 now = time.monotonic()
                 wait = max(0, stagger_ms / 1000 - (now - last_start[0]))
                 if wait > 0:
-                    # 在锁内更新 last_start，确保后续任务基于正确的基准时间
                     last_start[0] = now + wait
+                else:
+                    last_start[0] = now
             if wait > 0:
                 time.sleep(wait)
         else:
