@@ -143,14 +143,24 @@ def _run_training(task_id: str, config_path: Path, task_dir: Path):
         logger.info(f"[{task_id}] 启动训练: {' '.join(cmd)}")
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
 
-        for line in proc.stdout:
-            line = line.strip()
-            if not line:
-                continue
-            logger.info(f"[{task_id}] {line}")
-            _parse_progress(task_id, line)
+        try:
+            for line in proc.stdout:
+                line = line.strip()
+                if not line:
+                    continue
+                logger.info(f"[{task_id}] {line}")
+                _parse_progress(task_id, line)
+        finally:
+            # 确保子进程资源释放（异常时避免僵尸进程）
+            if proc.poll() is None:
+                proc.terminate()
+                try:
+                    proc.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    proc.kill()
+                    proc.wait()
+            proc.stdout.close()
 
-        proc.wait()
         _finalize_training(task_id, task_dir, proc.returncode)
 
     except Exception as e:
