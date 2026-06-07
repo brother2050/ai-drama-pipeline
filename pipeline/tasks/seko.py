@@ -19,6 +19,7 @@ def _parse_seko_characters(steps: list[dict], elements: list[dict] | None = None
 
     output = char_step.get("stepOutput", "")
     characters = []
+    used_ids: set[str] = set()
     # 按 "- 角色名" 分割
     blocks = re.split(r"\n(?=- )", output)
     for block in blocks:
@@ -37,10 +38,16 @@ def _parse_seko_characters(steps: list[dict], elements: list[dict] | None = None
         prompt_match = re.search(r"<Prompt>(.*?)</Prompt>", block, re.DOTALL)
         prompt_text = prompt_match.group(1).strip() if prompt_match else ""
 
-        # 生成 ID：名字转 safe id
+        # 生成 ID：名字转 safe id，去重
         safe_id = "".join(c for c in char_name if c.isalnum() or c in ("-", "_")).strip()
         if not safe_id:
             safe_id = f"char_{len(characters) + 1:02d}"
+        base_id = safe_id
+        suffix = 2
+        while safe_id in used_ids:
+            safe_id = f"{base_id}_{suffix}"
+            suffix += 1
+        used_ids.add(safe_id)
 
         # 查找对应的 element 图片 URL
         seko_image_url = ""
@@ -72,6 +79,7 @@ def _parse_seko_scenes(steps: list[dict], elements: list[dict] | None = None) ->
 
     output = scene_step.get("stepOutput", "")
     scenes = []
+    used_ids: set[str] = set()
     blocks = re.split(r"\n(?=- )", output)
     for block in blocks:
         block = block.strip()
@@ -90,6 +98,12 @@ def _parse_seko_scenes(steps: list[dict], elements: list[dict] | None = None) ->
         safe_id = "".join(c for c in scene_name if c.isalnum() or c in ("-", "_")).strip()
         if not safe_id:
             safe_id = f"scene_{len(scenes) + 1:02d}"
+        base_id = safe_id
+        suffix = 2
+        while safe_id in used_ids:
+            safe_id = f"{base_id}_{suffix}"
+            suffix += 1
+        used_ids.add(safe_id)
 
         # 查找对应的 element 图片 URL
         seko_image_url = ""
