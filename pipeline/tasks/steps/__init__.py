@@ -7,7 +7,7 @@
   - lipsync.py  — 口型同步
 
 本文件提供:
-  1. 向后兼容的 re-export（现有 import 无需改动）
+  1. re-export（现有 import 无需改动）
   2. _run_* 包装函数（_prepare 防重复 + 核心逻辑）
   3. Celery step 任务定义
 """
@@ -23,7 +23,7 @@ from pipeline.tasks.helpers import (
     _db_record_step, _prepare, PrepareParams,
 )
 
-# ── re-export 核心逻辑（向后兼容）──
+# ── re-export 核心逻辑 ──
 from pipeline.tasks.steps.tts import tts_core
 from pipeline.tasks.steps.frame import FirstFrameParams, first_frame_core
 from pipeline.tasks.steps.video import video_core
@@ -45,7 +45,7 @@ __all__ = [
 def _run_tts(config_path: str, episode: int, shot_id: str, *,
              force: bool = False,
              cfg=None, cont=None, shot: dict | None = None,
-             characters: dict | None = None, **kw) -> dict:
+             characters: dict | None = None, scenes: dict | None = None) -> dict:
     cfg, cont, shot, err = _prepare(PrepareParams(
         config_path=config_path, episode=episode, shot_id=shot_id,
         step=STEP_TTS, tool="tts", force=force, cfg=cfg, cont=cont, shot=shot))
@@ -59,7 +59,7 @@ def _run_first_frame(config_path: str, episode: int, shot_id: str, *,
                      force: bool = False,
                      cfg=None, cont=None, shot: dict | None = None,
                      characters: dict | None = None,
-                     scenes: dict | None = None, **kw) -> dict:
+                     scenes: dict | None = None) -> dict:
     cfg, cont, shot, err = _prepare(PrepareParams(
         config_path=config_path, episode=episode, shot_id=shot_id,
         step=STEP_FIRST_FRAME, tool="comfyui", force=force, cfg=cfg, cont=cont, shot=shot))
@@ -73,7 +73,8 @@ def _run_first_frame(config_path: str, episode: int, shot_id: str, *,
 
 def _run_video(config_path: str, episode: int, shot_id: str, *,
                force: bool = False,
-               cfg=None, cont=None, shot: dict | None = None, **kw) -> dict:
+               cfg=None, cont=None, shot: dict | None = None,
+               characters: dict | None = None, scenes: dict | None = None) -> dict:
     cfg, cont, shot, err = _prepare(PrepareParams(
         config_path=config_path, episode=episode, shot_id=shot_id,
         step=STEP_VIDEO, tool="comfyui", force=force, cfg=cfg, cont=cont, shot=shot))
@@ -85,7 +86,8 @@ def _run_video(config_path: str, episode: int, shot_id: str, *,
 
 def _run_lipsync(config_path: str, episode: int, shot_id: str, *,
                  force: bool = False,
-                 cfg=None, cont=None, **kw) -> dict:
+                 cfg=None, cont=None, shot: dict | None = None,
+                 characters: dict | None = None, scenes: dict | None = None) -> dict:
     cfg, cont, _, err = _prepare(PrepareParams(
         config_path=config_path, episode=episode, shot_id=shot_id,
         step=STEP_LIPSYNC, tool="lipsync", need_shot=False, force=force, cfg=cfg, cont=cont))

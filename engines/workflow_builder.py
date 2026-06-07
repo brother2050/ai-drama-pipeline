@@ -51,7 +51,8 @@ class WorkflowBuilderConfig:
     no_auto_gen: bool = False  # 禁止自动触发定妆照生成（防止递归）
 
 
-_wf_cache: dict[str, dict] = {}  # 工作流 JSON 缓存（进程级，按文件路径 key）
+_wf_cache: dict[str, dict] = {}  # 进程级缓存（按文件路径 key）
+# 开发提示: 修改 workflow JSON 模板后需重启 worker 才能生效（缓存无 mtime 失效）
 
 
 class WorkflowBuilder:
