@@ -345,7 +345,7 @@ flowchart TB
     s1t -->|"翻译写入 *_en"| yaml_c & yaml_s & db_sb
     s1p -->|"生成图片"| assets_c
     s1s -->|"生成图片"| assets_s
-    yaml_c & yaml_s -->|"读取 *_en"| s2f & s2s
+    yaml_c & yaml_s -->|"读取 *_en"| s2f
     db_sb -->|"读取 dialogue"| s2t
     s2t -->|"audio.wav"| output
     s2f -->|"frame.png"| output
