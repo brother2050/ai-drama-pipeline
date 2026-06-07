@@ -46,14 +46,11 @@ def _ai_storyboard_inner(self, config_path, episode, outline, duration, append):
                           "message": f"正在生成 {len(char_ids)} 个角色、{len(scene_ids)} 个场景..."})
     id_remap, warnings, err, entity_status = _generate_entities_for_storyboard(
         llm, shots, char_ids, scene_ids, outline, style, genre, cfg.paths)
-    if err:
-        logger.warning(f"实体生成失败（分镜仍会保存）: {err}")
-        warnings.append(f"实体生成失败: {err}")
 
-    # 3. 回写 + 保存
+    # 3. 回写 + 保存（按类型精确匹配，避免跨类型误映射）
     if id_remap:
         from engines.entity_utils import remap_shot_ids
-        remap_shot_ids(shots, id_remap)
+        remap_shot_ids(shots, id_remap, char_ids=char_ids, scene_ids=scene_ids)
     self.update_state(state="PROGRESS", meta={"step": "ai_storyboard", "progress": 90, "message": "正在保存..."})
     from engines.storyboard import validate_shot
     invalid_shots = []

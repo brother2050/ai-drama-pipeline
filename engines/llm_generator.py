@@ -115,8 +115,7 @@ def generate_characters(llm: object, descriptions: list[str], expected_ids: list
     from infra.models import normalize_character
     results = _generate_entities(llm, descriptions, expected_ids, tpl("character_system"), "角色",
                                  existing_entities=existing_characters, max_tokens=1024)
-    for char in results:
-        normalize_character(char)
+    results[:] = [normalize_character(char) for char in results]
     return results
 
 

@@ -89,7 +89,17 @@ def build_concat_filter(inputs: list[str], output: str, transition: str = "cross
     Path(output).parent.mkdir(parents=True, exist_ok=True)
     from infra.ffmpeg import _FFMPEG as ffmpeg, probe
     probe_cache = [probe(p) for p in inputs]
-    durations = [float(info.get("format", {}).get("duration", 0)) for info in probe_cache]
+
+    def _safe_duration(info: dict) -> float:
+        try:
+            val = info.get("format", {}).get("duration", 0)
+            if val in (None, "N/A", ""):
+                return 4.0
+            return float(val)
+        except (ValueError, TypeError):
+            return 4.0
+
+    durations = [_safe_duration(info) for info in probe_cache]
     logger.debug(f"视频时长: {durations}")
 
     cmd = [ffmpeg, "-y", "-hide_banner", "-loglevel", "warning"]
@@ -108,7 +118,7 @@ def build_concat_filter(inputs: list[str], output: str, transition: str = "cross
     if all_filters:
         cmd.extend(["-filter_complex", ";".join(all_filters)])
         cmd.extend(["-map", "[v]"])
-        if audio_inputs:
+        if audio_parts:  # 仅当音频滤镜实际生成了 [a] 标签时才映射
             cmd.extend(["-map", "[a]"])
 
     cmd.extend(["-c:v", "libx264", "-preset", "fast", "-crf", "18",

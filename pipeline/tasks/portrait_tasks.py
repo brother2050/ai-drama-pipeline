@@ -129,8 +129,7 @@ def _outfit_single_inner(self, config_path: str, char_id: str, outfit_key: str) 
 
         outfits = char.get("outfits", {})
         generation = char.get("portrait_generation", 0)
-        outfit_idx = list(outfits.keys()).index(outfit_key)
-        seed = _outfit_seed(char_id, generation, outfit_idx)
+        seed = _outfit_seed(char_id, generation, outfit_key)
         cover_path = paths.character_asset_dir(char_id) / "cover.png"
 
         url = _generate_single_outfit(

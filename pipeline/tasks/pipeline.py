@@ -99,12 +99,12 @@ def _run_shot_steps(task, config_path, episode, shot_id, force, ctx):
 
     for i, (name, fn) in enumerate(steps):
         deps = skip_deps.get(name, [])
-        failed_deps = [d for d in deps if results.get(d, {}).get("status") == STATUS_ERROR]
-        if failed_deps:
+        blocked = [d for d in deps if results.get(d, {}).get("status") in (STATUS_ERROR, STATUS_SKIPPED)]
+        if blocked:
             results[name] = {"shot_id": shot_id, "step": name, "status": STATUS_SKIPPED,
-                             "reason": f"前置步骤 {', '.join(failed_deps)} 失败，跳过"}
+                             "reason": f"前置步骤 {', '.join(blocked)} 未完成，跳过"}
             _db_record_step(episode, shot_id, name, results[name])
-            logger.warning(f"[{shot_id}] {name}: 跳过（前置步骤 {', '.join(failed_deps)} 失败）")
+            logger.warning(f"[{shot_id}] {name}: 跳过（前置步骤 {', '.join(blocked)} 未完成）")
             continue
 
         if task:
@@ -238,7 +238,7 @@ def _retry_failed(task, config_path, episode, shots, results, failed_indices, pr
             "progress": int(progress_base + retry_idx / len(failed_indices) * progress_range),
             "message": f"重试镜头 {shot_id} ({retry_idx+1}/{len(failed_indices)})..."})
         try:
-            result = _run_shot_direct(config_path, episode, shot, force=True)
+            result = _run_shot_direct(config_path, episode, shot, force=False)
             results[i] = result
             logger.info(f"  镜头 {shot_id} 重试完成: done={result.get('done', [])}, errors={result.get('errors', [])}")
         except Exception as e:

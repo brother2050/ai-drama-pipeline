@@ -84,8 +84,14 @@ def to_vertical(video: str, output: str, mode: str = "face_track") -> str:
     # 获取原始尺寸
     info = ffprobe(video)
     stream = next((s for s in info.get("streams", []) if s.get("codec_type") == "video"), {})
-    w = int(stream.get("width", 1280))
-    h = int(stream.get("height", 720))
+    try:
+        w = int(stream.get("width", 1280))
+    except (ValueError, TypeError):
+        w = 1280
+    try:
+        h = int(stream.get("height", 720))
+    except (ValueError, TypeError):
+        h = 720
 
     # 已经是竖屏
     if h > w:

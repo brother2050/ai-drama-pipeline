@@ -154,9 +154,15 @@ def save_entities(
         entity["name"] = name
         id_remap[old_id] = new_id
 
-        # 角色数据规范化
+        # 角色数据规范化（回写到列表，确保返回值也是规范化的）
         if entity_key == "character":
+            old_entity = entity
             entity = normalize_character(entity)
+            # 回写到 entities 列表（normalize_character 返回新 dict）
+            for _idx, e in enumerate(entities):
+                if e is old_entity:
+                    entities[_idx] = entity
+                    break
 
         path = out_dir / f"{new_id}.yaml"
         save_yaml(path, {entity_key: entity})
@@ -234,14 +240,23 @@ def build_entity_descriptions(
     return descriptions
 
 
-def remap_shot_ids(shots: list[dict], id_remap: dict) -> None:
-    """回写分镜中的旧 ID 为新 hash ID"""
+def remap_shot_ids(shots: list[dict], id_remap: dict, *,
+                   char_ids: set[str] | None = None, scene_ids: set[str] | None = None) -> None:
+    """回写分镜中的旧 ID 为新 hash ID。
+
+    当 char_ids/scene_ids 传入时，按类型精确匹配，避免跨类型误映射。
+    """
     for shot in shots:
         chars = shot.get("characters", "")
         if chars:
             parts = [c.strip() for c in chars.split("+")]
-            parts = [id_remap.get(c, c) for c in parts]
+            if char_ids is not None:
+                parts = [id_remap.get(c, c) if c in char_ids else c for c in parts]
+            else:
+                parts = [id_remap.get(c, c) for c in parts]
             shot["characters"] = "+".join(parts)
         scene_id = shot.get("scene_id", "")
         if scene_id in id_remap:
+            if scene_ids is not None and scene_id not in scene_ids:
+                continue
             shot["scene_id"] = id_remap[scene_id]

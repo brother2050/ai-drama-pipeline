@@ -176,25 +176,27 @@ class ProjectBuilder:
         from engines.storyboard import append_storyboard
         if not plan.shots:
             return 0, 0
-        existing_ids: set[str] = set()
+        existing_ids: set[tuple[int, str]] = set()
         try:
             from infra.database.pool import get_pool
             from infra.database.storyboard_db import get_all_shots
             for row in get_all_shots(get_pool()):
                 sid = row.get("shot_id", "")
+                ep = row.get("episode", 0)
                 if sid:
-                    existing_ids.add(sid)
+                    existing_ids.add((ep, sid))
         except Exception as e:
             logger.debug(f"读取已有镜头 ID 跳过: {e}")
 
         new_shots, skipped = [], 0
         for s in plan.shots:
             d = s.model_dump()
-            if d.get("shot_id") in existing_ids:
+            ep = int(d.get("episode", 1) or 1)
+            if (ep, d.get("shot_id")) in existing_ids:
                 skipped += 1
-                logger.info(f"  跳过重复镜头: {d['shot_id']}")
+                logger.info(f"  跳过重复镜头: ep{ep}/{d['shot_id']}")
                 continue
-            existing_ids.add(d["shot_id"])
+            existing_ids.add((ep, d["shot_id"]))
             new_shots.append(d)
         if new_shots:
             append_storyboard(new_shots)

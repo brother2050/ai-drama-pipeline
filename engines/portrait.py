@@ -80,8 +80,11 @@ def _inject_ref_image(wf: dict, ref_image: str, char_id: str, project_dir: str, 
     """注入参考图到工作流的 IP-Adapter/PuLID LoadImage 节点"""
     if not ref_image or not os.path.exists(ref_image):
         return
-    from engines.workflow import find_character_load_image_nodes
+    from engines.workflow import find_character_load_image_nodes, find_load_image_nodes
     char_nodes = find_character_load_image_nodes(wf)
+    if not char_nodes:
+        # 回退：定妆照生成时无 IP-Adapter/PuLID 节点，使用第一个普通 LoadImage
+        char_nodes = find_load_image_nodes(wf)
     if not char_nodes:
         return
     from infra.asset_tracker import comfyui_asset_name, AssetTracker

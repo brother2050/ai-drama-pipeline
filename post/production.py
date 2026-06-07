@@ -201,7 +201,7 @@ def run_post(config_path: str, episode: int, vertical: bool = False, cfg=None) -
             generate_srt(shots, str(srt_path), transition_duration=td,
                          bilingual=bilingual, video_durations=video_durations)
             logger.info(f"SRT 已重新生成: {srt_path}" + ("（双语）" if bilingual else ""))
-        except (OSError, ValueError, KeyError) as e:
+        except Exception as e:
             logger.warning(f"SRT 重新生成失败（使用已有文件）: {e}")
 
     # 拼接
