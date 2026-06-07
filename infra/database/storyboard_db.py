@@ -105,8 +105,8 @@ def save_episode_shots(pool, episode: int, shots: list[dict]) -> int:
             continue
         valid_shots.append(shot)
     cols = ", ".join(_INSERT_COLS)
-    ph = ", ".join(["%s"] * len(_INSERT_COLS))
-    sql = f"INSERT INTO shots ({cols}) VALUES ({ph}) ON CONFLICT (project, episode, shot_id) DO UPDATE SET {_UPSERT_SET}"
+    # execute_values 要求 SQL 中只有一个 %s 占位符（由 execute_values 自动展开为多行）
+    sql = f"INSERT INTO shots ({cols}) VALUES %s ON CONFLICT (project, episode, shot_id) DO UPDATE SET {_UPSERT_SET}"
     new_ids = [s.get("shot_id", "") for s in valid_shots if s.get("shot_id")]
     with pool.connection() as conn:
         cur = conn.cursor()
