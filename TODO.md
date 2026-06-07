@@ -42,7 +42,7 @@
 | `infra/toolcheck.py` | 51 | ~~`_hc_openai` 中 URL 拼接：`http://localhost:8000/api/v1` → `endswith("/v1")` 为 True 正确，但 `http://localhost:8000/api/v2` 会变成 `.../v2/v1`~~ ✅ 已修复 |
 | `infra/database/schema.py` | 1 | ~~init_schema 不使用事务~~ ✅ 已修复 |
 | `infra/http_pool.py` | 73 | `get_client` 的 double-checked locking 中 closed client 的 `is_closed` 属性线程安全性不确定 |
-| `infra/json_parse.py` | 106 | `ast.literal_eval` 对 LLM 输出使用，超长嵌套 Python 字面量可能导致 DoS |
+| `infra/json_parse.py` | 106 | ~~`ast.literal_eval` 对 LLM 输出使用，超长嵌套 Python 字面量可能导致 DoS~~ ✅ 已修复 |
 | `infra/retry.py` | 16 | `max_retries` 参数语义：代码和 docstring 一致（含首次执行），但与 `safe_executor.py` 的 `retries` 命名不统一 |
 
 ## LOW / YAGNI — 不修
