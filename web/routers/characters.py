@@ -24,7 +24,7 @@ def list_characters() -> dict:
 @router.post("/characters")
 def save_character(req: CharacterData) -> dict:
     # 用户可显式清空的 AI 生成字段（前端发空串时允许覆盖）
-    _CLEARABLE = {"appearance_prompt_en", "body_features", "lighting", "lighting_en"}
+    _CLEARABLE = {"appearance_prompt_en", "appearance_prompt_generated", "body_features", "lighting", "lighting_en"}
     char_id, data = parse_entity(req, clear_fields=_CLEARABLE)
     yaml_save("characters", "character", char_id, data)
     return {"status": "ok", "id": char_id}
