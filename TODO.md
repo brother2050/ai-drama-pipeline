@@ -52,14 +52,14 @@
 | `infra/hooks.py` | — | 钩子系统支持 4 种类型（init/cleanup/health_check/cache_invalidate），当前只用 2 种 |
 | `infra/monitor.py` | — | WatchDog LRU 淘汰功能 `max_active=0`（未使用） |
 | `infra/safe_executor.py` | 60 | `SafeExecutionError` 的 `task_id`/`attempts`/`last_error` 属性从未被读取 |
-| `infra/batch_processor.py` | 116 | `_get_limits` fallback 值 `context_window=8192` 对现代 LLM 偏小，可能导致过度分批 |
+| `infra/batch_processor.py` | 116 | ~~`_get_limits` fallback 值 `context_window=8192` 对现代 LLM 偏小，可能导致过度分批~~ ✅ 已修复 |
 | `infra/concurrency.py` | 58 | `stagger` 时序在并行环境下不精确（任务 0 的 `last_start` 未更新时任务 1 已开始计算） |
 | `infra/database/storyboard_db.py` | 138 | ~~`batch_upsert_shots` 逐行执行而非批量（`save_episode_shots` 用 `execute_values`）~~ ✅ 已修复 |
-| `engines/consistency_checker.py` | 110 | `_check_emotion_transition` 中 `BLOCKED_TRANSITIONS` 在函数体内每次重建 set |
-| `engines/consistency_checker.py` | 110 | `VALID_EMOTIONS` 在函数体内重复导入，应移至模块顶层 |
-| `engines/shot_utils.py` | 35 | `postprocess_shots` 引号清理只检查首尾字符，不处理嵌套/不平衡引号 |
+| `engines/consistency_checker.py` | 110 | ~~`_check_emotion_transition` 中 `BLOCKED_TRANSITIONS` 在函数体内每次重建 set~~ ✅ 已修复 |
+| `engines/consistency_checker.py` | 110 | ~~`VALID_EMOTIONS` 在函数体内重复导入，应移至模块顶层~~ ✅ 已修复 |
+| `engines/shot_utils.py` | 35 | ~~`postprocess_shots` 引号清理只检查首尾字符，不处理嵌套/不平衡引号~~ ✅ 已修复 |
 | `engines/dialogue.py` | 75 | `concat_wav` 用 `raw.find(b"data")` 搜索 chunk 标记，理论上可能误匹配 |
-| `engines/character_bible.py` | 120 | `get_tags` 嵌套字典只合并一层，深层字段不会被覆盖 |
+| `engines/character_bible.py` | 120 | ~~`get_tags` 嵌套字典只合并一层，深层字段不会被覆盖~~ ✅ 已修复 |
 | `pipeline/tasks/steps/tts.py` | 74 | 单条/多条台词分支中 `voice_config` 构建和 TTS 调用逻辑重复 |
 | `pipeline/tasks/steps/lipsync.py` | 28 | 存在性检查 + force 跳过模式在 tts/frame/video/lipsync 中完全重复 |
 | `pipeline/tasks/steps/lipsync.py` | 30 | ~~`synced_path` 先赋值为 `Path` 后赋值为 `str`，类型不一致~~ ✅ 已修复 |
