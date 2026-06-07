@@ -152,8 +152,13 @@ def batch_generate_appearance_prompts(characters: list[dict], llm: object) -> di
 
     failed = batch_result.get("failed_batches", 0)
     if failed:
-        raise RuntimeError(
-            f"角色 prompt 生成失败（{failed} 批）。请检查 LLM 服务后重试。")
+        if all_mapping:
+            # 部分成功：返回已成功的结果，不丢弃
+            logger.warning(f"  ⚠ 角色 prompt 部分失败: {failed} 批失败，"
+                           f"已成功 {len(all_mapping)}/{len(characters)} 个角色")
+        else:
+            raise RuntimeError(
+                f"角色 prompt 生成全部失败（{failed} 批）。请检查 LLM 服务后重试。")
 
     logger.info(f"  ✅ 批量 prompt 生成完成: {len(all_mapping)}/{len(characters)} 个角色")
     return all_mapping
