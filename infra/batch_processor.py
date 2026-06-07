@@ -46,22 +46,22 @@ def _execute_batches(processor, batches, build_prompts, parse_result, on_progres
     all_results = []
     batch_sizes = []
     failed = 0
-    total_retries = 0
+    total_attempts = 0
     t0 = time.monotonic()
     for i, batch in enumerate(batches):
         batch_sizes.append(len(batch))
         if on_progress:
             on_progress(i, len(batches), f"批次 {i+1}/{len(batches)}...")
         try:
-            result, retries = processor._execute_with_retry(batch, build_prompts, parse_result)
+            result, attempts = processor._execute_with_retry(batch, build_prompts, parse_result)
             all_results.append(result)
-            total_retries += retries
+            total_attempts += attempts
         except Exception as e:
             failed += 1
-            total_retries += processor._max_retries + 1
+            total_attempts += processor._max_retries + 1
             logger.error(f"批次 {i+1} 最终失败: {e}")
             all_results.append(None)
-        processor._learn_from_last_error()
+            processor._learn_from_last_error()
 
     elapsed = round(time.monotonic() - t0, 2)
     if on_progress:
@@ -69,7 +69,7 @@ def _execute_batches(processor, batches, build_prompts, parse_result, on_progres
                     f"完成 ({failed} 批失败)" if failed else "全部成功")
     return {"results": all_results, "batch_sizes": batch_sizes,
             "failed_batches": failed, "total_batches": len(batches),
-            "total_items": sum(batch_sizes), "retries": total_retries,
+            "total_items": sum(batch_sizes), "retries": total_attempts,
             "elapsed": elapsed}
 
 
@@ -219,7 +219,7 @@ class AdaptiveBatchProcessor:
         self, batch: list[Any],
         build_prompts: Callable, parse_result: Callable,
     ) -> tuple[Any, int]:
-        """执行单个批次，带指数退避重试。返回 (result, retry_count)。"""
+        """执行单个批次，带指数退避重试。返回 (result, total_attempts)。"""
         last_error = None
         for attempt in range(self._max_retries + 1):
             try:
@@ -229,14 +229,13 @@ class AdaptiveBatchProcessor:
                     system=prompts.get("system", ""),
                     max_tokens=self._output_budget,
                 )
-                return parse_result(raw, batch), attempt
+                return parse_result(raw, batch), attempt + 1
             except Exception as e:
                 last_error = e
-                # 记录错误用于学习
                 self._last_error = e
                 if attempt < self._max_retries:
                     wait = self._retry_base_delay * (2 ** attempt)
-                    logger.warning(f"批次失败 (尝试 {attempt+1}), {wait}s 后重试: {e}")
+                    logger.warning(f"批次失败 (尝试 {attempt+1}/{self._max_retries + 1}), {wait}s 后重试: {e}")
                     time.sleep(wait)
         raise last_error
 
