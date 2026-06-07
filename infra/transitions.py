@@ -87,7 +87,8 @@ def build_concat_filter(inputs: list[str], output: str, transition: str = "cross
         return output
 
     Path(output).parent.mkdir(parents=True, exist_ok=True)
-    from infra.ffmpeg import _FFMPEG as ffmpeg, probe
+    from infra.ffmpeg import ffmpeg_path, probe
+    ffmpeg = ffmpeg_path()
     probe_cache = [probe(p) for p in inputs]
 
     def _safe_duration(info: dict) -> float:

@@ -24,7 +24,26 @@ def _run_subtitle(config_path: str, episode: int) -> dict:
     out_dir = paths.episode_dir(episode)
     out_dir.mkdir(parents=True, exist_ok=True)
     srt = str(paths.episode_srt(episode))
-    generate_srt(shots, srt, transition_duration=cfg.get("post_production.transition_duration", 0.5))
+    # 探测各镜头视频实际时长（供 SRT 时间轴精确对齐）
+    from infra.ffmpeg import probe as ffprobe
+    video_durations: list[float] = []
+    for shot in shots:
+        sid = shot.get("shot_id", "")
+        synced = out_dir / f"s{sid}" / "synced.mp4"
+        video = out_dir / f"s{sid}" / "video.mp4"
+        vfile = synced if synced.exists() else video
+        if vfile.exists():
+            try:
+                info = ffprobe(str(vfile))
+                dur = float(info.get("format", {}).get("duration", 0))
+                video_durations.append(dur if dur > 0 else float(shot.get("duration", 4)))
+            except Exception:
+                video_durations.append(float(shot.get("duration", 4)))
+        else:
+            video_durations.append(float(shot.get("duration", 4)))
+    bilingual = cfg.get("post_production.bilingual_subtitle", False)
+    generate_srt(shots, srt, transition_duration=cfg.get("post_production.transition_duration", 0.5),
+                 bilingual=bilingual, video_durations=video_durations)
     return {"status": STATUS_DONE, "path": srt, "count": len(shots)}
 
 

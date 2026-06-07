@@ -16,7 +16,7 @@ from typing import Any, Callable
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["BackendMeta", "ServiceRegistry", "Container", "registry", "container"]
+__all__ = ["BackendMeta", "ServiceRegistry", "Container", "registry"]
 
 
 @dataclass
@@ -348,4 +348,3 @@ class Container:
 
 # 全局单例
 registry = ServiceRegistry()
-container: Container | None = None

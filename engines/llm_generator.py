@@ -112,11 +112,9 @@ def generate_characters(llm: object, descriptions: list[str], expected_ids: list
 
     appearance_prompt_en 和 body_features 由准备阶段翻译生成，此处不处理。
     """
-    from infra.models import normalize_character
-    results = _generate_entities(llm, descriptions, expected_ids, tpl("character_system"), "角色",
-                                 existing_entities=existing_characters, max_tokens=1024)
-    results[:] = [normalize_character(char) for char in results]
-    return results
+    # normalize_character 由 save_entities 统一调用，此处不重复
+    return _generate_entities(llm, descriptions, expected_ids, tpl("character_system"), "角色",
+                              existing_entities=existing_characters, max_tokens=1024)
 
 
 def generate_scenes(llm: object, descriptions: list[str], expected_ids: list[str] | None = None,
