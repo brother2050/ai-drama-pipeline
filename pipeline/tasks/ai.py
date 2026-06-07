@@ -330,6 +330,9 @@ def _deserialize_numbered(raw: str, keys: list | None = None, originals: dict | 
       - 带 key: "1. core_traits: translated text"
       - 纯值:   "1. translated text"
 
+    合并检测: 如果某个值内部包含子编号（LLM 合并了多条翻译），
+    自动拆分并按顺序分配给后续 key，避免级联丢失。
+
     Args:
         raw: LLM 返回的编号文本
         keys: dict 的 key 列表（None 则返回 list）
@@ -340,6 +343,10 @@ def _deserialize_numbered(raw: str, keys: list | None = None, originals: dict | 
         m = re.match(r"^(\d+)\s*[.):：\-）]\s*(.+)", line.strip())
         if m:
             lines.append(m.group(2).strip())
+
+    # 合并检测: 检查是否有行包含子编号（LLM 合并了多条翻译）
+    lines = _split_merged_items(lines, len(keys) if keys else len(lines))
+
     if keys is not None:
         result = {}
         for i, k in enumerate(keys):
@@ -359,6 +366,30 @@ def _deserialize_numbered(raw: str, keys: list | None = None, originals: dict | 
             result[k] = translated or orig_val
         return result
     return [line.strip() for line in lines]
+
+
+def _split_merged_items(lines: list[str], expected: int) -> list[str]:
+    """拆分 LLM 合并的多条翻译（如 'A. 2. B' 被合并到一行）
+
+    检测逻辑: 如果某行包含子编号（\\d+. ），按子编号拆分为多行。
+    parts[0] 是第一个子项的前缀内容，后续交替为 (编号, 内容)。
+    """
+    result = []
+    for line in lines:
+        parts = re.split(r'(?<!\w)(\d+)\.\s', line)
+        if len(parts) >= 3:
+            # parts: ['前缀内容', '2', '内容2', '3', '内容3', ...]
+            # parts[0] 是第一个子项（在第一个子编号之前的内容）
+            if parts[0].strip():
+                result.append(parts[0].strip())
+            for j in range(1, len(parts), 2):
+                if j + 1 < len(parts) and parts[j + 1].strip():
+                    result.append(parts[j + 1].strip())
+        else:
+            result.append(line)
+    if len(result) < expected:
+        logger.warning(f"合并检测: 拆分后 {len(result)} 项 < 预期 {expected} 项")
+    return result
 
 
 def _collect_bible_texts(char: dict, cid: str, all_texts: list[str],
