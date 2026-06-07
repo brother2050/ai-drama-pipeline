@@ -98,13 +98,16 @@ def batch_generate_appearance_prompts(characters: list[dict], llm: object) -> di
             parts.append(f"[角色 {i+1}] id={cid}\n外貌描述：{appearance}")
         return {"system": system, "user": "请为以下每个角色生成 AI 绘图 prompt，按角色编号输出 JSON 数组。\n\n" + "\n\n".join(parts)}
 
-    def parse_result(raw, batch):
+    def parse_result(raw, batch) -> list[dict] | None:
         result = parse_llm_json(raw)
         if not result:
             return None
         if isinstance(result, dict):
             result = [result]
-        return result if isinstance(result, list) else None
+        if isinstance(result, list):
+            # 过滤非 dict 元素（LLM 可能返回 str/null）
+            return [item for item in result if isinstance(item, dict)]
+        return None
 
     batch_result = processor.process(
         items=characters,
@@ -432,7 +435,13 @@ def _merge_translate_results(results: list[str], batch_items: list[tuple[int, st
             if offset + local_idx >= total_items:
                 break
             orig_idx, orig_text = batch_items[offset + local_idx]
+            # 按位置匹配（1-indexed），回退到按 key 匹配（LLM 编号可能不连续）
             translated = batch_data.get(local_idx + 1, "")
+            if not translated and batch_data:
+                # 回退：按排序 key 取第 local_idx 个（处理 LLM 跳号/重编号）
+                sorted_keys = sorted(batch_data.keys())
+                if local_idx < len(sorted_keys):
+                    translated = batch_data.get(sorted_keys[local_idx], "")
             if translated:
                 results[orig_idx] = translated
             else:

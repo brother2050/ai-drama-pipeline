@@ -54,8 +54,10 @@ def _upload_first_frame_if_needed(video_wf: dict, frame_path: Path, server_filen
         except Exception as e:
             raise RuntimeError(f"首帧图上传到视频服务器失败: {e}") from e
 
-    if load_nodes[0] in video_wf:
-        video_wf[load_nodes[0]]["inputs"]["image"] = server_filename
+    # 更新所有 LoadImage 节点引用（多节点时全部指向首帧）
+    for nid in load_nodes:
+        if nid in video_wf:
+            video_wf[nid]["inputs"]["image"] = server_filename
     return video_wf
 
 

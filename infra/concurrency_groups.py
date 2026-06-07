@@ -103,6 +103,12 @@ class ConcurrencyGroups:
                 if lock:
                     lock.acquire()
                     acquired.append(lock)
+        except BaseException:
+            # acquire 本身抛异常时，释放已获取的锁（防止泄漏）
+            for lock in reversed(acquired):
+                lock.release()
+            raise
+        try:
             yield
         finally:
             for lock in reversed(acquired):
