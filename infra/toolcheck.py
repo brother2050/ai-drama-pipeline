@@ -177,14 +177,13 @@ def _hc_openai(name: str, hc: dict, cfg: dict, backend: str, result_type: str = 
     if not url:
         return _result(False, backend, "cloud", "LLM 地址未配置")
     llm_enabled = cfg.get("llm", {}).get("enabled")
+    # 移除已有版本路径（/v1, /v2, /api/v1 等），避免 /v1/v1 拼接错误
+    import re
+    check_url = re.sub(r'/(?:api/)?v\d+$', '', url.rstrip("/"))
     if llm_enabled is None or str(llm_enabled).lower() in ("false", "0", ""):
-        if _url_ok(url.rstrip("/") + "/v1/models", headers=_resolve_auth(cfg, hc.get("api_key_from", ""))):
+        if _url_ok(check_url + "/v1/models", headers=_resolve_auth(cfg, hc.get("api_key_from", ""))):
             return _result(False, backend, result_type, "服务已就绪，但未启用（请在设置中开启）")
         return _result(False, backend, result_type, "LLM 未启用")
-    check_url = url.rstrip("/")
-    # 移除已有版本路径（/v1, /v2, /api/v1 等），避免 /api/v2/v1 拼接错误
-    import re
-    check_url = re.sub(r'/(?:api/)?v\d+$', '', check_url)
     check_url += "/v1"
     headers = _resolve_auth(cfg, hc.get("api_key_from", ""))
     ok = _url_ok(check_url, "/models", headers=headers)

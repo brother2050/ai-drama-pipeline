@@ -149,7 +149,7 @@ class OpenAICompatLLM:
         if top_p is not None:
             body["top_p"] = top_p
         try:
-            r = self._client.post(f"{self._url}/v1/chat/completions",
+            r = self._client.post(f"{self._url}/chat/completions",
                                   json=body, headers=self._headers)
             r.raise_for_status()
             return r.json()["choices"][0]["message"]["content"]
@@ -159,7 +159,7 @@ class OpenAICompatLLM:
 
     def health_check(self) -> tuple[bool, str]:
         try:
-            r = self._fast_client.get(f"{self._url}/v1/models", headers=self._headers)
+            r = self._fast_client.get(f"{self._url}/models", headers=self._headers)
             return True, f"OpenAI-compat reachable (HTTP {r.status_code})"
         except Exception as e:
             return False, f"OpenAI-compat unreachable: {e}"
