@@ -223,12 +223,12 @@ _VIEW_PREFIX = {
     "three_quarter": "three-quarter view, head angled 45 degrees, one ear partially visible, slight turn from front, both eyes partially visible",
 }
 
-# 视角负面提示（防止模型生成错误视角）— 用 BREAK 分隔提升 ComfyUI 注意力
+# 视角负面提示（防止模型生成错误视角）
 _VIEW_NEGATIVE = {
-    "left_side": "BREAK front view, facing camera, both sides of face visible, looking at viewer, symmetrical face, forward facing, straight on",
-    "right_side": "BREAK front view, facing camera, both sides of face visible, looking at viewer, symmetrical face, forward facing, straight on",
-    "back": "BREAK front view, facing camera, face visible, looking at viewer, side view, profile, eyes visible, nose visible, mouth visible",
-    "three_quarter": "BREAK front view, straight on, back view",
+    "left_side": "front view, facing camera, both sides of face visible, looking at viewer, symmetrical face, forward facing, straight on",
+    "right_side": "front view, facing camera, both sides of face visible, looking at viewer, symmetrical face, forward facing, straight on",
+    "back": "front view, facing camera, face visible, looking at viewer, side view, profile, eyes visible, nose visible, mouth visible",
+    "three_quarter": "front view, straight on, back view",
 }
 
 

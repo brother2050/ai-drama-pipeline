@@ -747,7 +747,7 @@ class TestModelRegistry:
         """注册表加载"""
         from flow.model_registry import ModelRegistry
         reg = ModelRegistry()
-        assert reg.get_defaults()["image_backend"] == "cosmos"
+        assert reg.get_defaults()["image_backend"] == "flux"
 
     def test_registry_backends(self):
         """后端列表"""

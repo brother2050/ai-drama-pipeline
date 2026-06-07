@@ -149,13 +149,12 @@ def _generate_five_views(comfyui, wb, char_id: str, portrait_dir: Path,
             continue
 
         view_seed = _view_seed(char_id, generation, i)
-        # 参考图策略：正面视图(i==0)无参考；three_quarter 用正面参考；
-        # 侧面/背面不用正面参考（会误导模型照着正面生成）
+        # 参考图策略：正面视图(i==0)无参考；其余视图都用正面参考（由 _VIEW_NEGATIVE 控制视角方向）
         ref = None
-        if i > 0 and cover_path.exists() and vk in ("three_quarter",):
+        if i > 0 and cover_path.exists():
             ref = str(cover_path)
-        elif i > 0 and not cover_path.exists() and vk == "three_quarter":
-            logger.warning(f"  ⚠ {label}视图: cover.png 不存在，three_quarter 无参考图，一致性可能受影响")
+        elif i > 0 and not cover_path.exists():
+            logger.warning(f"  ⚠ {label}视图: cover.png 不存在，无参考图，一致性可能受影响")
 
         result = _generate_view(ViewGenParams(
             comfyui=comfyui, wb=wb, char_id=char_id, portrait_dir=portrait_dir,

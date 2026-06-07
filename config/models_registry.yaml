@@ -8,7 +8,7 @@ defaults:
   tts_backend: "mimo-voicedesign"
   lip_sync_backend: "musetalk"
   music_backend: "template"
-  image_backend: "cosmos"
+  image_backend: "flux"
   video_backend: "cosmos-video"
   llm_backend: "openai"
   # 服务类型 → 配置读取路径（统一 toolcheck 查询逻辑）

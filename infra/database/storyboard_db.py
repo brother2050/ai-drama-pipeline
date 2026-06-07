@@ -17,7 +17,7 @@ def _sanitize_duration(data: dict) -> None:
     from infra.constants import clip_duration
     data["duration"] = clip_duration(data.get("duration"))
 
-__all__ = ["get_episode_shots", "get_all_episodes", "get_episodes_summary", "get_all_shots", "save_episode_shots", "upsert_shot", "delete_episode", "batch_delete_shots", "export_to_csv"]
+__all__ = ["get_episode_shots", "get_all_episodes", "get_episodes_summary", "get_all_shots", "save_episode_shots", "upsert_shot", "batch_upsert_shots", "delete_episode", "batch_delete_shots", "export_to_csv"]
 
 STORYBOARD_FIELDNAMES = [
     "episode", "shot_id", "scene_id", "characters", "action", "dialogue",
@@ -159,6 +159,9 @@ def batch_upsert_shots(pool, shots: list[tuple[int, str, dict]]) -> int:
     sql = f"INSERT INTO shots ({cols}) VALUES %s ON CONFLICT (project, episode, shot_id) DO UPDATE SET {_UPSERT_SET}"
     values = []
     for episode, shot_id, data in shots:
+        if not shot_id:
+            logger.warning(f"跳过无 shot_id 的镜头 (episode={episode})")
+            continue
         data = {**data}
         _sanitize_duration(data)
         values.append(_values(project, episode, {**data, "shot_id": shot_id}))

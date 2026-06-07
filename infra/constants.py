@@ -106,13 +106,14 @@ ERR_NOT_PREPARED = "请先在 Web 工作台执行「🔧 准备阶段」（批�
 MIN_DURATION = 2
 MAX_DURATION = 8
 
-def clip_duration(raw: float | int | str | None, default: int = 4) -> int:
+def clip_duration(raw: float | int | str | None, default: float = 4.0) -> float:
     """将 duration 裁剪到合法范围 [MIN_DURATION, MAX_DURATION]
 
     统一的 duration 处理逻辑，消除 pipeline/workflow_builder/shot_utils/seko 中的重复代码。
+    返回 float 保留精度（如 3.5 秒不会被截断为 3）。
     """
     try:
-        d = round(float(raw)) if raw is not None else default
+        d = float(raw) if raw is not None else float(default)
     except (ValueError, TypeError):
-        d = default
-    return max(MIN_DURATION, min(MAX_DURATION, d))
+        d = float(default)
+    return max(float(MIN_DURATION), min(float(MAX_DURATION), d))

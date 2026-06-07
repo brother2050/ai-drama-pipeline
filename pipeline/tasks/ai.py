@@ -256,6 +256,11 @@ def _ai_chat_edit_inner(self, config_path, episode, message, current_shots):
         logger.info(f"chat_edit: 保留 {len(deduped_tail)} 个未修改的尾部镜头")
 
     self.update_state(state="PROGRESS", meta={"step": "chat_edit", "progress": 90, "message": "编辑完成"})
+
+    # 自动保存编辑结果到 DB（与 ai_storyboard_task 行为一致，防止前端未保存导致丢失）
+    from engines.storyboard import save_storyboard
+    save_storyboard(result, episode)
+
     resp = {"status": STATUS_DONE, "shots": result, "message": f"已修改 {min(len(result), MAX_SHOTS_FOR_EDIT)} 个镜头（共 {len(result)} 个）"}
     return resp
 

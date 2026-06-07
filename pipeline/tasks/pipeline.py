@@ -239,7 +239,7 @@ def _run_concurrent(task, config_path, episode, shots, force, progress_base, pro
 
 
 def _retry_failed(task, config_path, episode, shots, results, failed_indices, progress_base, progress_range, total):
-    """重试失败的镜头（仅一次）。就地修改 results 列表。"""
+    """重试失败的镜头（仅一次，force=True 跳过文件存在性检查）。就地修改 results 列表。"""
     if not failed_indices:
         return
     logger.info(f"重试 {len(failed_indices)} 个失败镜头...")
@@ -251,7 +251,7 @@ def _retry_failed(task, config_path, episode, shots, results, failed_indices, pr
                 "progress": int(progress_base + retry_idx / len(failed_indices) * progress_range),
                 "message": f"重试镜头 {shot_id} ({retry_idx+1}/{len(failed_indices)})..."})
         try:
-            result = _run_shot_direct(config_path, episode, shot, force=False)
+            result = _run_shot_direct(config_path, episode, shot, force=True)
             results[i] = result
             logger.info(f"  镜头 {shot_id} 重试完成: done={result.get('done', [])}, errors={result.get('errors', [])}")
         except Exception as e:
@@ -313,7 +313,7 @@ def _apply_preset(config_path: str, preset: str) -> str:
     if preset == "high":
         overrides = {
             "image_steps": round(base_steps * 1.4),
-            "resolution": [min(1920, round(base_res[0] * 1.5)), min(1080, round(base_res[1] * 1.5))],
+            "resolution": [min(1920, round(base_res[0] * 1.5)) & ~1, min(1080, round(base_res[1] * 1.5)) & ~1],
         }
     elif preset == "standard":
         overrides = {

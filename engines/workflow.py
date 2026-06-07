@@ -8,7 +8,7 @@ __all__ = [
     "find_first_node", "find_nodes_by_class", "find_load_image_nodes",
     "find_character_load_image_nodes", "find_lora_nodes",
     "set_clip_text_prompts", "resolve_node_aliases",
-    "resolve_model_source",
+    "resolve_model_source", "append_negative_prompt",
 ]
 
 
