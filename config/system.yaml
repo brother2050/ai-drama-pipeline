@@ -120,52 +120,27 @@ post_production:
   bgm_volume: 0.15
   # 双语字幕：中文+英文双行显示（需先运行 prepare 生成 dialogue_en）
   bilingual_subtitle: false
-# 角色面部一致性方案（与 image_backend 解耦，独立选择）
-# 可选值: auto / pulid_flux / ip_adapter / none
-#   auto:        根据 image_backend 自动选择（flux→pulid_flux, sd15/sdxl→ip_adapter, cosmos→none）
-#   pulid_flux:  PuLID-Flux（需要 Flux 后端 + ComfyUI-PuLID-Flux 自定义节点）
-#   ip_adapter:  IP-Adapter Plus（需要 SD1.5/SDXL 后端 + ComfyUI_IPAdapter_plus 自定义节点）
-#   none:        不使用一致性方案（仅靠 LoRA + seed）
+# 角色面部一致性方案（auto 根据 image_backend 自动选择）
 consistency_method: auto
 
 ip_adapter:
   enabled: true
-  # ⚠️ IP-Adapter Plus 仅支持 SD1.5/SDXL 后端（UNet 架构）
-  # Cosmos/Flux（DiT 架构）不兼容，请使用 LoRA 训练代替
-  # 切换后端: models.image_backend: sd15
-  #
-  # IP-Adapter 模型（放入 ComfyUI/models/ipadapter/）
-  # SD1.5 推荐: ip-adapter-plus-face_sd15.safetensors + CLIP-ViT-H-14
-  # SDXL 推荐:  ip-adapter-plus-face_sdxl_vit-h.safetensors + CLIP-ViT-bigG-14
   model: "ip-adapter-plus-face_sd15.safetensors"
-  # CLIP Vision 模型（放入 ComfyUI/models/clip_vision/）
-  # SD1.5 配 CLIP-ViT-H-14, SDXL 配 CLIP-ViT-bigG-14
   clip_vision: "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
-  # 主角色参考图权重（0.0-1.0，越高越像参考图）
   weight: 0.75
-  # 多角色时次要角色权重（自动计算或手动指定）
   secondary_weight: 0.45
-  # 权重类型: linear / ease in / ease out / ease in-out / reverse / weak input / weak output / style transfer
   weight_type: "linear"
-  # 融合方式: concat / add / subtract / average / norm / cosine
   combine_embeds: "concat"
-  # IP-Adapter 生效的去噪范围
   start_at: 0.0
   end_at: 1.0
-  # 嵌入缩放: all / v only / k+v (v only 对面部一致性最好)
   embeds_scaling: "V only"
 
 pulid_flux:
   enabled: true
-  # PuLID Flux 模型（放入 ComfyUI/models/pulid/）
-  # 下载: https://huggingface.co/guozinan/PuLID/resolve/main/pulid_flux_v0.9.0.safetensors
   model: "pulid_flux_v0.9.0.safetensors"
-  # 面部一致性权重（推荐 0.8-0.95，1.0 过拟合）
   weight: 0.9
-  # PuLID 生效的去噪范围
   start_at: 0.0
   end_at: 1.0
-  # 融合方法: mean / concat / max / max_token / train_weight
   fusion: "mean"
 
 timeouts:
