@@ -65,8 +65,13 @@ _STATEMENTS = [_CREATE_SHOTS, _CREATE_GENERATION_STATUS, _CREATE_COMFYUI_ASSETS]
 
 
 def init_schema(conn):
-    """初始化数据库 Schema（面向新安装，CREATE IF NOT EXISTS 即可）"""
-    with conn.cursor() as cur:
-        for stmt in _STATEMENTS:
-            cur.execute(stmt)
+    """初始化数据库 Schema（面向新安装，单事务保证原子性）"""
+    conn.autocommit = False
+    try:
+        with conn.cursor() as cur:
+            for stmt in _STATEMENTS:
+                cur.execute(stmt)
         conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
