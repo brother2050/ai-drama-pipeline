@@ -607,7 +607,9 @@ def _generate_view_prompts(char_cache, llm, paths) -> tuple[int, str | None]:
             if cid not in char_cache:
                 continue
             char = char_cache[cid].setdefault("character", {})
-            char["appearance_prompt_en"] = prompts.get("prompt_en", "")
+            # LLM 生成的 prompt 存入独立字段，不覆盖翻译后的通用 appearance_prompt_en
+            # get_view_appearance 会优先用 generated 版本作为视角 base
+            char["appearance_prompt_generated"] = prompts.get("prompt_en", "")
             char["body_features"] = prompts.get("body_features", "")
             save_yaml(paths.character_yaml(cid), char_cache[cid])
         if view_mapping:

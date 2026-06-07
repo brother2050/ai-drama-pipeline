@@ -367,6 +367,7 @@ def normalize_character(char: dict) -> dict:
 
     # 顶级字段
     char.setdefault("appearance_prompt_en", "")
+    char.setdefault("appearance_prompt_generated", "")
     char.setdefault("body_features", "")
     if not isinstance(char.get("reference_images"), list):
         char["reference_images"] = []

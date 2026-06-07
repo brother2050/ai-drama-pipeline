@@ -187,7 +187,8 @@ def get_view_appearance(char: dict, shot_type: str, *, view_key: str = "") -> st
         else:
             view_key = "front"
 
-    base_en = char.get("appearance_prompt_en", "")
+    # 优先用 LLM 生成的绘图 prompt（prepare 阶段生成），回退到翻译版本
+    base_en = char.get("appearance_prompt_generated", "") or char.get("appearance_prompt_en", "")
     if not base_en:
         return ""
 

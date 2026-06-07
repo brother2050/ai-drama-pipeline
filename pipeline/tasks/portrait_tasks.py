@@ -82,7 +82,7 @@ def outfit_single_task(self, config_path: str, char_id: str, outfit_key: str) ->
 
 def _validate_outfit(char: dict, char_id: str, outfit_key: str) -> tuple[str, str | None]:
     """校验服装有效性 → (outfit_desc_en, error_or_None)"""
-    appearance_en = char.get("appearance_prompt_en", "")
+    appearance_en = char.get("appearance_prompt_generated", "") or char.get("appearance_prompt_en", "")
     if not appearance_en:
         from infra.constants import ERR_NOT_PREPARED
         return "", f"角色 {char_id} 未生成 AI 绘图 prompt，{ERR_NOT_PREPARED}"
@@ -133,7 +133,7 @@ def _outfit_single_inner(self, config_path: str, char_id: str, outfit_key: str) 
 
         url = _generate_single_outfit(
             comfyui, wb, char_id, outfit_key, outfit_desc_en,
-            char.get("appearance_prompt_en", ""),
+            char.get("appearance_prompt_generated", "") or char.get("appearance_prompt_en", ""),
             paths.character_asset_dir(char_id), cover_path,
             str(paths.root), seed)
 
