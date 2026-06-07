@@ -134,7 +134,7 @@ def _enrich_stage(llm: object, shots: list[dict], system: str, label: str, requi
     for s in shots:
         slim = {"shot_id": s.get("shot_id", "")}
         for key in ("scene_id", "characters", "emotion", "shot_type", "camera",
-                     "action", "dialogue", "action_en", "dialogue_en"):
+                     "action", "dialogue", "action_en", "dialogue_en", "outfit", "duration"):
             if s.get(key):
                 slim[key] = s[key]
         slim_shots.append(slim)
