@@ -31,10 +31,76 @@ llm:
   # ⚠ 新用户须知：设为 true 并配置 api_key 后才能使用 AI 生成（分镜/角色/场景）
   enabled: false
   backend: openai
-  base_url: https://api.siliconflow.cn
+  # ── 服务商选择（以下任选一组，取消注释并填入 api_key） ──
+  #
+  # ① 硅基流动（推荐，免费模型多，注册送 14 元 ≈ 1 亿 Token）
+  #    注册: https://cloud.siliconflow.cn
+  base_url: https://api.siliconflow.cn/v1
   model: Qwen/Qwen2.5-7B-Instruct
   api_key: ''
+  #
+  # ② 智谱 AI（GLM-4-Flash 永久免费，注册送 2000 万 Token）
+  #    注册: https://open.bigmodel.cn
+  # base_url: https://open.bigmodel.cn/api/paas/v4
+  # model: glm-4-flash
+  # api_key: ''
+  #
+  # ③ 阿里云百炼（新用户 7000 万 Token，Qwen-Long 每月 500 万免费）
+  #    注册: https://dashscope.aliyun.com
+  # base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+  # model: qwen-turbo
+  # api_key: ''
+  #
+  # ④ 字节火山引擎（新用户 5000 万 Token，2026 年最壕）
+  #    注册: https://console.volcengine.com/ark
+  # base_url: https://ark.cn-beijing.volces.com/api/v3
+  # model: doubao-pro-32k
+  # api_key: ''
+  #
+  # ⑤ 腾讯混元（Hunyuan-Lite 长期免费不限总量）
+  #    注册: https://cloud.tencent.com/product/hunyuan
+  # base_url: https://api.hunyuan.cloud.tencent.com/v1
+  # model: hunyuan-lite
+  # api_key: ''
+  #
+  # ⑥ 月之暗面 Kimi（不限 Token 总量，限频 3 次/分钟）
+  #    注册: https://platform.moonshot.cn
+  # base_url: https://api.moonshot.cn/v1
+  # model: moonshot-v1-8k
+  # api_key: ''
+  #
+  # ⑦ 百度千帆（ERNIE-Speed 永久免费，RPM 60）
+  #    注册: https://qianfan.cloud.baidu.com
+  # base_url: https://qianfan.baidubce.com/v2
+  # model: ernie-speed-128k
+  # api_key: ''
+  #
+  # ⑧ DeepSeek（新用户送 10 元额度）
+  #    注册: https://platform.deepseek.com
+  # base_url: https://api.deepseek.com/v1
+  # model: deepseek-chat
+  # api_key: ''
+  #
+  # ⑨ 魔搭社区（每天 2000 次免费调用）
+  #    注册: https://modelscope.cn
+  # base_url: https://api-inference.modelscope.cn/v1
+  # model: Qwen/Qwen2.5-7B-Instruct
+  # api_key: ''
+  #
+  # ⑩ 讯飞星火（spark-lite 总量不限，QPS 2）
+  #    注册: https://xinghuo.xfyun.cn/sparkapi
+  # base_url: https://spark-api-open.xf-yun.com/v1
+  # model: spark-lite
+  # api_key: ''
+  #
+  # ── 本地 Ollama（无需 api_key，需本地安装 Ollama） ──
+  # backend: ollama
+  # base_url: http://localhost:11434
+  # model: qwen3:8b
+  #
   # context_length: 32768  # 模型上下文长度（token 数，不填则自动检测。常见值：8K/32K/128K）
+  # temperature: 0.7      # 生成温度（0.0-2.0，不填用模型默认值）
+  # top_p: 0.9            # 核采样（0.0-1.0，不填用模型默认值）
 training:
   enabled: false
   backend: ai-toolkit
