@@ -1,6 +1,7 @@
 """首帧生成步骤 — ComfyUI 工作流构建 + 执行 → frame.png"""
 from __future__ import annotations
 
+import atexit
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 # 共享线程池：所有 shot 复用，避免每 shot 创建新线程池（max_workers=4 限制上传并发）
 _upload_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="upload")
+atexit.register(_upload_pool.shutdown, wait=False)
 
 
 @dataclass
