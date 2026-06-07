@@ -66,7 +66,13 @@ def generate_storyboard(llm: object, params: StoryboardGenParams) -> list[dict]:
         info = "\n".join(f"- {s.get('id', '?')}（{s.get('name', '?')}）: {s.get('description', '')[:60]}" for s in scenes)
         parts.append(f"\n=== 已有场景 ===\n{info}")
 
+    # 计算预期镜头数范围，显式注入 prompt（LLM 对数字约束更敏感）
+    expected_min = max(3, target_duration // 10)
+    expected_max = target_duration // 2 + 5
+    expected_mid = max(expected_min, target_duration // 5)  # 每镜头约 5 秒
+
     parts.append(f"\n目标总时长约 {target_duration} 秒，每镜头 2-8 秒。")
+    parts.append(f"请生成 {expected_min}-{expected_max} 个镜头（约 {expected_mid} 个最佳），确保总时长覆盖 {target_duration} 秒。")
 
     from infra.json_parse import llm_call_with_retry
     raw_shots = llm_call_with_retry(llm, "\n".join(parts), tpl("storyboard_system"), "分镜", max_tokens=4096)
@@ -75,12 +81,19 @@ def generate_storyboard(llm: object, params: StoryboardGenParams) -> list[dict]:
 
     shots = _postprocess_shots(raw_shots, episode)
 
-    # 镜头数合理性校验
+    # 镜头数合理性校验 + 自动重试（镜头数不足时用更强约束重试一次）
     total_dur = sum(int(s.get("duration", 4)) for s in shots)
-    expected_min = max(3, target_duration // 10)  # 每镜头最多 10 秒
-    expected_max = target_duration // 2 + 5        # 每镜头最少 2 秒，留余量
     if len(shots) < expected_min:
-        logger.warning(f"镜头数过少: {len(shots)}（预期 ≥{expected_min}），总时长可能不足 {target_duration}s")
+        logger.warning(f"镜头数过少: {len(shots)}（预期 ≥{expected_min}），尝试重试...")
+        retry_parts = parts.copy()
+        retry_parts[-1] = f"【重要】必须生成至少 {expected_min} 个镜头！当前只有 {len(shots)} 个，不够覆盖 {target_duration} 秒。请增加镜头数量。"
+        raw_shots2 = llm_call_with_retry(llm, "\n".join(retry_parts), tpl("storyboard_system"), "分镜(重试)", max_tokens=4096)
+        if raw_shots2 and isinstance(raw_shots2, list):
+            shots2 = _postprocess_shots(raw_shots2, episode)
+            if len(shots2) > len(shots):
+                shots = shots2
+                total_dur = sum(int(s.get("duration", 4)) for s in shots)
+                logger.info(f"  ✅ 重试成功: {len(shots)} 个镜头, {total_dur} 秒")
     elif len(shots) > expected_max:
         logger.warning(f"镜头数过多: {len(shots)}（预期 ≤{expected_max}），可能超出目标时长")
 
