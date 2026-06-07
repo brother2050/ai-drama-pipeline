@@ -53,8 +53,9 @@ llm:
   #
   # ④ 字节火山引擎（新用户 5000 万 Token，2026 年最壕）
   #    注册: https://console.volcengine.com/ark
+  #    ⚠️ model 填推理接入点 ID（ep-xxxx），不是模型名！控制台创建接入点后复制 ID
   # base_url: https://ark.cn-beijing.volces.com/api/v3
-  # model: doubao-pro-32k
+  # model: ep-xxxxxxxxxxxx-xxxxx
   # api_key: ''
   #
   # ⑤ 腾讯混元（Hunyuan-Lite 长期免费不限总量）

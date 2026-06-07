@@ -149,8 +149,8 @@ providers:
     name: "字节火山引擎（豆包）"
     base_url: "https://ark.cn-beijing.volces.com/api/v3"
     free_models: ["doubao-pro-32k", "doubao-lite-32k"]
-    notes: "新用户 5000 万 Token（2026 年最壕）"
-    api_key_env: "DOUBAO_API_KEY"
+    notes: "新用户 5000 万 Token；⚠️ model 需填推理接入点 ID（ep-xxxx），非模型名。控制台创建: https://console.volcengine.com/ark"
+    api_key_env: "ARK_API_KEY"
 
   hunyuan:
     name: "腾讯混元"
@@ -514,12 +514,13 @@ llm_models:
   "qwen-plus":                    { context_window: 131072,  max_output: 8192  }
   "qwen-turbo":                   { context_window: 131072,  max_output: 8192  }
   "qwen-long":                    { context_window: 1000000, max_output: 6000  }
-  # 火山引擎（豆包）
+  # 火山引擎（豆包）— model 填推理接入点 ID（ep-xxxx）
   "doubao-pro-32k":               { context_window: 32768,   max_output: 4096  }
   "doubao-pro-128k":              { context_window: 131072,  max_output: 4096  }
   "doubao-lite-32k":              { context_window: 32768,   max_output: 4096  }
   "doubao-lite-128k":             { context_window: 131072,  max_output: 4096  }
   "doubao-128k":                  { context_window: 131072,  max_output: 4096  }
+  "ep-":                          { context_window: 32768,   max_output: 4096  }
   # 腾讯混元
   "hunyuan-lite":                 { context_window: 32768,   max_output: 4096  }
   "hunyuan-standard":             { context_window: 32768,   max_output: 4096  }
