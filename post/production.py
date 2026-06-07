@@ -49,23 +49,23 @@ def _collect_videos(out_dir: Path) -> list[Path]:
     return videos
 
 
-def _concat_videos(videos: list[Path], concat_out: Path, transition: str, duration: float) -> bool:
-    """拼接视频，失败时回退到简单拼接"""
+def _concat_videos(videos: list[Path], concat_out: Path, transition: str, duration: float) -> tuple[bool, bool]:
+    """拼接视频，失败时回退到简单拼接。返回 (成功, 是否使用了转场)"""
     try:
         FFmpeg.concat([str(v) for v in videos], str(concat_out),
                       transition=transition, duration=duration)
         logger.info(f"拼接完成: {concat_out}")
-        return True
+        return True, True
     except RuntimeError as e:
         logger.error(f"拼接失败: {e}", exc_info=True)
     # 回退：简单拼接（无转场）
     try:
         FFmpeg.concat([str(v) for v in videos], str(concat_out), transition="none")
         logger.info(f"简单拼接完成: {concat_out}")
-        return True
+        return True, False
     except RuntimeError as e2:
         logger.error(f"简单拼接也失败: {e2}，跳过后期合成", exc_info=True)
-        return False
+        return False, False
 
 
 def _add_subtitles(concat_out: Path, srt_path: Path, episode: int, out_dir: Path) -> Path:
@@ -213,8 +213,20 @@ def run_post(config_path: str, episode: int, vertical: bool = False, cfg=None) -
     concat_out = out_dir / f"episode_{episode:02d}_concat.mp4"
     transition = cfg.get("post_production.transition", "crossfade")
     td = cfg.get("post_production.transition_duration", 0.5)
-    if not _concat_videos(videos, concat_out, transition, td):
+    ok, used_transition = _concat_videos(videos, concat_out, transition, td)
+    if not ok:
         return
+
+    # 转场回退后重新生成 SRT（无转场时视频总时长不同，SRT 时序需同步）
+    if not used_transition and shots and srt_path.exists():
+        try:
+            from post.subtitle import generate_srt
+            bilingual = cfg.get("post_production.bilingual_subtitle", False)
+            generate_srt(shots, str(srt_path), transition_duration=0,
+                         bilingual=bilingual, video_durations=video_durations)
+            logger.info("SRT 已按无转场模式重新生成")
+        except Exception as e:
+            logger.warning(f"SRT 重新生成失败: {e}")
 
     # 字幕 → 配乐 → 横转竖 → 重命名
     concat_out = _add_subtitles(concat_out, srt_path, episode, out_dir)
