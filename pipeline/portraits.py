@@ -8,7 +8,7 @@ from __future__ import annotations
 from infra.constants import STATUS_DONE
 import logging
 
-from infra.config import Config, load_yaml_full
+from infra.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,6 @@ def run_portraits(
     *,
     force: bool = False,
     char_ids: list[str] | None = None,
-    write_db: bool = False,
 ) -> dict:
     """批量生成定妆照（五视图 + 各服装参考图）
 
@@ -75,14 +74,6 @@ def run_portraits(
                 logger.info("    ✅ 定妆照完成")
             else:
                 logger.warning("    ⚠ 定妆照未生成")
-
-            # 写回 YAML（ensure_portrait 已更新 reference_images）
-            if write_db and result:
-                from infra.config import save_yaml
-                # 重新读取最新数据（ensure_portrait 可能已修改）
-                latest = load_yaml_full(f)
-                save_yaml(f, latest)
-                logger.info("    📝 已更新 YAML")
 
         except Exception as e:
             logger.error(f"    ❌ 失败: {e}", exc_info=True)

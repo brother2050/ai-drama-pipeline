@@ -10,6 +10,12 @@ from engines.prompt_compiler import tpl
 
 logger = logging.getLogger(__name__)
 
+_FALLBACK_TRANSLATE_SYSTEM = (
+    "You are a professional translator. The user will send numbered Chinese texts.\n"
+    "Translate each to English. Output ONLY the translations, one per line, keeping the same numbering.\n"
+    "Do not add explanations. If a line is already English, output it unchanged."
+)
+
 __all__ = [
     "PromptBuildParams", "batch_generate_appearance_prompts", "get_view_appearance",
     "build_prompt", "translate_to_english", "batch_translate_to_english",
@@ -357,7 +363,7 @@ def batch_translate_to_english(texts: list[str], llm: object = None) -> list[str
 
     from infra.batch_processor import AdaptiveBatchProcessor, estimate_tokens
     processor = AdaptiveBatchProcessor(llm)
-    system_prompt = tpl("batch_translate_system") or "You are a professional translator. The user will send numbered Chinese texts.\nTranslate each to English. Output ONLY the translations, one per line, keeping the same numbering.\nDo not add explanations. If a line is already English, output it unchanged."
+    system_prompt = tpl("batch_translate_system") or _FALLBACK_TRANSLATE_SYSTEM
     batch_items = list(zip(need_idx, need_text))
 
     batch_result = processor.process(
@@ -457,31 +463,54 @@ def _merge_translate_results(results: list[str], batch_items: list[tuple[int, st
 
 
 def _retry_missing_in_small_batches(results: list[str], missing: list[tuple[int, str]], llm: object) -> None:
-    """将未翻译的项用小批次重试（每批最多 10 项），避免逐条 HTTP 调用"""
+    """将未翻译的项用小批次重试（每批最多 10 项），避免逐条 HTTP 调用
+
+    小批次结果不完整时，自动逐条重试兜底。
+    """
     if not llm or not missing:
         return
 
     # 小批次：每批最多 10 项，避免再次截断
     SMALL_BATCH = 10
     batches = [missing[i:i + SMALL_BATCH] for i in range(0, len(missing), SMALL_BATCH)]
-    system_prompt = tpl("batch_translate_system") or "You are a professional translator. The user will send numbered Chinese texts.\nTranslate each to English. Output ONLY the translations, one per line, keeping the same numbering.\nDo not add explanations. If a line is already English, output it unchanged."
+    system_prompt = tpl("batch_translate_system") or _FALLBACK_TRANSLATE_SYSTEM
 
     retried = 0
+    still_missing: list[tuple[int, str]] = []
     for batch in batches:
         try:
             user_msg = "\n".join(f"{i+1}. {t}" for i, (_, t) in enumerate(batch))
             raw = llm.chat(user_msg, system=system_prompt)
             parsed = _parse_numbered_lines(raw)
-            for local_idx, (orig_idx, _) in enumerate(batch):
+            # 完整性校验：返回数 < 预期数时，缺失项收集到 still_missing
+            batch_missing = []
+            for local_idx, (orig_idx, orig_text) in enumerate(batch):
                 translated = parsed.get(local_idx + 1, "")
                 if translated:
                     results[orig_idx] = translated
                     retried += 1
+                else:
+                    batch_missing.append((orig_idx, orig_text))
+            still_missing.extend(batch_missing)
         except Exception as e:
             logger.warning(f"小批次重试失败 ({len(batch)} 项): {e}")
+            still_missing.extend(batch)
 
-    still_missing = sum(1 for i, _ in missing if not results[i])
-    if still_missing:
-        logger.error(f"翻译重试后仍有 {still_missing} 项未翻译")
+    # 逐条兜底：小批次截断或失败的项，逐条重试
+    if still_missing and len(still_missing) <= 20:
+        logger.warning(f"小批次仍有 {len(still_missing)} 项未翻译，逐条重试...")
+        for orig_idx, orig_text in still_missing:
+            try:
+                raw = llm.chat(f"Translate to English: {orig_text}",
+                               system=tpl("translate_system") or _FALLBACK_TRANSLATE_SYSTEM)
+                if raw and raw.strip():
+                    results[orig_idx] = raw.strip()
+                    retried += 1
+            except Exception as e:
+                logger.warning(f"逐条重试失败: {e}")
+
+    final_missing = sum(1 for i, _ in missing if not results[i])
+    if final_missing:
+        logger.error(f"翻译重试后仍有 {final_missing} 项未翻译")
     else:
         logger.info(f"小批次重试成功: {retried} 项")

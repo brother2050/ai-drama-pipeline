@@ -311,7 +311,7 @@ def _generate_single_outfit(comfyui, wb, char_id: str, outfit_key: str,
     if not wf:
         return None
 
-    _inject_ref_image(wf, str(cover_path) if cover_path.exists() else None, char_id, project_dir, comfyui)
+    _inject_ref_image(wf, str(cover_path) if cover_path.exists() else None, char_id, project_dir, comfyui, raise_on_error=True)
 
     try:
         files = comfyui.generate(wf, str(outfit_dir))

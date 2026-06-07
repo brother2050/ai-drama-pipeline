@@ -235,6 +235,10 @@ def _ai_chat_edit_inner(self, config_path, episode, message, current_shots):
     if err:
         return {"status": STATUS_ERROR, "reason": err}
 
+    # 后处理：shot_id 去重、duration 截断、引号清理、emotion 校验
+    from engines.shot_utils import postprocess_shots
+    result = postprocess_shots(result, episode)
+
     for shot in result:
         shot["episode"] = episode
 
@@ -588,15 +592,15 @@ def _load_entity_cache(text_meta, results, entity_type, yaml_fn, entity_key) -> 
     return cache
 
 
-def _generate_view_prompts(char_cache, llm, paths) -> int:
-    """为已翻译的角色生成视角专属 prompt，返回成功数"""
+def _generate_view_prompts(char_cache, llm, paths) -> tuple[int, str | None]:
+    """为已翻译的角色生成视角专属 prompt，返回 (成功数, 错误信息或 None)"""
     from engines.prompt import batch_generate_appearance_prompts
     from infra.config import save_yaml
 
     chars_with_appearance = [d.get("character", {}) for d in char_cache.values()
                              if d.get("character", {}).get("appearance_prompt_en")]
     if not chars_with_appearance or not llm:
-        return 0
+        return 0, None
     try:
         view_mapping = batch_generate_appearance_prompts(chars_with_appearance, llm)
         for cid, prompts in view_mapping.items():
@@ -608,10 +612,14 @@ def _generate_view_prompts(char_cache, llm, paths) -> int:
             save_yaml(paths.character_yaml(cid), char_cache[cid])
         if view_mapping:
             logger.info(f"  ✅ 视角 prompt 生成完成: {len(view_mapping)} 个角色")
-        return len(view_mapping)
+
+        failed_count = len(chars_with_appearance) - len(view_mapping)
+        if failed_count > 0:
+            return len(view_mapping), f"{failed_count}/{len(chars_with_appearance)} 个角色的视角 prompt 生成失败"
+        return len(view_mapping), None
     except Exception as e:
         logger.warning(f"  ⚠ 视角 prompt 生成失败: {e}")
-        return 0
+        return 0, f"视角 prompt 生成异常: {e}"
 
 
 def _collect_shot_texts(shots: list[dict], all_texts: list[str], text_meta: list, force: bool = False) -> None:
@@ -685,11 +693,14 @@ def _ai_prepare_inner(self, config_path, episode, force, translate):
     translated, char_cache, skipped_items = _writeback_translations(text_meta, results, paths, episode, shots)
 
     self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 90, "message": "生成视角 prompt..."})
-    translated["view_prompts"] = _generate_view_prompts(char_cache, llm, paths)
+    view_count, view_error = _generate_view_prompts(char_cache, llm, paths)
+    translated["view_prompts"] = view_count
 
     msg = f"翻译完成: {translated['characters']} 角色, {translated['scenes']} 场景, {translated['shots']} 镜头"
     self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 100, "message": msg})
     result = {"status": STATUS_DONE, "message": msg, **translated}
+    if view_error:
+        result.setdefault("translation_warnings", []).append(f"视角 prompt: {view_error}")
     if skipped_items:
         detail = _format_skipped_summary(skipped_items)
         result["translation_warnings"] = [f"{len(skipped_items)} 条文本翻译失败（AI 绘图将无法使用）: {detail}"]

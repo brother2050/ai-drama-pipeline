@@ -66,7 +66,7 @@ def portrait_single_task(self, config_path: str, char_id: str) -> dict:
 
         try:
             from pipeline.portraits import run_portraits
-            run_portraits(config_path, force=True, char_ids=[char_id], write_db=True)
+            run_portraits(config_path, force=True, char_ids=[char_id])
         except Exception as e:
             return {"status": STATUS_ERROR, "reason": f"定妆照生成失败: {e}"}
 
