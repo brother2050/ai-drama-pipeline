@@ -23,13 +23,13 @@
 | 文件 | 行号 | 问题 |
 |---|---|---|
 | `engines/workflow_inject.py` | 190 | `inject_ip_adapter_chain` 和 `inject_pulid_flux_chain` 大量重复代码，可抽象为通用链式注入函数 |
-| `engines/prompt_compiler.py` | 85 | `PromptCompiler` 模板缓存无刷新机制，修改 `prompt_templates.yaml` 后需重启进程 |
+| `engines/prompt_compiler.py` | 85 | ~~模板缓存无刷新~~ ✅ 已修复 |
 | `engines/prompt_compiler.py` | 145 | `compile_text` 变量替换只支持 `\w+` 模式，不支持 `${shot.action}` 命名空间变量 |
 | `engines/portrait.py` | 94 | 重入保护 TTL 竞态：两线程同时检测到 TTL 过期时都会生成同一角色的定妆照 |
 | `engines/portrait.py` | 115 | ~~docstring 过时~~ ✅ 已修复 |
-| `engines/shot_calibrator.py` | 72 | `_fallback_generate` 静默回退到单次生成，不记录原始错误原因 |
+| `engines/shot_calibrator.py` | 72 | ~~fallback 不记录原因~~ ✅ 已修复 |
 | `engines/quality_gate.py` | 200 | `_check_all_audio` 中 dialogue 空值检测不完整：`"..."`、`"——"` 等被视为有效台词 |
-| `engines/workflow.py` | 90 | `find_character_load_image_nodes` 无一致性节点时返回所有 LoadImage（含场景图），可能误注入 |
+| `engines/workflow.py` | 90 | ~~回退返回全部 LoadImage~~ ✅ 已修复 |
 | `pipeline/tasks/pipeline.py` | 166 | `_retry_failed` 用 `force=True` 但未跳过 `_try_mark_running_atomic`，可能与仍在执行的原任务并发 |
 | `pipeline/tasks/pipeline.py` | 208 | ~~`_apply_preset` 中 `int(base_steps * 1.4)` 截断~~ ✅ 已修复 |
 | `pipeline/tasks/helpers.py` | 254 | `PrepareParams` 10 个字段的 dataclass 本质是把 10 个函数参数换成了 10 个 dataclass 字段，未减少复杂度 |
@@ -40,7 +40,7 @@
 | `infra/config.py` | 89 | `ProjectPaths.projects_dir` 硬编码 `parent.parent` 路径假设，symlink 或不同部署路径会指向错误位置 |
 | `infra/models.py` | 180 | `ImportValidator.validate_references` 纯验证函数内执行 DB 查询，违反关注点分离 |
 | `infra/toolcheck.py` | 51 | `_hc_openai` 中 URL 拼接：`http://localhost:8000/api/v1` → `endswith("/v1")` 为 True 正确，但 `http://localhost:8000/api/v2` 会变成 `.../v2/v1` |
-| `infra/database/schema.py` | 1 | `init_schema` 不使用事务，中间某条 DDL 失败时前面的表已创建但后面的未创建 |
+| `infra/database/schema.py` | 1 | ~~init_schema 不使用事务~~ ✅ 已修复 |
 | `infra/http_pool.py` | 73 | `get_client` 的 double-checked locking 中 closed client 的 `is_closed` 属性线程安全性不确定 |
 | `infra/json_parse.py` | 106 | `ast.literal_eval` 对 LLM 输出使用，超长嵌套 Python 字面量可能导致 DoS |
 | `infra/retry.py` | 16 | `max_retries` 参数语义：代码和 docstring 一致（含首次执行），但与 `safe_executor.py` 的 `retries` 命名不统一 |
