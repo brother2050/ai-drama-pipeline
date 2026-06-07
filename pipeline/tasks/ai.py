@@ -7,7 +7,7 @@ import logging
 import re
 
 from pipeline.celery_app import app
-from pipeline.tasks.helpers import _init_ctx, _project_scope_from_config
+from pipeline.tasks.helpers import _build_ctx, _project_scope_from_config
 from infra.json_parse import parse_llm_json
 from engines.llm_generator import StoryboardGenParams
 
@@ -25,7 +25,7 @@ def _ai_storyboard_inner(self, config_path, episode, outline, duration, append):
     from engines.storyboard import save_storyboard, append_storyboard
 
     self.update_state(state="PROGRESS", meta={"step": "ai_storyboard", "progress": 10, "message": "正在初始化 LLM..."})
-    cfg, cont = _init_ctx(config_path)
+    cfg, cont = _build_ctx(config_path)
     try:
         llm = cont.get("llm")
     except Exception as e:
@@ -153,7 +153,7 @@ def ai_characters_task(self, config_path: str, descriptions: list[str]) -> dict:
         from engines.entity_utils import generate_and_save
 
         self.update_state(state="PROGRESS", meta={"step": "ai_characters", "progress": 20, "message": "AI 正在生成角色..."})
-        cfg, cont = _init_ctx(config_path)
+        cfg, cont = _build_ctx(config_path)
         try:
             llm = cont.get("llm")
         except Exception as e:
@@ -173,7 +173,7 @@ def ai_scenes_task(self, config_path: str, descriptions: list[str]) -> dict:
         from engines.entity_utils import generate_and_save
 
         self.update_state(state="PROGRESS", meta={"step": "ai_scenes", "progress": 20, "message": "AI 正在生成场景..."})
-        cfg, cont = _init_ctx(config_path)
+        cfg, cont = _build_ctx(config_path)
         try:
             llm = cont.get("llm")
         except Exception as e:
@@ -200,7 +200,7 @@ def ai_chat_edit_task(self, config_path: str, episode: int, message: str, curren
 def _ai_chat_edit_inner(self, config_path, episode, message, current_shots):
     """对话式编辑核心逻辑（在 project_scope 内执行）"""
     self.update_state(state="PROGRESS", meta={"step": "chat_edit", "progress": 10, "message": "正在初始化 LLM..."})
-    _, cont = _init_ctx(config_path)
+    _, cont = _build_ctx(config_path)
     try:
         llm = cont.get("llm")
     except Exception as e:
@@ -592,7 +592,7 @@ def _ai_prepare_inner(self, config_path, episode, force, translate):
     from engines.storyboard import load_storyboard
 
     self.update_state(state="PROGRESS", meta={"step": "prepare", "progress": 5, "message": "正在初始化..."})
-    cfg, cont = _init_ctx(config_path)
+    cfg, cont = _build_ctx(config_path)
     paths = cfg.paths
 
     if not translate:

@@ -8,7 +8,7 @@ from pathlib import Path
 
 from pipeline.celery_app import app
 from pipeline.tasks.helpers import (
-    _ensure_path, _init_ctx, _paths,
+    _build_ctx, _paths,
     _db_record_step, _db_mark_running, _try_mark_running_atomic,
 )
 from infra.config import load_yaml_full
@@ -105,7 +105,6 @@ def train_lora_task(self, config_path: str, char_id: str, *,
         train_config: 可选的训练参数覆盖 dict（steps/learning_rate/rank/resolution），
                       优先级高于单独的同名参数。
     """
-    _ensure_path()
     # 合并 train_config（优先级高于单独参数）
     cfg_overrides = train_config or {}
     steps = cfg_overrides.get("steps", steps)
@@ -119,7 +118,7 @@ def train_lora_task(self, config_path: str, char_id: str, *,
         _db_mark_running(0, char_id, "train_lora")
 
     self.update_state(state="PROGRESS", meta={"step": "train_lora", "progress": 5, "message": f"准备训练 {char_id} 的 LoRA..."})
-    _, cont = _init_ctx(config_path)
+    _, cont = _build_ctx(config_path)
     paths = _paths(config_path)
 
     existing_lora, err = _validate_lora_training(paths, char_id, force)
@@ -209,7 +208,6 @@ def _import_json_full(builder, plan, project_dir, translation, root) -> dict:
 @app.task(bind=True, name="pipeline_import_json", soft_time_limit=300)
 def import_json_task(self, plan_data: dict) -> dict:
     """从 JSON 导入项目（异步）"""
-    _ensure_path()
     try:
         self.update_state(state="PROGRESS", meta={"step": "validate", "progress": 10, "message": "校验数据..."})
 

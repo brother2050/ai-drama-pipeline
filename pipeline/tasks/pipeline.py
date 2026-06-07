@@ -15,6 +15,7 @@ from pipeline.celery_app import app
 from pipeline.tasks.helpers import (
     _load_shots,
     _db_record_step, _is_default_storyboard,
+    _project_scope_from_config,
 )
 from pipeline.tasks.steps import (
     _run_tts, _run_first_frame, _run_video, _run_lipsync,
@@ -36,9 +37,7 @@ def shot_task(self, config_path: str, episode: int, shot_data: dict, force: bool
         return {"shot_id": "", "status": STATUS_ERROR, "reason": "镜头数据缺少 shot_id"}
 
     # 绑定项目作用域，确保 DB 写入到正确项目
-    project_name = Path(config_path).resolve().parent.parent.name
-    from infra.database._db import project_scope
-    with project_scope(project_name):
+    with _project_scope_from_config(config_path):
         return _shot_task_inner(self, config_path, episode, shot_data, shot_id, force)
 
 
@@ -159,9 +158,7 @@ def _run_shot_direct(config_path: str, episode: int, shot: dict, force: bool) ->
     shot_id = shot.get("shot_id", "")
     if not shot_id:
         return {"shot_id": "", "status": STATUS_ERROR, "reason": "镜头数据缺少 shot_id"}
-    project_name = Path(config_path).resolve().parent.parent.name
-    from infra.database._db import project_scope
-    with project_scope(project_name):
+    with _project_scope_from_config(config_path):
         return _shot_task_inner(None, config_path, episode, shot, shot_id, force)
 
 
@@ -251,9 +248,7 @@ def _retry_failed(task, config_path, episode, shots, results, failed_indices, pr
 @app.task(bind=True, name="pipeline_preview", soft_time_limit=_TIMEOUT_SHOT)
 def preview_task(self, config_path: str, episode: int, preset: str = "draft", force: bool = False) -> dict:
     # 绑定项目作用域
-    project_name = Path(config_path).resolve().parent.parent.name
-    from infra.database._db import project_scope
-    with project_scope(project_name):
+    with _project_scope_from_config(config_path):
         shots = _load_shots(episode)
         if not shots:
             return {"status": "empty", "message": f"第{episode}集没有镜头"}
@@ -323,9 +318,7 @@ def produce_task(self, config_path: str, episode: int, vertical: bool = False, f
     一键全流程会依次调用 produce → post，不要在此重复执行。
     """
     # 绑定项目作用域
-    project_name = Path(config_path).resolve().parent.parent.name
-    from infra.database._db import project_scope
-    with project_scope(project_name):
+    with _project_scope_from_config(config_path):
         shots = _load_shots(episode)
         if not shots:
             return {"status": "empty", "message": f"第{episode}集没有镜头"}
@@ -354,9 +347,7 @@ def run_all_task(self, config_path: str, episode: int, vertical: bool = False, f
     单个 Celery 任务编排全部阶段，前端只需轮询一次。
     bible 已合并到角色生成阶段（AI 生成角色时自动生成），无需独立步骤。
     """
-    project_name = Path(config_path).resolve().parent.parent.name
-    from infra.database._db import project_scope
-    with project_scope(project_name):
+    with _project_scope_from_config(config_path):
         stages = [
             ("prepare", lambda: _run_stage_prepare(config_path, episode, force)),
             ("produce", lambda: _run_stage_produce(config_path, episode, force, vertical)),

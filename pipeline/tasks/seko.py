@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 from pipeline.celery_app import app
-from pipeline.tasks.helpers import _ensure_path, _paths
+from pipeline.tasks.helpers import _paths
 
 logger = logging.getLogger(__name__)
 def _parse_seko_characters(steps: list[dict], elements: list[dict] | None = None) -> list[dict]:
@@ -239,12 +239,8 @@ def seko_import_task(
     解析 Seko 返回的策划案 JSON，将角色/场景/分镜导入项目，
     并异步下载关联图片。
     """
-    _ensure_path()
-
-    # 从 config_path 推导项目名，绑定到 DB 操作（避免 .active 竞态写错项目）
-    project_name = Path(config_path).resolve().parent.parent.name
-    from infra.database._db import project_scope
-    with project_scope(project_name):
+    from pipeline.tasks.helpers import _project_scope_from_config
+    with _project_scope_from_config(config_path):
         ctx = {
             "task": self,
             "paths": _paths(config_path),

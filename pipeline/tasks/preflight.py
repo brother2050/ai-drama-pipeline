@@ -50,10 +50,9 @@ def ensure_portraits_and_scenes(config_path: str, task_self=None) -> None:
     Raises:
         RuntimeError: 有硬依赖未满足时
     """
-    from pipeline.tasks.helpers import _ensure_path, _init_ctx
-    _ensure_path()
+    from pipeline.tasks.helpers import _build_ctx
     try:
-        cfg, _ = _init_ctx(config_path)
+        cfg, _ = _build_ctx(config_path)
     except Exception as e:
         logger.warning(f"资产自检跳过（初始化失败）: {e}")
         return

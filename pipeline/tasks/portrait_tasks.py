@@ -5,7 +5,7 @@ from infra.constants import STATUS_DONE, STATUS_ERROR
 import logging
 
 from pipeline.celery_app import app
-from pipeline.tasks.helpers import _ensure_path, _init_ctx, _paths, _project_scope_from_config
+from pipeline.tasks.helpers import _build_ctx, _paths, _project_scope_from_config
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 @app.task(bind=True, name="pipeline_portraits", soft_time_limit=1800)
 def portraits_task(self, config_path: str, force: bool = False) -> dict:
-    _ensure_path()
     self.update_state(state="PROGRESS", meta={"step": "portraits", "progress": 10})
     with _project_scope_from_config(config_path):
         try:
@@ -31,7 +30,6 @@ def portraits_task(self, config_path: str, force: bool = False) -> dict:
 @app.task(bind=True, name="pipeline_scene_images", soft_time_limit=1800)
 def scene_images_task(self, config_path: str, force: bool = False) -> dict:
     """为所有场景批量生成参考图"""
-    _ensure_path()
     update = self.update_state
 
     update(state="PROGRESS", meta={"step": "scene_images", "progress": 10, "message": "加载场景..."})
@@ -59,7 +57,6 @@ def scene_images_task(self, config_path: str, force: bool = False) -> dict:
 @app.task(bind=True, name="pipeline_portrait_single", soft_time_limit=600)
 def portrait_single_task(self, config_path: str, char_id: str) -> dict:
     """为单个角色 AI 生成定妆照 + 各服装参考图"""
-    _ensure_path()
     self.update_state(state="PROGRESS", meta={"step": "portrait", "progress": 10, "message": f"生成 {char_id} 定妆照..."})
 
     with _project_scope_from_config(config_path):
@@ -79,7 +76,6 @@ def portrait_single_task(self, config_path: str, char_id: str) -> dict:
 @app.task(bind=True, name="pipeline_outfit_single", soft_time_limit=300)
 def outfit_single_task(self, config_path: str, char_id: str, outfit_key: str) -> dict:
     """为单个角色的指定服装生成参考图"""
-    _ensure_path()
     with _project_scope_from_config(config_path):
         return _outfit_single_inner(self, config_path, char_id, outfit_key)
 
@@ -109,7 +105,7 @@ def _validate_outfit(char: dict, char_id: str, outfit_key: str) -> tuple[str, st
 def _outfit_single_inner(self, config_path: str, char_id: str, outfit_key: str) -> dict:
     """outfit_single 核心逻辑（委托给 engines/portrait.py）"""
     self.update_state(state="PROGRESS", meta={"step": "outfit", "progress": 10, "message": f"生成 {char_id}/{outfit_key} 服装图..."})
-    cfg, cont = _init_ctx(config_path)
+    cfg, cont = _build_ctx(config_path)
     paths = _paths(config_path)
 
     char_yaml = paths.character_yaml(char_id)
@@ -153,7 +149,6 @@ def _outfit_single_inner(self, config_path: str, char_id: str, outfit_key: str) 
 @app.task(bind=True, name="pipeline_outfits_batch", soft_time_limit=600)
 def outfits_batch_task(self, config_path: str, char_id: str) -> dict:
     """为单个角色的所有服装批量生成参考图"""
-    _ensure_path()
     with _project_scope_from_config(config_path):
         return _outfits_batch_inner(self, config_path, char_id)
 
@@ -197,7 +192,6 @@ def _outfits_batch_inner(self, config_path: str, char_id: str) -> dict:
 @app.task(bind=True, name="pipeline_scene_image_single", soft_time_limit=300)
 def scene_image_single_task(self, config_path: str, scene_id: str) -> dict:
     """为单个场景 AI 生成参考图"""
-    _ensure_path()
     update = self.update_state
 
     update(state="PROGRESS", meta={"step": "scene_image", "progress": 10, "message": f"生成场景 {scene_id} 参考图..."})

@@ -8,13 +8,13 @@ import time
 from pathlib import Path
 
 from pipeline.celery_app import app
-from pipeline.tasks.helpers import _ensure_path, _init_ctx
+from pipeline.tasks.helpers import _build_ctx
 
 logger = logging.getLogger(__name__)
 
 
 def _run_subtitle(config_path: str, episode: int) -> dict:
-    cfg, _ = _init_ctx(config_path)
+    cfg, _ = _build_ctx(config_path)
     paths = cfg.paths
     from post.subtitle import generate_srt
     from engines.storyboard import load_storyboard
@@ -29,21 +29,16 @@ def _run_subtitle(config_path: str, episode: int) -> dict:
 
 
 def _run_post(config_path: str, episode: int, vertical: bool = False) -> None:
-    _ensure_path()
     # 绑定项目作用域，确保后期合成的 DB 写入到正确项目
-    project_name = Path(config_path).resolve().parent.parent.name
-    from infra.database._db import project_scope
-    with project_scope(project_name):
+    from pipeline.tasks.helpers import _project_scope_from_config, _build_ctx
+    with _project_scope_from_config(config_path):
         from post.production import run_post
-        # 复用已有 Config（_build_ctx 缓存），避免重复创建
-        from pipeline.tasks.helpers import _build_ctx
         cfg, _ = _build_ctx(config_path)
         run_post(config_path, episode, vertical, cfg=cfg)
 
 
 @app.task(bind=True, name="pipeline_post", soft_time_limit=1200)
 def post_task(self, config_path: str, episode: int, vertical: bool = False) -> dict:
-    _ensure_path()
     self.update_state(state="PROGRESS", meta={"step": "post", "progress": 10})
     try:
         _run_post(config_path, episode, vertical)
@@ -73,7 +68,7 @@ def post_task(self, config_path: str, episode: int, vertical: bool = False) -> d
 @app.task(bind=True, name="pipeline_tts_single", soft_time_limit=120)
 def tts_single_task(self, config_path: str, text: str, voice_config: dict | None = None,
                     emotion: str = "neutral", language: str = "zh"):
-    cfg, cont = _init_ctx(config_path)
+    cfg, cont = _build_ctx(config_path)
     self.update_state(state="PROGRESS", meta={"step": STEP_TTS, "progress": 20, "message": "TTS..."})
     paths = cfg.paths
     preview_dir = paths.tts_preview_dir
@@ -90,7 +85,7 @@ def tts_single_task(self, config_path: str, text: str, voice_config: dict | None
 
 @app.task(bind=True, name="pipeline_music", soft_time_limit=120)
 def music_task(self, config_path: str, duration: float, mood: str, output: str) -> dict:
-    cfg, cont = _init_ctx(config_path)
+    cfg, cont = _build_ctx(config_path)
     from post.music import MusicGenerator
     try:
         gen = MusicGenerator(config=cfg.data, container=cont)
