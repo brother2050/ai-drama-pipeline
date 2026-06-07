@@ -94,7 +94,6 @@ class ImportShot(BaseModel):
     duration: int = Field(4, ge=MIN_DURATION, le=MAX_DURATION)
     emotion: str = Field("neutral", max_length=30)
     outfit: str = Field("default", max_length=50)
-    language: str = Field("zh", max_length=5)
     # ── 可选：预翻译（提供则跳过 prepare） ──
     action_en: str = Field("", max_length=2000, description="英文画面描述（可选，用于 AI 绘图 prompt）")
     dialogue_en: str = Field("", max_length=1000, description="英文台词（可选）")

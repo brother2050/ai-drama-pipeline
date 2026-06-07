@@ -27,7 +27,6 @@ CREATE TABLE IF NOT EXISTS shots (
     duration REAL DEFAULT 4 CHECK (duration >= 2 AND duration <= 8),
     emotion TEXT DEFAULT 'neutral',
     outfit TEXT DEFAULT 'default',
-    language TEXT DEFAULT 'zh',
     image_prompt_en TEXT DEFAULT '',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

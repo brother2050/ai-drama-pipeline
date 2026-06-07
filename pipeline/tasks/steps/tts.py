@@ -77,6 +77,9 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
     wd = get_watchdog()
     groups = get_concurrency_groups()
 
+    # 项目级语言设置（短剧统一语言，非 shot 级）
+    language = cfg.get("project.language", "zh")
+
     # 单条台词：直接合成
     if len(lines) == 1:
         line = lines[0]
@@ -85,7 +88,6 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
             logger.warning(f"[{shot_id}] 角色 '{line.speaker}' 不存在，使用默认声音")
         voice_config = _build_voice_config(char_data)
         emotion = shot.get("emotion", "neutral")
-        language = shot.get("language", "zh")
 
         def _do_tts():
             with groups.acquire(STEP_TTS):
@@ -103,7 +105,6 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
     else:
         seg_paths: list[str] = []
         emotion = shot.get("emotion", "neutral")
-        language = shot.get("language", "zh")
 
         try:
             for i, line in enumerate(lines):

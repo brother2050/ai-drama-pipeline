@@ -106,20 +106,6 @@ training:
   enabled: false
   backend: ai-toolkit
   api_url: http://127.0.0.1:7860
-  api_key: ''
-  poll_interval: 10
-  defaults:
-    steps: 600
-    learning_rate: 0.0001
-    rank: 16
-    conv_dim: 16
-    resolution: 512x768
-    base_model: ostris/Flex.1-alpha
-    arch: ''
-    quantize_type: qfloat8
-    timestep_type: sigmoid
-    save_format: diffusers
-    use_ema: false
 # MusicGen 配乐（通用 HTTP API，兼容 RunPod / AutoDL / 自部署）
 # 部署参考: https://github.com/alcunii/musicgen-serverless
 music:
@@ -128,8 +114,6 @@ music:
 server:
   port: 8888
   host: 0.0.0.0
-seko:
-  api_key: ''
 post_production:
   transition: crossfade
   transition_duration: 0.5

@@ -22,14 +22,14 @@ __all__ = ["get_episode_shots", "get_all_episodes", "get_episodes_summary", "get
 STORYBOARD_FIELDNAMES = [
     "episode", "shot_id", "scene_id", "characters", "action", "dialogue",
     "camera", "shot_type", "duration", "outfit", "emotion",
-    "action_en", "dialogue_en", "language", "image_prompt_en",
+    "action_en", "dialogue_en", "image_prompt_en",
 ]
 
 # ── SQL 模板（INSERT/UPDATE 共用）──
 _INSERT_COLS = (
     "project", "episode", "shot_id", "scene_id", "characters",
     "action", "dialogue", "action_en", "dialogue_en",
-    "camera", "shot_type", "duration", "emotion", "outfit", "language",
+    "camera", "shot_type", "duration", "emotion", "outfit",
     "image_prompt_en",
 )
 _UPSERT_SET = ", ".join(
@@ -45,8 +45,7 @@ def _values(project: str, episode: int, shot: dict) -> tuple:
         shot.get("action_en", ""), shot.get("dialogue_en", ""),
         shot.get("camera", ""), shot.get("shot_type", ""),
         safe_float(shot.get("duration", 4)), shot.get("emotion", ""),
-        shot.get("outfit", ""), shot.get("language", "zh"),
-        shot.get("image_prompt_en", ""),
+        shot.get("outfit", ""), shot.get("image_prompt_en", ""),
     )
 
 

@@ -7,6 +7,7 @@ project:
   fps: 24
   style: "cinematic"
   genre: "urban"
+  language: "zh"  # 短剧语言（TTS 合成 / 字幕生成）
 
 # 定妆照配置
 # portraits:
