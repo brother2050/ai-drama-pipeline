@@ -19,7 +19,7 @@ def _check_portrait_readiness(paths) -> tuple[list[str], list[str]]:
             continue
         cover = paths.character_asset_dir(cid) / "cover.png"
         if not cover.exists():
-            (need_portrait if (char.get("appearance_prompt_generated") or char.get("appearance_prompt_en")) else need_prepare).append(char.get("name", cid))
+            (need_portrait if char.get("appearance_prompt_en") else need_prepare).append(char.get("name", cid))
     return need_prepare, need_portrait
 
 

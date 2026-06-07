@@ -2,6 +2,7 @@ character:
   id: "linxia"
   name: "林夏"
   gender: "female"
+  age: "22"
   appearance: >-
     22岁年轻女性，长发及肩，瓜子脸，大眼睛，柳叶眉，
     身高165cm，体型偏瘦，皮肤白皙
@@ -16,9 +17,14 @@ character:
       reference_images: []
   bible:
     core_traits: "温柔但坚强，容易害羞，对顾辰有好感"
-    speech_patterns: ""
-    relationships: {}
-    emotional_range: {}
-    body_language: {}
+    speech_patterns: "语速较慢，常用'嗯...'开头，不说脏话"
+    relationships:
+      guchen: "暗恋对象，相处时会紧张"
+    emotional_range:
+      happy: "微笑为主，不会大笑"
+      sad: "沉默，不哭出声"
+    body_language:
+      nervous: "低头，手指绞在一起"
+      happy: "眼睛弯成月牙"
     habits: []
     taboos: []

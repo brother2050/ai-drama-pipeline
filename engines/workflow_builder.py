@@ -410,23 +410,39 @@ class WorkflowBuilder:
         defaults = self.registry.get_defaults()
         img_backend = self.models.get("image_backend", defaults.get("image_backend"))
 
-        # 获取角色圣经上下文
+        # 获取角色圣经上下文 + 注入角色专属情绪/肢体语言到 shot
         character_bible = ""
         char_ids = parse_char_ids(shot)
+        enriched_shot = dict(shot)  # 不修改原 shot，用副本注入临时字段
         if char_ids:
             try:
                 from engines.character_bible import CharacterBible
                 bible = CharacterBible(self.project_dir)
                 prompt_style = self.registry.get_prompt_style(img_backend) if img_backend else "tag"
                 character_bible = bible.get_tags(char_ids[0]) if prompt_style == "tag" else bible.get_context(char_ids[0])
+                # 注入角色专属情绪描述和肢体语言（bible 数据）
+                char_bible_data = bible.load(char_ids[0])
+                if char_bible_data:
+                    enriched_shot["_char_emotional_range"] = char_bible_data.get("emotional_range", {})
+                    enriched_shot["_char_body_language"] = char_bible_data.get("body_language", {})
             except Exception as e:
                 logger.warning(f"角色圣经加载跳过（配置可能有误）: {e}")
 
+        # 加载场景数据（含 lighting）
+        scene_data = {}
+        scene_id = shot.get("scene_id", "")
+        if scene_id:
+            try:
+                from infra.config import load_scene
+                scene_data = load_scene(self._paths, scene_id)
+            except Exception as e:
+                logger.debug(f"场景数据加载跳过: {e}")
+
         positive = build_prompt(PromptBuildParams(
-            shot=shot, character_desc=character_desc,
+            shot=enriched_shot, character_desc=character_desc,
             scene_desc=scene_desc, style=style, genre=genre,
             image_backend=img_backend, registry=self.registry,
-            character_bible=character_bible))
+            character_bible=character_bible, scene_data=scene_data))
         if multi_char_prompt:
             positive = f"{positive}, {multi_char_prompt}"
 

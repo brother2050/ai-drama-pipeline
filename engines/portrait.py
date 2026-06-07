@@ -355,7 +355,7 @@ def _ensure_outfit_images(char_id: str, config: dict, container,
 
     cover_path = portrait_dir / "cover.png"
     generation = char.get("portrait_generation", 0)
-    appearance_en = char.get("appearance_prompt_generated", "") or char.get("appearance_prompt_en", "")
+    appearance_en = char.get("appearance_prompt_en", "")
     if not appearance_en:
         from infra.constants import ERR_NOT_PREPARED
         logger.error(f"角色 '{char_id}' 未生成 AI 绘图 prompt，{ERR_NOT_PREPARED}")

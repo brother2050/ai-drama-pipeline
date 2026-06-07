@@ -33,6 +33,7 @@ class PromptBuildParams:
     image_backend: str = ""
     registry: object = None  # ModelRegistry 实例
     character_bible: str = ""
+    scene_data: dict = field(default_factory=dict)  # 场景 YAML 完整数据（含 lighting）
 
 
 # 身体特征关键词（从 prompt_en 中提取）
@@ -145,7 +146,7 @@ def batch_generate_appearance_prompts(characters: list[dict], llm: object) -> di
                 if not body_features and prompt_en:
                     body_features = _extract_body_features(prompt_en)
                 all_mapping[cid] = {
-                    "prompt_en": prompt_en,
+                    "appearance_prompt_en": prompt_en,
                     "body_features": body_features,
                 }
         offset += batch_size
@@ -193,9 +194,14 @@ def get_view_appearance(char: dict, shot_type: str, *, view_key: str = "") -> st
             view_key = "front"
 
     # 优先用 LLM 生成的绘图 prompt（prepare 阶段生成），回退到翻译版本
-    base_en = char.get("appearance_prompt_generated", "") or char.get("appearance_prompt_en", "")
+    base_en = char.get("appearance_prompt_en", "")
     if not base_en:
         return ""
+
+    # 注入年龄信息（如果 prompt 中未包含）
+    age = char.get("age", "")
+    if age and age not in base_en:
+        base_en = f"{age} years old, {base_en}"
 
     # 确保 prompt 包含性别标签（1boy/1girl），LLM 翻译可能遗漏
     base_en = _ensure_gender_tag(base_en, char.get("gender", ""))
@@ -295,6 +301,7 @@ def build_prompt(params: PromptBuildParams) -> str:
         genre=params.genre,
         prompt_style=prompt_style,
         character_bible=params.character_bible,
+        scene_data=params.scene_data or None,
     )
 
     # SD1.5 CLIP 最大 75 tokens，超长时截断

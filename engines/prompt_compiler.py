@@ -207,6 +207,7 @@ class PromptCompiler:
         genre: str = "",
         prompt_style: str = "tag",
         character_bible: str = "",
+        scene_data: dict | None = None,
     ) -> str:
         """编译首帧生成 prompt"""
         from infra.constants import EMOTION_MAP, SHOT_TYPE_MAP, CAMERA_MAP
@@ -216,6 +217,12 @@ class PromptCompiler:
             full_character = f"{character_desc} ({character_bible})"
         elif character_bible:
             full_character = character_bible
+
+        # ── 注入场景光照 ──
+        if scene_data:
+            lighting_en = scene_data.get("lighting_en", "") or scene_data.get("lighting", "")
+            if lighting_en and scene_desc:
+                scene_desc = f"{scene_desc}, {lighting_en}"
 
         action = shot.get("action_en", "").strip()
         if not action:
@@ -233,7 +240,16 @@ class PromptCompiler:
             emotion_desc = ""
             action = ""
         else:
-            emotion_desc = EMOTION_MAP.get(emotion, EMOTION_MAP.get("neutral", ""))
+            # ── 优先使用角色专属情绪描述 ──
+            char_emotional_range = shot.get("_char_emotional_range", {})
+            emotion_desc = char_emotional_range.get(emotion, "") or EMOTION_MAP.get(emotion, EMOTION_MAP.get("neutral", ""))
+
+            # ── 注入角色专属肢体语言到 action ──
+            char_body_language = shot.get("_char_body_language", {})
+            body_lang = char_body_language.get(emotion, "")
+            if body_lang and action:
+                action = f"{action}, {body_lang}"
+
         variables = _build_first_frame_vars(
             style, genre, scene_desc, full_character, action,
             emotion, emotion_desc,

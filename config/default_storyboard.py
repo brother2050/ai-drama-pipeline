@@ -2,7 +2,7 @@
 
 DEFAULT_CHARACTERS = [
     {
-        "id": "linxia", "name": "林夏", "gender": "female",
+        "id": "linxia", "name": "林夏", "gender": "female", "age": "22",
         "appearance": "22岁年轻女性，长发及肩，瓜子脸，大眼睛，柳叶眉，身高165cm，体型偏瘦，皮肤白皙",
         "outfits": {
             "default": {"description": "白色T恤，浅蓝色牛仔裤，白色帆布鞋，斜挎小包", "reference_images": []},
@@ -17,7 +17,7 @@ DEFAULT_CHARACTERS = [
         },
     },
     {
-        "id": "guchen", "name": "顾辰", "gender": "male",
+        "id": "guchen", "name": "顾辰", "gender": "male", "age": "22",
         "appearance": "22岁年轻男性，短发，剑眉星目，身高180cm，体型匀称",
         "outfits": {
             "default": {"description": "黑色卫衣，深色休闲裤，运动鞋，双肩包", "reference_images": []},
