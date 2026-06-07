@@ -44,13 +44,10 @@ def _validate_lora_training(paths, char_id: str, force: bool) -> tuple[Path | No
 
 
 def _count_training_images(char_assets_dir: Path) -> int:
-    """统计训练图片数量（含子目录）"""
+    """统计训练图片数量（递归搜索所有子目录）"""
     count = 0
     for ext in ("*.png", "*.jpg", "*.jpeg", "*.webp"):
-        count += len(list(char_assets_dir.glob(ext)))
-        for outfit_dir in char_assets_dir.iterdir():
-            if outfit_dir.is_dir():
-                count += len(list(outfit_dir.glob(ext)))
+        count += len(list(char_assets_dir.rglob(ext)))
     return count
 
 
