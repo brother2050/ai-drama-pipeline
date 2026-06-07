@@ -79,15 +79,13 @@ def find_character_load_image_nodes(wf: dict) -> list[str]:
     - pulid_ref2_*: PuLID 次要角色参考图
 
     不包含场景图的 LoadImage 节点。
+    无一致性节点时返回空列表（由调用方决定是否回退到全部 LoadImage）。
     """
     all_nodes = find_load_image_nodes(wf)
-    # 排除场景图节点，只保留角色参考图节点
-    # 但如果只有纯模板（无一致性节点），返回全部 LoadImage
+    # 排除场景图节点，只保留角色参考图节点（按命名约定识别）
     char_nodes = [n for n in all_nodes
                   if n.startswith("ipadapter_ref") or n.startswith("pulid_ref")]
-    if char_nodes:
-        return char_nodes
-    return all_nodes
+    return char_nodes
 
 
 def find_lora_nodes(wf: dict) -> list[tuple[str, str]]:
