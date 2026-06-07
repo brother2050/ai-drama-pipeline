@@ -18,7 +18,13 @@ from pipeline.tasks.steps import (
 from pipeline.tasks.preflight import ensure_portraits_and_scenes
 
 logger = logging.getLogger(__name__)
-@app.task(bind=True, name="pipeline_shot", soft_time_limit=1800)
+
+# ── 超时常量（秒）──
+_TIMEOUT_SHOT = 1800        # 单镜头
+_TIMEOUT_PREPARE = 3600     # 准备阶段（LLM 翻译）
+_TIMEOUT_PRODUCE = 7200     # 生产阶段（多镜头）
+_TIMEOUT_POST = 1800        # 后期合成
+@app.task(bind=True, name="pipeline_shot", soft_time_limit=_TIMEOUT_SHOT)
 def shot_task(self, config_path: str, episode: int, shot_data: dict, force: bool = False) -> dict:
     shot_id = shot_data.get("shot_id", "")
     if not shot_id:
@@ -233,7 +239,7 @@ def _retry_failed(self, config_path, episode, shots, results, failed_indices, pr
             logger.warning(f"  镜头 {shot_id} 重试仍失败: {e}")
 
 
-@app.task(bind=True, name="pipeline_preview", soft_time_limit=1800)
+@app.task(bind=True, name="pipeline_preview", soft_time_limit=_TIMEOUT_SHOT)
 def preview_task(self, config_path: str, episode: int, preset: str = "draft", force: bool = False) -> dict:
     # 绑定项目作用域
     project_name = Path(config_path).resolve().parent.parent.name
@@ -300,7 +306,7 @@ def _apply_preset(config_path: str, preset: str) -> str:
     return tmp_path
 
 
-@app.task(bind=True, name="pipeline_produce", soft_time_limit=7200)
+@app.task(bind=True, name="pipeline_produce", soft_time_limit=_TIMEOUT_PRODUCE)
 def produce_task(self, config_path: str, episode: int, vertical: bool = False, force: bool = False) -> dict:
     """镜头生产（TTS → 首帧 → 视频 → 口型同步）
 
@@ -332,7 +338,7 @@ def produce_task(self, config_path: str, episode: int, vertical: bool = False, f
         return {"status": STATUS_DONE, "episode": episode, "shots": results}
 
 
-@app.task(bind=True, name="pipeline_run_all", soft_time_limit=14400)
+@app.task(bind=True, name="pipeline_run_all", soft_time_limit=_TIMEOUT_PRODUCE * 2)
 def run_all_task(self, config_path: str, episode: int, vertical: bool = False, force: bool = False) -> dict:
     """一键全流程 — prepare → produce → post
 
@@ -368,13 +374,13 @@ def run_all_task(self, config_path: str, episode: int, vertical: bool = False, f
 
 def _run_stage_prepare(config_path: str, episode: int, force: bool) -> dict:
     from pipeline.tasks.ai import ai_prepare_task
-    return ai_prepare_task.apply(args=[config_path, episode], kwargs={"force": force, "translate": True}).get(timeout=3600)
+    return ai_prepare_task.apply(args=[config_path, episode], kwargs={"force": force, "translate": True}).get(timeout=_TIMEOUT_PREPARE)
 
 
 def _run_stage_produce(config_path: str, episode: int, force: bool) -> dict:
-    return produce_task.apply(args=[config_path, episode], kwargs={"force": force}).get(timeout=7200)
+    return produce_task.apply(args=[config_path, episode], kwargs={"force": force}).get(timeout=_TIMEOUT_PRODUCE)
 
 
 def _run_stage_post(config_path: str, episode: int, vertical: bool) -> dict:
     from pipeline.tasks.media_tasks import post_task
-    return post_task.apply(args=[config_path, episode], kwargs={"vertical": vertical}).get(timeout=1800)
+    return post_task.apply(args=[config_path, episode], kwargs={"vertical": vertical}).get(timeout=_TIMEOUT_POST)

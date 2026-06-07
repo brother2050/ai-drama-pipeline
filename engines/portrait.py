@@ -203,7 +203,7 @@ def ensure_portrait(char_id: str, config: dict, container=None, force: bool = Fa
     Args:
         force: True 时重新生成（递增代数计数器）
     """
-    from infra.config import ProjectPaths, load_yaml_full
+    from infra.config import ProjectPaths
     project_dir = config.get("_project_dir", os.getcwd())
     paths = ProjectPaths(project_dir)
     portrait_dir = paths.character_asset_dir(char_id)

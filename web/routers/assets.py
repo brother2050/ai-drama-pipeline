@@ -13,6 +13,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from web.routers.deps import (
     _paths,
+    raise_not_found,
     _check_id, _check_filename, _check_entity_type, _safe_path,
 )
 
@@ -35,7 +36,7 @@ async def upload_entity_image(entity_type: str, entity_id: str, file: UploadFile
     entity_key = "character" if entity_type == "characters" else "scene"
     yaml_path = p.config_entity_yaml(yaml_dir, entity_id)
     if not yaml_path.exists():
-        raise HTTPException(404, f"{entity_type} {entity_id} 不存在")
+        raise_not_found(entity_type, entity_id)
 
     allowed = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
     ext = Path(file.filename or "").suffix.lower()

@@ -6,7 +6,6 @@ import logging
 
 from pipeline.celery_app import app
 from pipeline.tasks.helpers import _ensure_path, _init_ctx, _paths, _project_scope_from_config
-from infra.config import load_yaml_full
 
 logger = logging.getLogger(__name__)
 
