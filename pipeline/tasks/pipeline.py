@@ -1,21 +1,16 @@
 """Celery 任务定义 — 管线编排（shot_task / preview / produce / post）"""
 from __future__ import annotations
 
-from infra.constants import (
-    STATUS_DONE, STATUS_ERROR, STATUS_SKIPPED,
-    STEP_TTS, STEP_FIRST_FRAME, STEP_VIDEO, STEP_LIPSYNC,
-)
+from infra.constants import STATUS_DONE, STATUS_ERROR, STATUS_SKIPPED
 import logging
 import os
 import time
 from pathlib import Path
 
-from celery.exceptions import SoftTimeLimitExceeded
 from pipeline.celery_app import app
 from pipeline.tasks.helpers import (
     _load_shots,
     _db_record_step, _is_default_storyboard,
-    _project_scope_from_config,
 )
 from pipeline.tasks.steps import (
     _run_tts, _run_first_frame, _run_video, _run_lipsync,
@@ -23,25 +18,20 @@ from pipeline.tasks.steps import (
 from pipeline.tasks.preflight import ensure_portraits_and_scenes
 
 logger = logging.getLogger(__name__)
-
-# ── 超时常量（秒）──
-_TIMEOUT_SHOT = 1800        # 单镜头
-_TIMEOUT_PREPARE = 3600     # 准备阶段（LLM 翻译）
-_TIMEOUT_PRODUCE = 7200     # 生产阶段（多镜头）
-_TIMEOUT_POST = 1800        # 后期合成
-_TIMEOUT_RUN_ALL = 14400    # 全流程（prepare + produce + post）
-@app.task(bind=True, name="pipeline_shot", soft_time_limit=_TIMEOUT_SHOT)
+@app.task(bind=True, name="pipeline_shot", soft_time_limit=1800)
 def shot_task(self, config_path: str, episode: int, shot_data: dict, force: bool = False) -> dict:
     shot_id = shot_data.get("shot_id", "")
     if not shot_id:
         return {"shot_id": "", "status": STATUS_ERROR, "reason": "镜头数据缺少 shot_id"}
 
     # 绑定项目作用域，确保 DB 写入到正确项目
-    with _project_scope_from_config(config_path):
+    project_name = Path(config_path).resolve().parent.parent.name
+    from infra.database._db import project_scope
+    with project_scope(project_name):
         return _shot_task_inner(self, config_path, episode, shot_data, shot_id, force)
 
 
-def _shot_task_inner(task, config_path: str, episode: int, shot_data: dict, shot_id: str, force: bool) -> dict:
+def _shot_task_inner(self, config_path: str, episode: int, shot_data: dict, shot_id: str, force: bool) -> dict:
     """shot_task 核心逻辑（在 project_scope 内执行）"""
     from pipeline.tasks.helpers import _build_ctx
     from infra.database.pool import get_pool
@@ -58,7 +48,7 @@ def _shot_task_inner(task, config_path: str, episode: int, shot_data: dict, shot
                 fresh_shot = row
                 break
     except Exception as e:
-        logger.warning(f"从 DB 读取最新 shot 失败，使用传入数据: {e}")
+        logger.debug(f"从 DB 读取最新 shot 失败，使用传入数据: {e}")
     if fresh_shot:
         shot_data = fresh_shot
 
@@ -70,7 +60,7 @@ def _shot_task_inner(task, config_path: str, episode: int, shot_data: dict, shot
     shot_data["duration"] = clip_duration(shot_data.get("duration"))
     ctx["shot"] = shot_data
 
-    results = _run_shot_steps(task, config_path, episode, shot_id, force, ctx)
+    results = _run_shot_steps(self, config_path, episode, shot_id, force, ctx)
     errors = [k for k, v in results.items() if v.get("status") == STATUS_ERROR]
     return {"shot_id": shot_id, "status": STATUS_ERROR if errors else STATUS_DONE,
             "done": [k for k, v in results.items() if v.get("status") == STATUS_DONE],
@@ -91,25 +81,25 @@ def _preload_shot_data(cfg):
         return None, None
 
 
-def _run_shot_steps(task, config_path, episode, shot_id, force, ctx):
+def _run_shot_steps(self, config_path, episode, shot_id, force, ctx):
     """执行单镜头的 4 个步骤（tts → first_frame → video → lipsync）"""
-    steps = [(STEP_TTS, _run_tts), (STEP_FIRST_FRAME, _run_first_frame), (STEP_VIDEO, _run_video), (STEP_LIPSYNC, _run_lipsync)]
-    skip_deps = {STEP_VIDEO: [STEP_FIRST_FRAME], STEP_LIPSYNC: [STEP_VIDEO, STEP_TTS]}
+    steps = [("tts", _run_tts), ("first_frame", _run_first_frame), ("video", _run_video), ("lipsync", _run_lipsync)]
+    skip_deps = {"video": ["first_frame"], "lipsync": ["video", "tts"]}
     results = {}
 
     for i, (name, fn) in enumerate(steps):
         deps = skip_deps.get(name, [])
-        blocked = [d for d in deps if results.get(d, {}).get("status") in (STATUS_ERROR, STATUS_SKIPPED)]
-        if blocked:
+        # 前置步骤失败或被跳过时，当前步骤也应跳过（级联跳过）
+        failed_deps = [d for d in deps if results.get(d, {}).get("status") in (STATUS_ERROR, STATUS_SKIPPED)]
+        if failed_deps:
             results[name] = {"shot_id": shot_id, "step": name, "status": STATUS_SKIPPED,
-                             "reason": f"前置步骤 {', '.join(blocked)} 未完成，跳过"}
+                             "reason": f"前置步骤 {', '.join(failed_deps)} 失败，跳过"}
             _db_record_step(episode, shot_id, name, results[name])
-            logger.warning(f"[{shot_id}] {name}: 跳过（前置步骤 {', '.join(blocked)} 未完成）")
+            logger.warning(f"[{shot_id}] {name}: 跳过（前置步骤 {', '.join(failed_deps)} 失败）")
             continue
 
-        if task:
-            task.update_state(state="PROGRESS", meta={"step": name, "shot_id": shot_id,
-                "progress": int((i + 1) / len(steps) * 100), "message": f"[{shot_id}] {name} ({i+1}/{len(steps)})"})
+        self.update_state(state="PROGRESS", meta={"step": name, "shot_id": shot_id,
+            "progress": int((i + 1) / len(steps) * 100), "message": f"[{shot_id}] {name} ({i+1}/{len(steps)})"})
         try:
             t0 = time.time()
             result = fn(config_path, episode, shot_id, force=force, **ctx)
@@ -118,10 +108,6 @@ def _run_shot_steps(task, config_path, episode, shot_id, force, ctx):
             _db_record_step(episode, shot_id, name, result)
             log = logger.info if result.get("status") == STATUS_DONE else logger.warning if result.get("status") == STATUS_ERROR else logger.info
             log(f"[{shot_id}] {name}: {result.get('status')} — {result.get('reason', '')}")
-        except SoftTimeLimitExceeded:
-            logger.warning(f"[{shot_id}] {name}: 超时（soft_time_limit）")
-            results[name] = {"shot_id": shot_id, "step": name, "status": STATUS_ERROR, "reason": "步骤执行超时"}
-            _db_record_step(episode, shot_id, name, results[name])
         except Exception as e:
             logger.error(f"[{shot_id}] {name}: 异常 — {e}", exc_info=True)
             results[name] = {"shot_id": shot_id, "step": name, "status": STATUS_ERROR, "reason": str(e)}
@@ -134,45 +120,32 @@ def _run_shot_steps(task, config_path, episode, shot_id, force, ctx):
 #  集级任务
 # ══════════════════════════════════════════════════════════
 
-def _iterate_shots(task, config_path: str, episode: int, shots: list[dict], progress_base: int = 0, progress_range: int = 100, *, force: bool = False, concurrent: bool = False):
+def _iterate_shots(self, config_path: str, episode: int, shots: list[dict], progress_base: int = 0, progress_range: int = 100, *, force: bool = False, concurrent: bool = False):
     """逐镜头执行 shot_task，返回结果列表。失败镜头自动重试一次。"""
     total = len(shots)
     results = []
     failed_indices = []
 
     if concurrent and total > 1:
-        results, failed_indices = _run_concurrent(task, config_path, episode, shots, force, progress_base, progress_range)
+        results, failed_indices = _run_concurrent(self, config_path, episode, shots, force, progress_base, progress_range)
     else:
-        results, failed_indices = _run_serial(task, config_path, episode, shots, force, progress_base, progress_range)
+        results, failed_indices = _run_serial(self, config_path, episode, shots, force, progress_base, progress_range)
 
-    _retry_failed(task, config_path, episode, shots, results, failed_indices, progress_base, progress_range, total)
+    _retry_failed(self, config_path, episode, shots, results, failed_indices, progress_base, progress_range, total)
     return results
 
 
-def _run_shot_direct(config_path: str, episode: int, shot: dict, force: bool) -> dict:
-    """直接执行 shot_task 逻辑（绕过 Celery 队列，避免 worker 阻塞死锁）
-
-    需要独立设置 project_scope：串行路径冗余但无害，并发路径（ThreadPoolExecutor）
-    的 worker 线程不继承主线程的 threading.local，必须显式设置。
-    """
-    shot_id = shot.get("shot_id", "")
-    if not shot_id:
-        return {"shot_id": "", "status": STATUS_ERROR, "reason": "镜头数据缺少 shot_id"}
-    with _project_scope_from_config(config_path):
-        return _shot_task_inner(None, config_path, episode, shot, shot_id, force)
-
-
-def _run_serial(task, config_path, episode, shots, force, progress_base, progress_range):
-    """串行执行所有镜头（直接调用，不经过 Celery 队列）"""
+def _run_serial(self, config_path, episode, shots, force, progress_base, progress_range):
+    """串行执行所有镜头"""
     total = len(shots)
     results, failed_indices = [], []
     for i, shot in enumerate(shots):
         shot_id = shot.get("shot_id", f"{i+1:03d}")
-        task.update_state(state="PROGRESS", meta={"step": "shot", "shot_id": shot_id,
+        self.update_state(state="PROGRESS", meta={"step": "shot", "shot_id": shot_id,
             "progress": int(progress_base + i / total * progress_range), "current": i + 1, "total": total,
             "message": f"[{i+1}/{total}] 镜头 {shot_id}"})
         try:
-            result = _run_shot_direct(config_path, episode, shot, force)
+            result = shot_task.apply_async(args=[config_path, episode, shot], kwargs={"force": force}).get(timeout=1800)
             results.append(result)
             if result.get("errors"):
                 failed_indices.append(i)
@@ -182,8 +155,8 @@ def _run_serial(task, config_path, episode, shots, force, progress_base, progres
     return results, failed_indices
 
 
-def _run_concurrent(task, config_path, episode, shots, force, progress_base, progress_range):
-    """错开并发执行所有镜头（直接调用，不经过 Celery 队列）"""
+def _run_concurrent(self, config_path, episode, shots, force, progress_base, progress_range):
+    """错开并发执行所有镜头"""
     from infra.concurrency import run_staggered_sync
     total = len(shots)
     results, failed_indices = [], []
@@ -191,20 +164,21 @@ def _run_concurrent(task, config_path, episode, shots, force, progress_base, pro
     def _make_task(i, shot):
         shot_id = shot.get("shot_id", f"{i+1:03d}")
         def _run():
-            task.update_state(state="PROGRESS", meta={"step": "shot", "shot_id": shot_id,
+            self.update_state(state="PROGRESS", meta={"step": "shot", "shot_id": shot_id,
                 "progress": int(progress_base + i / total * progress_range), "current": i + 1, "total": total,
                 "message": f"[{i+1}/{total}] 镜头 {shot_id}"})
-            return _run_shot_direct(config_path, episode, shot, force)
+            return shot_task.apply_async(args=[config_path, episode, shot], kwargs={"force": force}).get(timeout=1800)
         return _run
 
     tasks = [_make_task(i, shot) for i, shot in enumerate(shots)]
     try:
         raw_results = run_staggered_sync(tasks, max_concurrent=2, stagger_ms=3000,
-            on_progress=lambda c, t, m: task.update_state(state="PROGRESS",
+            on_progress=lambda c, t, m: self.update_state(state="PROGRESS",
                 meta={"step": "shots", "progress": int(progress_base + c / total * progress_range),
                       "message": f"[{c}/{t}] {m}"}))
     except Exception as e:
         logger.error(f"并发执行器异常: {e}", exc_info=True)
+        # 降级：所有镜头标记失败
         for i, shot in enumerate(shots):
             shot_id = shot.get("shot_id", f"{i+1:03d}")
             results.append({"shot_id": shot_id, "error": f"并发执行器异常: {e}"})
@@ -226,7 +200,7 @@ def _run_concurrent(task, config_path, episode, shots, force, progress_base, pro
     return results, failed_indices
 
 
-def _retry_failed(task, config_path, episode, shots, results, failed_indices, progress_base, progress_range, total):
+def _retry_failed(self, config_path, episode, shots, results, failed_indices, progress_base, progress_range, total):
     """重试失败的镜头（仅一次）。就地修改 results 列表。"""
     if not failed_indices:
         return
@@ -234,21 +208,23 @@ def _retry_failed(task, config_path, episode, shots, results, failed_indices, pr
     for retry_idx, i in enumerate(failed_indices):
         shot = shots[i]
         shot_id = shot.get("shot_id", f"{i+1:03d}")
-        task.update_state(state="PROGRESS", meta={"step": "retry", "shot_id": shot_id,
+        self.update_state(state="PROGRESS", meta={"step": "retry", "shot_id": shot_id,
             "progress": int(progress_base + retry_idx / len(failed_indices) * progress_range),
             "message": f"重试镜头 {shot_id} ({retry_idx+1}/{len(failed_indices)})..."})
         try:
-            result = _run_shot_direct(config_path, episode, shot, force=False)
+            result = shot_task.apply_async(args=[config_path, episode, shot], kwargs={"force": True}).get(timeout=1800)
             results[i] = result
             logger.info(f"  镜头 {shot_id} 重试完成: done={result.get('done', [])}, errors={result.get('errors', [])}")
         except Exception as e:
             logger.warning(f"  镜头 {shot_id} 重试仍失败: {e}")
 
 
-@app.task(bind=True, name="pipeline_preview", soft_time_limit=_TIMEOUT_SHOT)
+@app.task(bind=True, name="pipeline_preview", soft_time_limit=1800)
 def preview_task(self, config_path: str, episode: int, preset: str = "draft", force: bool = False) -> dict:
     # 绑定项目作用域
-    with _project_scope_from_config(config_path):
+    project_name = Path(config_path).resolve().parent.parent.name
+    from infra.database._db import project_scope
+    with project_scope(project_name):
         shots = _load_shots(episode)
         if not shots:
             return {"status": "empty", "message": f"第{episode}集没有镜头"}
@@ -284,27 +260,16 @@ def _apply_preset(config_path: str, preset: str) -> str:
     base_res = gen.get("resolution")
     if not base_steps or not base_res:
         return config_path
-    # 类型安全：YAML 手动编辑可能产生字符串，需转为数值
-    try:
-        base_steps = int(base_steps)
-    except (ValueError, TypeError):
-        logger.warning(f"generation.image_steps 非法值: {base_steps!r}，跳过预设缩放")
-        return config_path
     if not isinstance(base_res, (list, tuple)) or len(base_res) != 2:
-        return config_path
-    try:
-        base_res = [int(v) for v in base_res]
-    except (ValueError, TypeError):
-        logger.warning(f"generation.resolution 非法值: {base_res!r}，跳过预设缩放")
         return config_path
     if preset == "high":
         overrides = {
-            "image_steps": round(base_steps * 1.4),
-            "resolution": [min(1920, round(base_res[0] * 1.5)), min(1080, round(base_res[1] * 1.5))],
+            "image_steps": int(base_steps * 1.4),
+            "resolution": [min(1920, int(base_res[0] * 1.5)), min(1080, int(base_res[1] * 1.5))],
         }
     elif preset == "standard":
         overrides = {
-            "image_steps": round(base_steps * 1.2),
+            "image_steps": int(base_steps * 1.2),
         }
     else:
         return config_path
@@ -321,7 +286,7 @@ def _apply_preset(config_path: str, preset: str) -> str:
     return tmp_path
 
 
-@app.task(bind=True, name="pipeline_produce", soft_time_limit=_TIMEOUT_PRODUCE)
+@app.task(bind=True, name="pipeline_produce", soft_time_limit=7200)
 def produce_task(self, config_path: str, episode: int, vertical: bool = False, force: bool = False) -> dict:
     """镜头生产（TTS → 首帧 → 视频 → 口型同步）
 
@@ -329,7 +294,9 @@ def produce_task(self, config_path: str, episode: int, vertical: bool = False, f
     一键全流程会依次调用 produce → post，不要在此重复执行。
     """
     # 绑定项目作用域
-    with _project_scope_from_config(config_path):
+    project_name = Path(config_path).resolve().parent.parent.name
+    from infra.database._db import project_scope
+    with project_scope(project_name):
         shots = _load_shots(episode)
         if not shots:
             return {"status": "empty", "message": f"第{episode}集没有镜头"}
@@ -351,17 +318,19 @@ def produce_task(self, config_path: str, episode: int, vertical: bool = False, f
         return {"status": STATUS_DONE, "episode": episode, "shots": results}
 
 
-@app.task(bind=True, name="pipeline_run_all", soft_time_limit=_TIMEOUT_RUN_ALL)
+@app.task(bind=True, name="pipeline_run_all", soft_time_limit=14400)
 def run_all_task(self, config_path: str, episode: int, vertical: bool = False, force: bool = False) -> dict:
     """一键全流程 — prepare → produce → post
 
     单个 Celery 任务编排全部阶段，前端只需轮询一次。
     bible 已合并到角色生成阶段（AI 生成角色时自动生成），无需独立步骤。
     """
-    with _project_scope_from_config(config_path):
+    project_name = Path(config_path).resolve().parent.parent.name
+    from infra.database._db import project_scope
+    with project_scope(project_name):
         stages = [
             ("prepare", lambda: _run_stage_prepare(config_path, episode, force)),
-            ("produce", lambda: _run_stage_produce(config_path, episode, force, vertical)),
+            ("produce", lambda: _run_stage_produce(config_path, episode, force)),
             ("post",    lambda: _run_stage_post(config_path, episode, vertical)),
         ]
         total = len(stages)
@@ -385,16 +354,13 @@ def run_all_task(self, config_path: str, episode: int, vertical: bool = False, f
 
 def _run_stage_prepare(config_path: str, episode: int, force: bool) -> dict:
     from pipeline.tasks.ai import ai_prepare_task
-    # 直接调用（同步），不走 Celery 队列 — 避免单 Worker 死锁
-    return ai_prepare_task(config_path, episode, force=force, translate=True)
+    return ai_prepare_task.apply(args=[config_path, episode], kwargs={"force": force, "translate": True}).get(timeout=3600)
 
 
-def _run_stage_produce(config_path: str, episode: int, force: bool, vertical: bool = False) -> dict:
-    # 直接调用（同步），不走 Celery 队列
-    return produce_task(config_path, episode, vertical=vertical, force=force)
+def _run_stage_produce(config_path: str, episode: int, force: bool) -> dict:
+    return produce_task.apply(args=[config_path, episode], kwargs={"force": force}).get(timeout=7200)
 
 
 def _run_stage_post(config_path: str, episode: int, vertical: bool) -> dict:
     from pipeline.tasks.media_tasks import post_task
-    # 直接调用（同步），不走 Celery 队列
-    return post_task(config_path, episode, vertical=vertical)
+    return post_task.apply(args=[config_path, episode], kwargs={"vertical": vertical}).get(timeout=1800)

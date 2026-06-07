@@ -19,11 +19,12 @@ _cfg_cache_lock = threading.Lock()
 def _get_config(config_path: str):
     """获取缓存的 Config 实例（mtime 变化时自动重载）"""
     from infra.config import Config
-    # 快速路径：已缓存且未变化（锁外检查 mtime，避免 I/O 阻塞其他线程）
-    cfg = _cfg_cache.get(config_path)
-    if cfg is not None:
-        cfg._check_reload()
-        return cfg
+    # 快速路径：已缓存
+    with _cfg_cache_lock:
+        cfg = _cfg_cache.get(config_path)
+        if cfg is not None:
+            cfg._check_reload()
+            return cfg
     # 慢路径：首次创建
     cfg = Config(config_path)
     with _cfg_cache_lock:
@@ -60,23 +61,11 @@ def _load_shots(episode: int) -> list[dict]:
 
 
 def _find_shot(episode: int, shot_id: str) -> dict | None:
-    """查找单个镜头（直接 SQL 查询，避免加载全部镜头）"""
-    try:
-        from infra.database.pool import get_pool, placeholder
-        from infra.database._db import query, row_to_dict, _get_project
-        project = _get_project()
-        with query(get_pool(), dict_mode=True, commit=False) as cur:
-            cur.execute(
-                f"SELECT * FROM shots WHERE project = {placeholder()} AND episode = {placeholder()} AND shot_id = {placeholder()}",
-                (project, episode, shot_id))
-            row = cur.fetchone()
-            return row_to_dict(row) if row else None
-    except Exception:
-        # DB 不可用时回退到全量加载
-        for s in _load_shots(episode):
-            if s.get("shot_id") == shot_id:
-                return s
-        return None
+    """查找单个镜头（DB 查询）"""
+    for s in _load_shots(episode):
+        if s.get("shot_id") == shot_id:
+            return s
+    return None
 
 
 def _shot_dir(config_path: str, episode: int, shot_id: str) -> Path:
@@ -108,7 +97,7 @@ def _db_mark_running(episode: int, shot_id: str, step: str) -> None:
         from infra.database.generation import upsert_status
         upsert_status(get_pool(), episode, shot_id, step, status=STATUS_RUNNING)
     except Exception as e:
-        logger.warning(f"DB mark_running 跳过: {e}")
+        logger.debug(f"DB mark_running 跳过: {e}")
 
 
 def _try_mark_running_atomic(episode: int, shot_id: str, step: str) -> bool:
@@ -144,7 +133,7 @@ def _try_mark_running_atomic(episode: int, shot_id: str, step: str) -> bool:
             finally:
                 cur.close()
     except Exception as e:
-        logger.error(f"DB mark_running 降级（并发控制失效）: {e}")
+        logger.debug(f"DB mark_running 降级: {e}")
         return True  # DB 不可用时放行
 
 
@@ -233,14 +222,6 @@ def _build_ctx(config_path: str):
                 if hasattr(cont, 'shutdown_all'):
                     cont.shutdown_all()
                 return _ctx_cache[1], _ctx_cache[2]
-        # 关闭旧 Container 的连接池（防止泄漏）
-        if _ctx_cache:
-            old_cont = _ctx_cache[2]
-            if hasattr(old_cont, 'shutdown_all'):
-                try:
-                    old_cont.shutdown_all()
-                except Exception as e:
-                    logger.debug(f"旧 Container 关闭: {e}")
         _ctx_cache = (config_path, cfg, cont)
     return cfg, cont
 
@@ -323,15 +304,14 @@ def _is_default_storyboard(config_path: str, shots: list[dict]) -> bool:
             default_scenes <= shot_scenes)
 
 
-def _skip(shot_id, step, reason):
-    return {"shot_id": shot_id, "step": step, "status": STATUS_SKIPPED, "reason": reason}
+def _skip(shot_id, step, reason): return {"shot_id": shot_id, "step": step, "status": STATUS_SKIPPED, "reason": reason}
+def _err(shot_id, step, reason): return {"shot_id": shot_id, "step": step, "status": STATUS_ERROR, "reason": reason}
+def _done(shot_id, step, path, **kw): return {"shot_id": shot_id, "step": step, "status": STATUS_DONE, "path": path, **kw}
 
-def _err(shot_id, step, reason):
-    return {"shot_id": shot_id, "step": step, "status": STATUS_ERROR, "reason": reason}
 
-def _done(shot_id, step, path, **kw):
-    return {"shot_id": shot_id, "step": step, "status": STATUS_DONE, "path": path, **kw}
-
+def _init_ctx(config_path: str):
+    """初始化通用上下文: Config + Container（用于非 _prepare 的任务）"""
+    return _build_ctx(config_path)
 
 
 def _validate_output(path: str, step: str, *, min_size: int = 0) -> str | None:
@@ -403,12 +383,13 @@ def comfyui_generate(shot_id: str, step: str, comfyui, workflow: dict, out_dir: 
     if not files:
         return _err(shot_id, step, "ComfyUI 未返回任何文件")
 
-    src = files[0]
-    if not os.path.isfile(src):
-        return _err(shot_id, step, f"ComfyUI 输出文件不存在: {Path(src).name}")
-
     out_path = str(out_dir / output_name)
-    os.replace(src, out_path)
+    try:
+        os.replace(files[0], out_path)
+    except OSError:
+        # 跨文件系统时 os.replace 失败，回退到 shutil.move
+        import shutil
+        shutil.move(files[0], out_path)
     err = _validate_output(out_path, step, min_size=min_size)
     if err:
         return _err(shot_id, step, err)

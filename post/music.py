@@ -1,7 +1,6 @@
 """配乐生成 — 通过 Container 获取音乐后端"""
 from __future__ import annotations
 import logging
-import subprocess
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -32,19 +31,7 @@ class MusicGenerator:
             return self._template(duration, output, mood)
 
     def _template(self, duration: float, output: str, mood: str) -> str:
-        """ffmpeg 模板配乐（最终回退）"""
-        duration = max(1, duration)  # 至少 1 秒
-        freq = {
-            "happy": 440, "sad": 330, "angry": 520, "romantic": 392,
-            "worried": 370, "surprised": 480, "smug": 460, "serious": 350,
-            "calm": 400, "determined": 450, "fearful": 310, "action": 500,
-        }.get(mood, 400)
-        from infra.ffmpeg import ffmpeg_path
-        ffmpeg = ffmpeg_path()
-        cmd = [ffmpeg, "-y", "-f", "lavfi", "-i",
-               f"sine=frequency={freq}:duration={duration}",
-               "-af", "volume=0.1,tremolo=f=3:d=0.4", output]
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        if r.returncode != 0:
-            raise RuntimeError(f"ffmpeg 模板配乐失败 (exit {r.returncode}): {r.stderr[-500:]}")
-        return output
+        """ffmpeg 模板配乐（最终回退）— 复用 TemplateMusic 后端"""
+        from api.backends.music.template import TemplateMusic
+        backend = TemplateMusic(self._config)
+        return backend.generate(duration, output, mood=mood)

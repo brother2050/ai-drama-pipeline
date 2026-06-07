@@ -60,9 +60,9 @@ def calibrate_storyboard(llm: object, params: object) -> list[dict]:
         shots = enriched
         logger.info("  ✅ 视觉描述完成")
     else:
-        logger.warning("  ⚠ 视觉描述失败，使用骨架数据继续")
+        logger.warning("  ⚠ 视觉描述失败，Stage 3 将使用骨架数据继续")
 
-    # Stage 3: AI 绘图 Prompt
+    # Stage 3: AI 绘图 Prompt（Stage 2 失败时仍可继续，因为 image_prompt_en 由 Stage 3 独立生成）
     if on_stage_progress:
         on_stage_progress(3, 3, "AI 绘图 Prompt")
     logger.info("Stage 3/3: AI 绘图 Prompt...")

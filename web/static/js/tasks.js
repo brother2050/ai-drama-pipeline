@@ -324,7 +324,7 @@ const TaskPanel = (() => {
       } else if (active.length === 1) {
         const t2 = active[0];
         const st = t2.status === 'running' ? t('task.running') : t2.status === 'pending' ? t('task.pending') : t('task.processing');
-        titleEl.textContent = `⏳ ${_esc(t2.label)} · ${st}`;
+        titleEl.textContent = `⏳ ${esc(t2.label)} · ${st}`;
       } else {
         titleEl.textContent = `⏳ ${t('task.n_running', {n: active.length})}`;
       }
@@ -343,12 +343,12 @@ const TaskPanel = (() => {
       }
       html += `<div class="task-item task-active">
         <div class="task-item-head">
-          <span class="task-item-label">${_esc(tk.label)}</span>
+          <span class="task-item-label">${esc(tk.label)}</span>
           ${_statusBadge(tk.status)}
           <span class="task-item-elapsed">${elapsed}</span>
         </div>
         <div class="task-item-bar"><div class="task-item-fill" style="width:${pct}%"></div></div>
-        <div class="task-item-msg">${_esc(msg)} · ${pct}%</div>
+        <div class="task-item-msg">${esc(msg)} · ${pct}%</div>
         <button class="task-item-cancel" onclick="TaskPanel.cancelTask('${tk.id}')" title="${t('task.cancel')}">⏹</button>
       </div>`;
     }
@@ -362,7 +362,7 @@ const TaskPanel = (() => {
         const elapsed = tk.endTime ? _fmtElapsed(tk.endTime - tk.startTime) : '';
         html += `<div class="task-item task-done task-${tk.status}">
           <div class="task-item-head">
-            <span class="task-item-label">${icon} ${_esc(tk.label)}</span>
+            <span class="task-item-label">${icon} ${esc(tk.label)}</span>
             <span class="task-item-elapsed">${elapsed}</span>
           </div>
         </div>`;
@@ -384,10 +384,7 @@ const TaskPanel = (() => {
     return `${m}m${s % 60}s`;
   }
 
-  function _esc(str) {
-    if (!str) return '';
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
+  // _esc 已移除，统一使用全局 esc()（定义在 core.js）
 
   // 定时刷新活跃任务的耗时显示（有活跃任务时运行，无任务时停止）
   let _taskTimer = null;
