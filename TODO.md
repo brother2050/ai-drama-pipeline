@@ -28,7 +28,7 @@
 | `engines/portrait.py` | 94 | 重入保护 TTL 竞态：两线程同时检测到 TTL 过期时都会生成同一角色的定妆照 |
 | `engines/portrait.py` | 115 | ~~docstring 过时~~ ✅ 已修复 |
 | `engines/shot_calibrator.py` | 72 | ~~fallback 不记录原因~~ ✅ 已修复 |
-| `engines/quality_gate.py` | 200 | `_check_all_audio` 中 dialogue 空值检测不完整：`"..."`、`"——"` 等被视为有效台词 |
+| `engines/quality_gate.py` | 200 | ~~`_check_all_audio` 中 dialogue 空值检测不完整：`"..."`、`"——"` 等被视为有效台词~~ ✅ 已修复 |
 | `engines/workflow.py` | 90 | ~~回退返回全部 LoadImage~~ ✅ 已修复 |
 | `pipeline/tasks/pipeline.py` | 166 | `_retry_failed` 用 `force=True` 但未跳过 `_try_mark_running_atomic`，可能与仍在执行的原任务并发 |
 | `pipeline/tasks/pipeline.py` | 208 | ~~`_apply_preset` 中 `int(base_steps * 1.4)` 截断~~ ✅ 已修复 |
@@ -39,7 +39,7 @@
 | `pipeline/tasks/seko.py` | 71 | ~~`_parse_seko_characters` 中 `safe_id` 重复~~ ✅ 已修复 |
 | `infra/config.py` | 89 | `ProjectPaths.projects_dir` 硬编码 `parent.parent` 路径假设，symlink 或不同部署路径会指向错误位置 |
 | `infra/models.py` | 180 | `ImportValidator.validate_references` 纯验证函数内执行 DB 查询，违反关注点分离 |
-| `infra/toolcheck.py` | 51 | `_hc_openai` 中 URL 拼接：`http://localhost:8000/api/v1` → `endswith("/v1")` 为 True 正确，但 `http://localhost:8000/api/v2` 会变成 `.../v2/v1` |
+| `infra/toolcheck.py` | 51 | ~~`_hc_openai` 中 URL 拼接：`http://localhost:8000/api/v1` → `endswith("/v1")` 为 True 正确，但 `http://localhost:8000/api/v2` 会变成 `.../v2/v1`~~ ✅ 已修复 |
 | `infra/database/schema.py` | 1 | ~~init_schema 不使用事务~~ ✅ 已修复 |
 | `infra/http_pool.py` | 73 | `get_client` 的 double-checked locking 中 closed client 的 `is_closed` 属性线程安全性不确定 |
 | `infra/json_parse.py` | 106 | `ast.literal_eval` 对 LLM 输出使用，超长嵌套 Python 字面量可能导致 DoS |
@@ -62,7 +62,7 @@
 | `engines/character_bible.py` | 120 | `get_tags` 嵌套字典只合并一层，深层字段不会被覆盖 |
 | `pipeline/tasks/steps/tts.py` | 74 | 单条/多条台词分支中 `voice_config` 构建和 TTS 调用逻辑重复 |
 | `pipeline/tasks/steps/lipsync.py` | 28 | 存在性检查 + force 跳过模式在 tts/frame/video/lipsync 中完全重复 |
-| `pipeline/tasks/steps/lipsync.py` | 30 | `synced_path` 先赋值为 `Path` 后赋值为 `str`，类型不一致 |
+| `pipeline/tasks/steps/lipsync.py` | 30 | ~~`synced_path` 先赋值为 `Path` 后赋值为 `str`，类型不一致~~ ✅ 已修复 |
 | `pipeline/tasks/portrait_tasks.py` | 109 | `_outfits_batch_inner` 中 `apply().get(timeout=300)` 同步阻塞调用 Celery 任务 |
 | `pipeline/tasks/training_tasks.py` | 88 | `_rename_lora_result` 中 `not new_path.exists()` 检查后 `os.replace` 不是原子的 |
 
