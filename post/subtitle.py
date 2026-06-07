@@ -72,7 +72,10 @@ def _build_subtitle_text(shot: dict, bilingual: bool) -> str:
     if len(lines) == 1:
         dialogue = _sanitize_dialogue(lines[0].text)
     else:
-        dialogue = _sanitize_dialogue("\n".join(f"{ln.speaker}：{ln.text}" for ln in lines))
+        # 多人对话保留换行（SRT 支持 \n 作为行内换行），每行单独 sanitize
+        dialogue = "\n".join(
+            f"{ln.speaker}：{_sanitize_dialogue(ln.text)}" for ln in lines
+        )
     if not dialogue or set(dialogue) <= {".", "…"}:
         return ""
     if not bilingual:
