@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from engines.shot_utils import parse_char_ids
-from infra.constants import ERR_NOT_PREPARED, STATUS_DONE
+from infra.constants import ERR_NOT_PREPARED, STATUS_DONE, STEP_FIRST_FRAME
 from pipeline.tasks.helpers import _skip, _err
 
 logger = logging.getLogger(__name__)
@@ -199,14 +199,14 @@ def first_frame_core(p: FirstFrameParams) -> dict:
     p.out_dir.mkdir(parents=True, exist_ok=True)
     frame_path = p.out_dir / "frame.png"
     if not p.force and frame_path.exists():
-        return _skip(p.shot_id, "first_frame", "首帧已存在")
+        return _skip(p.shot_id, STEP_FIRST_FRAME, "首帧已存在")
 
     from engines.workflow_builder import WorkflowBuilder, WorkflowBuilderConfig
 
     shot, char_descs, scene_desc, multi_char_prompt, err = _resolve_shot_context(
         p.shot, p.cfg, p.characters, p.scenes)
     if err:
-        return _err(p.shot_id, "first_frame", err)
+        return _err(p.shot_id, STEP_FIRST_FRAME, err)
 
     paths = p.cfg.paths
     wb = WorkflowBuilder(WorkflowBuilderConfig(
@@ -217,7 +217,7 @@ def first_frame_core(p: FirstFrameParams) -> dict:
         shot, character_desc=", ".join(char_descs),
         scene_desc=scene_desc, multi_char_prompt=multi_char_prompt)
     if not wf:
-        return _err(p.shot_id, "first_frame", "首帧工作流为空（缺少模板）")
+        return _err(p.shot_id, STEP_FIRST_FRAME, "首帧工作流为空（缺少模板）")
 
     from pipeline.tasks.helpers import comfyui_generate
 
@@ -225,7 +225,7 @@ def first_frame_core(p: FirstFrameParams) -> dict:
     _check_lora_availability(wf, paths, p.cfg, comfyui)
     wf = _upload_reference_images(wf, shot, wb, comfyui, paths)
 
-    result = comfyui_generate(p.shot_id, "first_frame", comfyui, wf, p.out_dir, "frame.png", min_size=500)
+    result = comfyui_generate(p.shot_id, STEP_FIRST_FRAME, comfyui, wf, p.out_dir, "frame.png", min_size=500)
     if result.get("status") != STATUS_DONE:
         return result
     return {**result, "prompt": prompt.get("positive", "")}

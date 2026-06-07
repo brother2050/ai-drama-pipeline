@@ -1,7 +1,7 @@
 """Celery 任务 — TTS / 配乐 / 字幕 / 后期合成"""
 from __future__ import annotations
 
-from infra.constants import STATUS_DONE, STATUS_ERROR
+from infra.constants import STATUS_DONE, STATUS_ERROR, STEP_TTS
 import hashlib
 import logging
 import time
@@ -74,7 +74,7 @@ def post_task(self, config_path: str, episode: int, vertical: bool = False) -> d
 def tts_single_task(self, config_path: str, text: str, voice_config: dict | None = None,
                     emotion: str = "neutral", language: str = "zh"):
     cfg, cont = _init_ctx(config_path)
-    self.update_state(state="PROGRESS", meta={"step": "tts", "progress": 20, "message": "TTS..."})
+    self.update_state(state="PROGRESS", meta={"step": STEP_TTS, "progress": 20, "message": "TTS..."})
     paths = cfg.paths
     preview_dir = paths.tts_preview_dir
     preview_dir.mkdir(parents=True, exist_ok=True)

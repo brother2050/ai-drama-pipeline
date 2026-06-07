@@ -5,6 +5,7 @@ import logging
 import re
 from pathlib import Path
 
+from infra.constants import STEP_VIDEO
 from pipeline.tasks.helpers import _skip, _err
 
 logger = logging.getLogger(__name__)
@@ -62,11 +63,11 @@ def video_core(shot_id: str, cfg, cont, out_dir: Path, *, shot: dict | None = No
     """视频生成核心逻辑 — 从首帧生成视频"""
     frame_path = out_dir / "frame.png"
     if not frame_path.exists():
-        return _skip(shot_id, "video", "首帧不存在，请先执行 Step 2")
+        return _skip(shot_id, STEP_VIDEO, "首帧不存在，请先执行 Step 2")
 
     video_path = out_dir / "video.mp4"
     if not force and video_path.exists():
-        return _skip(shot_id, "video", "视频已存在")
+        return _skip(shot_id, STEP_VIDEO, "视频已存在")
 
     from engines.workflow_builder import WorkflowBuilder, WorkflowBuilderConfig
     paths = cfg.paths
@@ -76,7 +77,7 @@ def video_core(shot_id: str, cfg, cont, out_dir: Path, *, shot: dict | None = No
     wb.load_workflows()
     video_wf = wb.build_video(str(frame_path), shot=shot)
     if not video_wf:
-        return _err(shot_id, "video", "视频工作流为空（缺少模板）")
+        return _err(shot_id, STEP_VIDEO, "视频工作流为空（缺少模板）")
 
     # 上传首帧到视频服务器
     project_name = paths.root.name or "project"
@@ -88,4 +89,4 @@ def video_core(shot_id: str, cfg, cont, out_dir: Path, *, shot: dict | None = No
     video_wf = _upload_first_frame_if_needed(video_wf, frame_path, server_filename, paths, cont.get("video"))
 
     from pipeline.tasks.helpers import comfyui_generate
-    return comfyui_generate(shot_id, "video", cont.get("video"), video_wf, out_dir, "video.mp4", min_size=10000)
+    return comfyui_generate(shot_id, STEP_VIDEO, cont.get("video"), video_wf, out_dir, "video.mp4", min_size=10000)

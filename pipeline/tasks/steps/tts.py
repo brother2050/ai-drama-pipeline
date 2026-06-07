@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 
 from engines.dialogue import parse_dialogue, concat_wav
+from infra.constants import STEP_TTS
 from pipeline.tasks.helpers import _skip, _err, _done, _validate_output
 
 logger = logging.getLogger(__name__)
@@ -44,13 +45,13 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
     """TTS 核心逻辑 — 合成台词为音频（带看门狗跟踪 + 并发组限流）"""
     lines = parse_dialogue(shot.get("dialogue", ""))
     if not lines:
-        return _skip(shot_id, "tts", "无台词")
+        return _skip(shot_id, STEP_TTS, "无台词")
 
     out_dir.mkdir(parents=True, exist_ok=True)
     audio_path = str(out_dir / "audio.wav")
 
     if not force and Path(audio_path).exists():
-        return _skip(shot_id, "tts", "音频已存在")
+        return _skip(shot_id, STEP_TTS, "音频已存在")
 
     # 加载角色数据（带缓存，线程安全）
     if characters:
@@ -83,16 +84,16 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
         language = shot.get("language", "zh")
 
         def _do_tts():
-            with groups.acquire("tts"):
-                with wd.track(f"{shot_id}:tts", backend="tts"):
-                    tts_inst, _ = cont.get_with_fallback("tts")
+            with groups.acquire(STEP_TTS):
+                with wd.track(f"{shot_id}:tts", backend=STEP_TTS):
+                    tts_inst, _ = cont.get_with_fallback(STEP_TTS)
                     tts_inst.synthesize(line.text, audio_path, voice_config=voice_config,
                                         emotion=emotion, language=language)
 
         try:
             safe_run(_do_tts, retries=2, base_delay=1.0, task_id=f"{shot_id}:tts")
         except Exception as e:
-            return _err(shot_id, "tts", f"TTS 合成失败: {e}")
+            return _err(shot_id, STEP_TTS, f"TTS 合成失败: {e}")
 
     # 多条台词：逐条合成 → 拼接
     else:
@@ -109,16 +110,16 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
                 seg_path = str(out_dir / f"seg_{i:03d}.wav")
 
                 def _do_seg(seg=seg_path, text=line.text, vc=voice_config):
-                    with groups.acquire("tts"):
-                        with wd.track(f"{shot_id}:tts_{i}", backend="tts"):
-                            tts_inst, _ = cont.get_with_fallback("tts")
+                    with groups.acquire(STEP_TTS):
+                        with wd.track(f"{shot_id}:tts_{i}", backend=STEP_TTS):
+                            tts_inst, _ = cont.get_with_fallback(STEP_TTS)
                             tts_inst.synthesize(text, seg, voice_config=vc,
                                                 emotion=emotion, language=language)
 
                 try:
                     safe_run(_do_seg, retries=2, base_delay=1.0, task_id=f"{shot_id}:tts_{i}")
                 except Exception as e:
-                    return _err(shot_id, "tts", f"TTS 合成失败 (line {i}): {e}")
+                    return _err(shot_id, STEP_TTS, f"TTS 合成失败 (line {i}): {e}")
                 seg_paths.append(seg_path)
 
             concat_wav(seg_paths, audio_path)
@@ -127,10 +128,10 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
             for p in seg_paths:
                 Path(p).unlink(missing_ok=True)
 
-    err = _validate_output(audio_path, "tts", min_size=1000)
+    err = _validate_output(audio_path, STEP_TTS, min_size=1000)
     if err:
-        return _err(shot_id, "tts", err)
-    return _done(shot_id, "tts", audio_path)
+        return _err(shot_id, STEP_TTS, err)
+    return _done(shot_id, STEP_TTS, audio_path)
 
 
 # 文件变化时清除 TTS 角色缓存（YAML 修改后自动生效）

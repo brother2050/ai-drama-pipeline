@@ -9,8 +9,20 @@ __all__ = [
     "SHOT_TYPE_MAP", "VALID_SHOT_TYPES",
     "CAMERA_MAP", "VALID_CAMERAS",
     "STATUS_PENDING", "STATUS_RUNNING", "STATUS_DONE", "STATUS_ERROR", "STATUS_SKIPPED",
+    "STEP_TTS", "STEP_FIRST_FRAME", "STEP_VIDEO", "STEP_LIPSYNC",
+    "PIPELINE_STEPS",
     "clip_duration",
 ]
+
+# ══════════════════════════════════════════════════════════
+#  管线步骤名（消除散落的字符串字面量）
+# ══════════════════════════════════════════════════════════
+
+STEP_TTS = "tts"
+STEP_FIRST_FRAME = "first_frame"
+STEP_VIDEO = "video"
+STEP_LIPSYNC = "lipsync"
+PIPELINE_STEPS = [STEP_TTS, STEP_FIRST_FRAME, STEP_VIDEO, STEP_LIPSYNC]
 
 # ══════════════════════════════════════════════════════════
 #  情绪

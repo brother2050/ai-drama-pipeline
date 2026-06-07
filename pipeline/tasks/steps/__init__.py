@@ -15,7 +15,10 @@ from __future__ import annotations
 
 import logging
 
-from infra.constants import STATUS_DONE, STATUS_ERROR
+from infra.constants import (
+    STATUS_DONE, STATUS_ERROR,
+    STEP_TTS, STEP_FIRST_FRAME, STEP_VIDEO, STEP_LIPSYNC,
+)
 from pipeline.tasks.helpers import (
     _db_record_step, _prepare, PrepareParams,
 )
@@ -45,7 +48,7 @@ def _run_tts(config_path: str, episode: int, shot_id: str, *,
              characters: dict | None = None, **kw) -> dict:
     cfg, cont, shot, err = _prepare(PrepareParams(
         config_path=config_path, episode=episode, shot_id=shot_id,
-        step="tts", tool="tts", force=force, cfg=cfg, cont=cont, shot=shot))
+        step=STEP_TTS, tool="tts", force=force, cfg=cfg, cont=cont, shot=shot))
     if err:
         return err
     return tts_core(shot_id, shot, cfg, cont, cfg.paths.shot_dir(episode, shot_id),
@@ -59,7 +62,7 @@ def _run_first_frame(config_path: str, episode: int, shot_id: str, *,
                      scenes: dict | None = None, **kw) -> dict:
     cfg, cont, shot, err = _prepare(PrepareParams(
         config_path=config_path, episode=episode, shot_id=shot_id,
-        step="first_frame", tool="comfyui", force=force, cfg=cfg, cont=cont, shot=shot))
+        step=STEP_FIRST_FRAME, tool="comfyui", force=force, cfg=cfg, cont=cont, shot=shot))
     if err:
         return err
     return first_frame_core(FirstFrameParams(
@@ -73,7 +76,7 @@ def _run_video(config_path: str, episode: int, shot_id: str, *,
                cfg=None, cont=None, shot: dict | None = None, **kw) -> dict:
     cfg, cont, shot, err = _prepare(PrepareParams(
         config_path=config_path, episode=episode, shot_id=shot_id,
-        step="video", tool="comfyui", need_shot=True, force=force, cfg=cfg, cont=cont, shot=shot))
+        step=STEP_VIDEO, tool="comfyui", need_shot=True, force=force, cfg=cfg, cont=cont, shot=shot))
     if err:
         return err
     return video_core(shot_id, cfg, cont, cfg.paths.shot_dir(episode, shot_id),
@@ -85,7 +88,7 @@ def _run_lipsync(config_path: str, episode: int, shot_id: str, *,
                  cfg=None, cont=None, **kw) -> dict:
     cfg, cont, _, err = _prepare(PrepareParams(
         config_path=config_path, episode=episode, shot_id=shot_id,
-        step="lipsync", tool="lipsync", need_shot=False, force=force, cfg=cfg, cont=cont))
+        step=STEP_LIPSYNC, tool="lipsync", need_shot=False, force=force, cfg=cfg, cont=cont))
     if err:
         return err
     return lipsync_core(shot_id, cont, cfg.paths.shot_dir(episode, shot_id), force=force)
@@ -122,19 +125,19 @@ def _step_task(self, step: str, fn, config_path: str, episode: int, shot_id: str
 
 @app.task(bind=True, name="pipeline_step_tts", soft_time_limit=120)
 def step_tts(self, config_path, episode, shot_id, force=False):
-    return _step_task(self, "tts", _run_tts, config_path, episode, shot_id, force=force)
+    return _step_task(self, STEP_TTS, _run_tts, config_path, episode, shot_id, force=force)
 
 
 @app.task(bind=True, name="pipeline_step_first_frame", soft_time_limit=300)
 def step_first_frame(self, config_path, episode, shot_id, force=False):
-    return _step_task(self, "first_frame", _run_first_frame, config_path, episode, shot_id, force=force)
+    return _step_task(self, STEP_FIRST_FRAME, _run_first_frame, config_path, episode, shot_id, force=force)
 
 
 @app.task(bind=True, name="pipeline_step_video", soft_time_limit=600)
 def step_video(self, config_path, episode, shot_id, force=False):
-    return _step_task(self, "video", _run_video, config_path, episode, shot_id, force=force)
+    return _step_task(self, STEP_VIDEO, _run_video, config_path, episode, shot_id, force=force)
 
 
 @app.task(bind=True, name="pipeline_step_lipsync", soft_time_limit=300)
 def step_lipsync(self, config_path, episode, shot_id, force=False):
-    return _step_task(self, "lipsync", _run_lipsync, config_path, episode, shot_id, force=force)
+    return _step_task(self, STEP_LIPSYNC, _run_lipsync, config_path, episode, shot_id, force=force)

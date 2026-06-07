@@ -1,7 +1,10 @@
 """Celery 任务定义 — 管线编排（shot_task / preview / produce / post）"""
 from __future__ import annotations
 
-from infra.constants import STATUS_DONE, STATUS_ERROR, STATUS_SKIPPED
+from infra.constants import (
+    STATUS_DONE, STATUS_ERROR, STATUS_SKIPPED,
+    STEP_TTS, STEP_FIRST_FRAME, STEP_VIDEO, STEP_LIPSYNC,
+)
 import logging
 import os
 import time
@@ -89,8 +92,8 @@ def _preload_shot_data(cfg):
 
 def _run_shot_steps(self, config_path, episode, shot_id, force, ctx):
     """执行单镜头的 4 个步骤（tts → first_frame → video → lipsync）"""
-    steps = [("tts", _run_tts), ("first_frame", _run_first_frame), ("video", _run_video), ("lipsync", _run_lipsync)]
-    skip_deps = {"video": ["first_frame"], "lipsync": ["video", "tts"]}
+    steps = [(STEP_TTS, _run_tts), (STEP_FIRST_FRAME, _run_first_frame), (STEP_VIDEO, _run_video), (STEP_LIPSYNC, _run_lipsync)]
+    skip_deps = {STEP_VIDEO: [STEP_FIRST_FRAME], STEP_LIPSYNC: [STEP_VIDEO, STEP_TTS]}
     results = {}
 
     for i, (name, fn) in enumerate(steps):
