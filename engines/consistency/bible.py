@@ -107,10 +107,6 @@ class CharacterBible:
         _add(en.get("core_traits_en", ""))
         _add(en.get("speech_patterns_en", ""))
 
-        rels = en.get("relationships_en", {})
-        for desc in rels.values():
-            _add(desc)
-
         emo = en.get("emotional_range_en", {})
         for key in list(emo.keys())[:2]:
             _add(emo.get(key, ""))
