@@ -16,6 +16,7 @@ from infra.config import save_yaml
 from infra.constants import STATUS_RUNNING, STATUS_DONE, STATUS_ERROR
 import argparse
 import logging
+import os
 import shutil
 import subprocess
 import threading
@@ -35,7 +36,7 @@ app = FastAPI(title="AI Toolkit Training API")
 _tasks: dict[str, dict] = {}
 _lock = threading.Lock()
 _AI_TOOLKIT_PATH = ""
-_OUTPUT_DIR = Path("/tmp/ai_toolkit_output")
+_OUTPUT_DIR = Path(os.environ.get("AI_TOOLKIT_OUTPUT_DIR", str(Path.home() / ".ai_drama" / "training_output")))
 
 
 def _update_task(task_id: str, **kwargs):
@@ -204,7 +205,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI Toolkit REST API")
     parser.add_argument("--port", type=int, default=7860)
     parser.add_argument("--ai-toolkit-path", required=True, help="AI Toolkit 安装路径")
-    parser.add_argument("--output-dir", default="/tmp/ai_toolkit_output")
+    parser.add_argument("--output-dir", default=str(_OUTPUT_DIR), help="训练输出目录")
     args = parser.parse_args()
 
     _AI_TOOLKIT_PATH = args.ai_toolkit_path

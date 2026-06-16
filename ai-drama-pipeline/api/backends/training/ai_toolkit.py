@@ -509,7 +509,8 @@ class AIToolkitTrainer:
             settings = self._api_get_settings()
         except Exception as e:
             logger.debug(f"获取训练设置失败，使用默认值: {e}")
-        training_folder = settings.get("TRAINING_FOLDER", "/tmp/ai_toolkit_output")
+        training_folder = settings.get("TRAINING_FOLDER",
+                                       os.environ.get("AI_TOOLKIT_OUTPUT_DIR", "/tmp/ai_toolkit_output"))
         job_output_dir = Path(training_folder) / job_name / "output"
         for candidate in [str(job_output_dir / f"{output_name}.safetensors"),
                           str(job_output_dir / "lora.safetensors")]:

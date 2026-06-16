@@ -6,13 +6,9 @@ from __future__ import annotations
 
 import copy
 
+from infra.constants import _BIBLE_STR_FIELDS, _BIBLE_DICT_FIELDS, _BIBLE_LIST_FIELDS
+
 __all__ = ["normalize_character", "normalize_scene", "name_to_id"]
-
-
-# bible 字段定义（中文原始数据，无 _en 后缀）
-_BIBLE_STR_FIELDS = ("core_traits", "speech_patterns", "voice_description")
-_BIBLE_DICT_FIELDS = ("relationships", "emotional_range", "body_language")
-_BIBLE_LIST_FIELDS = ("habits", "taboos")
 
 # bible dict 字段必需 key（normalize 时自动补全空值占位）
 _BIBLE_REQUIRED_KEYS = {

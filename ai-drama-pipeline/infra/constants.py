@@ -11,7 +11,16 @@ __all__ = [
     "STATUS_PENDING", "STATUS_RUNNING", "STATUS_DONE", "STATUS_ERROR", "STATUS_SKIPPED",
     "STEP_TTS", "STEP_FIRST_FRAME", "STEP_VIDEO", "STEP_LIPSYNC",
     "clip_duration",
+    "_BIBLE_STR_FIELDS", "_BIBLE_DICT_FIELDS", "_BIBLE_LIST_FIELDS",
 ]
+
+# ══════════════════════════════════════════════════════════
+#  Bible 字段分类（角色一致性数据）
+# ══════════════════════════════════════════════════════════
+
+_BIBLE_STR_FIELDS = ("core_traits", "speech_patterns", "voice_description")
+_BIBLE_DICT_FIELDS = ("relationships", "emotional_range", "body_language")
+_BIBLE_LIST_FIELDS = ("habits", "taboos")
 
 # ══════════════════════════════════════════════════════════
 #  管线步骤名（消除散落的字符串字面量）
