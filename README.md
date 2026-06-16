@@ -1034,7 +1034,7 @@ ai-drama-pipeline/
 │   └── entity_utils.py           #   实体生成公共工具（统一角色/场景的生成+保存逻辑）
 │
 ├── pipeline/                     # Celery 异步任务
-│   ├── celery_app.py             #   Celery 配置 + 统一错误格式 + Worker 启动钩子
+│   ├── app.py             #   Celery 配置 + 统一错误格式 + Worker 启动钩子
 │   └── tasks/                    #   任务定义（按职责拆分）
 │       ├── pipeline.py           #     管线编排（shot_task / produce / post / run_all）
 │       ├── steps/                #     单镜头步骤模块

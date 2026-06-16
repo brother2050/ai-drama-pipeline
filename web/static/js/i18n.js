@@ -84,7 +84,7 @@ const I18N = {
   'toast.created': { zh: '已创建', en: 'Created' },
   'toast.switched': { zh: '已切换', en: 'Switched' },
   'toast.cancelled': { zh: '批量已取消', en: 'Batch Cancelled' },
-  'toast.timeout': { zh: '轮询超时，任务可能仍在执行中。可在终端运行 celery -A pipeline.celery_app inspect active 查看，或刷新任务面板', en: 'Polling timeout, task may still be running. Run celery -A pipeline.celery_app inspect active or refresh the task panel' },
+  'toast.timeout': { zh: '轮询超时，任务可能仍在执行中。可在终端运行 celery -A pipeline.celery_app inspect active 查看，或刷新任务面板', en: 'Polling timeout, task may still be running. Run celery -A pipeline.app inspect active or refresh the task panel' },
   'toast.task_done': { zh: '完成', en: 'Done' },
   'toast.task_fail': { zh: '失败', en: 'Failed' },
   'toast.input_outline': { zh: '请输入至少 10 字的剧情大纲', en: 'Please enter at least 10 characters' },

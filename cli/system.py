@@ -74,7 +74,7 @@ def register_system_commands(cli):
         log_file = str(REPO_LOGS_DIR / "worker.log")
         REPO_LOGS_DIR.mkdir(parents=True, exist_ok=True)
         os.execvp(celery, [
-            celery, "-A", "pipeline.celery_app", "worker",
+            celery, "-A", "pipeline.app", "worker",
             "--loglevel=info", f"--concurrency={concurrency}",
             "-Q", "drama",
             "--pool=threads",
