@@ -119,6 +119,10 @@ class CharacterBible:
         rels = source.get("relationships", {})
         for rid, desc in rels.items():
             _add_if_en(desc)
+        # relationships key 是角色名，中英文不对应，需单独读取英文版
+        rels_en = source.get("relationships_en", {})
+        for rid, desc in rels_en.items():
+            _add_if_en(desc)
 
         emo = source.get("emotional_range", {})
         for key in list(emo.keys())[:2]:
