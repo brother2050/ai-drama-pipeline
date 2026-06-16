@@ -39,7 +39,7 @@ def generate_and_save(
         {"status": STATUS_DONE, "count": N, "entities": [...], "id_remap": {name: id}, "warnings": [...]}
         或 {"status": STATUS_ERROR, "reason": "..."}
     """
-    from engines.content.llm import generate_characters, generate_scenes
+    from engines.content.generator import generate_characters, generate_scenes
 
     out_dir.mkdir(parents=True, exist_ok=True)
     existing = load_existing_entities(out_dir, entity_key)

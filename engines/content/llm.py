@@ -51,6 +51,26 @@ def _load_storyboard_presets(style: str = "", genre: str = "") -> dict:
     return presets
 
 
+def _compute_storyboard_max_tokens(llm: object, target_duration: int, character_count: int = 0) -> int:
+    """根据目标时长动态计算 max_tokens，确保 LLM 有足够输出空间"""
+    # 估算镜头数：目标时长 / 4 秒（保守估计每个镜头 4s）
+    estimated_shots = max(10, target_duration // 4)
+    # 每个镜头 JSON 约 250-400 字符，中文字符约 1-1.5 token/字
+    estimated_tokens = estimated_shots * 350
+    # 角色/场景上下文额外开销
+    context_overhead = character_count * 50
+    # 读取模型限制作为上限
+    from infra.json_parse import get_max_output_tokens
+    model_max = get_max_output_tokens(llm, default=4096)
+    # Qwen3 等 thinking 模型需要额外 50% token 用于推理
+    is_thinking_model = getattr(llm, "_model", "").lower().startswith("qwen/qwen3")
+    if is_thinking_model:
+        estimated_tokens = int(estimated_tokens * 1.5)
+    result = min(estimated_tokens + context_overhead, model_max)
+    logger.info(f"分镜 max_tokens 估算: shots≈{estimated_shots}, tokens≈{estimated_tokens}, model_max={model_max}, final={result}")
+    return max(result, 4096)
+
+
 def generate_storyboard(llm: object, params: StoryboardGenParams) -> tuple[list[dict], list[str]]:
     """从剧情大纲生成分镜表"""
     outline, characters, scenes = params.outline, params.characters, params.scenes
@@ -99,7 +119,8 @@ def generate_storyboard(llm: object, params: StoryboardGenParams) -> tuple[list[
     system = tpl("storyboard_system")
     logger.info(f"生成分镜: outline={len(outline)}字, chars={len(characters)}, scenes={len(scenes)}, target={estimated_duration}s")
 
-    raw = llm.chat(user_msg, system=system)
+    max_tokens = _compute_storyboard_max_tokens(llm, estimated_duration, len(characters))
+    raw = llm.chat(user_msg, system=system, max_tokens=max_tokens)
     from infra.json_parse import parse_llm_json
     parsed = parse_llm_json(raw)
     if parsed is None:
