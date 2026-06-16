@@ -13,23 +13,21 @@
 - **影响**: PuLID-Flux 人脸一致性、IP-Adapter、ControlNet Depth 等全部静默 fallback
 - **修复**: 添加了 `get_available_node_types()` 方法，调用 ComfyUI `/object_info` 端点
 
+### ✅ `inject_controlnet_depth` 硬编码重复检查 + `AIToolkitTrainer` 缺少 health_check/shutdown
+
+- **文件**:
+  - `engines/workflow/node_graph.py` — 将 `required_comfyui_nodes` 检查统一提升到 `inject_from_registry()` 入口
+  - `engines/workflow/inject.py` — 删除硬编码的 `{"FluxControlNetLoader", "ApplyFluxControlNet"}`
+  - `api/backends/training/ai_toolkit.py` — 新增 `health_check()` 和 `shutdown()` 方法
+- **修复**:
+  1. 节点可用性检查从两处（YAML + Python 硬编码）统一为 YAML 驱动，`inject_method` 覆盖和泛型两条路径共用同一检查
+  2. `AIToolkitTrainer` 现在可参与 Container 健康检查 fallback
+
 ---
 
 ## 中优先级
 
-### 🔶 1. `inject_controlnet_depth` 硬编码重复检查
-
-- **文件**: 
-  - `engines/workflow/inject.py` 第 720 行
-  - `config/models_registry.yaml` 中 `controlnet_depth.required_comfyui_nodes`
-- **问题**: Python 函数硬编码了 `{"FluxControlNetLoader", "ApplyFluxControlNet"}`，与 YAML 的 `required_comfyui_nodes` 重复。如果插件节点名变更，需同时修改两处，容易遗漏导致行为不一致。
-- **建议**: 让 Python 函数从 registry 读取 `required_comfyui_nodes`，而非硬编码。
-
-### 🔶 2. `AIToolkitTrainer` 缺少 `health_check()` / `shutdown()`
-
-- **文件**: `api/backends/training/ai_toolkit.py`
-- **问题**: 该类有 `check_status()` 但没有标准的 `health_check()` 签名。`Container.get_with_fallback()` 和 `Container.shutdown_all()` 通过 `hasattr` 安全跳过，但 training 后端无法参与健康检查 fallback 逻辑。
-- **建议**: 添加标准 `health_check() -> tuple[bool, str]` 和 `shutdown()` 方法。
+_（已全部修复）_
 
 ---
 
