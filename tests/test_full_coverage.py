@@ -841,16 +841,38 @@ class TestInfrastructure:
         assert calls["count"] == 3
 
     def test_json_parse(self):
-        """JSON 解析容错"""
+        """JSON 解析容错 — 全部 10 步 fallback 链"""
         from infra.json_parse import parse_llm_json
-        # 正常
-        assert parse_llm_json('{"a": 1}') == {"a": 1}
-        # markdown 代码块
-        assert parse_llm_json('```json\n{"a": 1}\n```') == {"a": 1}
-        # 前后多余文字
-        assert parse_llm_json('Here is the result: {"a": 1} done.') == {"a": 1}
-        # 无效
-        assert parse_llm_json("not json at all") is None
+
+        # ── 原有 4 项（回归）──
+        assert parse_llm_json('{"a": 1}') == {"a": 1}                    # step 1 直接解析
+        assert parse_llm_json('```json\n{"a": 1}\n```') == {"a": 1}      # step 2 markdown 代码块
+        assert parse_llm_json('Here is the result: {"a": 1} done.') == {"a": 1}  # step 3 深度匹配
+        assert parse_llm_json("not json at all") is None                 # 全部失败
+
+        # ── step 0.5 末尾多余逗号 ──
+        assert parse_llm_json('{"a": 1,}') == {"a": 1}
+        assert parse_llm_json('{"a": 1,"b": 2,}') == {"a": 1, "b": 2}
+        assert parse_llm_json('[1, 2, 3,]') == [1, 2, 3]
+
+        # ── step 9 Python 字面量 True/False/None ──
+        assert parse_llm_json('{"alive": True}') == {"alive": True}
+        assert parse_llm_json('{"dead": False}') == {"dead": False}
+        assert parse_llm_json('{"extra": None}') == {"extra": None}
+
+        # ── step 8 JavaScript 注释 //  ──
+        assert parse_llm_json('// 这是注释\n{"a": 1}') == {"a": 1}
+        assert parse_llm_json('// line1\n// line2\n{"a": 1}') == {"a": 1}
+        assert parse_llm_json('/* block comment */\n{"a": 1}') == {"a": 1}
+
+        # ── 混合场景 ──
+        assert parse_llm_json('{"a": 1,\n "b": True,\n}') == {"a": 1, "b": True}
+        assert parse_llm_json('// output\n{"items": [None, True, False],}') == {"items": [None, True, False]}
+        assert parse_llm_json('[True, False, None,]') == [True, False, None]
+
+        # ── 不误伤 ──
+        assert parse_llm_json('{"url": "https://example.com"}') == {"url": "https://example.com"}
+        assert parse_llm_json('{"note": "a, b, c"}') == {"note": "a, b, c"}
 
     def test_constants(self):
         """常量完整性"""

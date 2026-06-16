@@ -191,8 +191,8 @@ def _repair_truncated_json(text: str) -> str | None:
 
 
 def _extract_json_block(text: str) -> object | None:
-    """从文本中提取第一个完整 JSON 数组/对象（深度匹配）"""
-    for start_ch, end_ch in [('[', ']'), ('{', '}')]:
+    """从文本中提取第一个完整 JSON 对象/数组（深度匹配，对象优先）"""
+    for start_ch, end_ch in [('{', '}'), ('[', ']')]:
         idx = text.find(start_ch)
         if idx < 0:
             continue
