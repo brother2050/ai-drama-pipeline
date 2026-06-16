@@ -47,8 +47,8 @@ def _redis_url() -> str:
         return url
     try:
         from infra.config import load_config
-        from pathlib import Path
-        system = load_config(Path(__file__).resolve().parent.parent / "config" / "system.yaml", safe=True) or {}
+        from infra.config.resolver import get_root
+        system = load_config(get_root() / "config" / "system.yaml", safe=True) or {}
         url = system.get("redis", {}).get("url", "")
         if url:
             return url

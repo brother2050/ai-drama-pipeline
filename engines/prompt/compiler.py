@@ -26,6 +26,8 @@ import threading
 from pathlib import Path
 from typing import Any
 
+from infra.config.resolver import get_root
+
 
 
 logger = logging.getLogger(__name__)
@@ -85,7 +87,7 @@ class PromptCompiler:
             templates_path: prompt_templates.yaml 路径（None 则自动查找）
         """
         if templates_path is None:
-            templates_path = Path(__file__).resolve().parent.parent.parent / "config" / "prompt_templates.yaml"
+            templates_path = get_root() / "config" / "prompt_templates.yaml"
         self._path = Path(templates_path)
         self._templates: dict[str, str] = {}
         self._mtime: float = 0.0
