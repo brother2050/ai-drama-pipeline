@@ -413,7 +413,7 @@ def _ai_prepare_inner(self, config_path, episode, force, translate):
 
 def _batch_translate_texts(all_texts: list[str], llm: object, task_self=None) -> list[str]:
     """批量翻译 — UID 标记，按 UID 精确匹配结果"""
-    from engines.prompt.translate import translate_to_english
+    from engines.prompt.translate import batch_translate_to_english, translate_to_english
 
     # 为每条文本分配 UID
     uid_to_idx: dict[str, int] = {}
@@ -451,7 +451,7 @@ def _batch_translate_texts(all_texts: list[str], llm: object, task_self=None) ->
 def _validate_and_retry(all_texts: list[str], results: list[str],
                         text_meta: list[tuple], llm: object) -> list[str]:
     """翻译质量校验 + 重试失败项：检测空/中文翻译 → 批量重试 → 逐条兜底"""
-    from engines.prompt.translate import translate_to_english
+    from engines.prompt.translate import batch_translate_to_english, translate_to_english
 
     # 检测不合格翻译
     bad_indices = [i for i, (src, tgt) in enumerate(zip(all_texts, results))

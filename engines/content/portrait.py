@@ -215,7 +215,7 @@ def _generate_view(params: ViewGenParams) -> str:
         logger.info(f"  📎 参考图注入: {os.path.basename(p.ref_image)} → view={p.view_key}")
 
     # 注入视角专属负面提示（防止背面视图生成正面人脸等）
-    from engines.prompt.builder import _VIEW_NEGATIVE
+    from engines.prompt.view import _VIEW_NEGATIVE
     view_neg = _VIEW_NEGATIVE.get(p.view_key, "")
     if view_neg:
         from engines.workflow.utils import append_negative_prompt
