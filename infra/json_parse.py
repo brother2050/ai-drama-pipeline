@@ -1,10 +1,14 @@
 """JSON 解析工具 — 统一的 LLM 输出解析器
 
 提供容错的 JSON 解析能力，支持：
+- 推理思考块清理（DeepSeek-R1 / Qwen3 <think> 标签）
+- 末尾多余逗号修复（LLM 常输出 {"a": 1,}）
 - markdown 代码块提取
 - 前后多余文字过滤
 - 截断 JSON 自动修复（LLM 输出因 token 限制被截断）
 - 单引号 / Python dict 风格兼容
+- JavaScript 注释去除（// ... 和 /* ... */）
+- Python 字面量转换（True/False/None → true/false/null）
 """
 from __future__ import annotations
 
@@ -238,6 +242,38 @@ def _strip_thinking_blocks(text: str) -> str:
     return text.strip()
 
 
+def _remove_trailing_commas(text: str) -> str:
+    r"""移除 JSON 末尾多余逗号（LLM 常输出 {"a": 1,} 或 [1, 2,]）
+
+    正则 ,\s*([}\]]) 不会误伤字符串内容，因为 } 和 ] 在合法 JSON 字符串中
+    必须转义，不会裸出现。
+    """
+    return re.sub(r',\s*([}\]])', r'\1', text)
+
+
+def _strip_js_comments(text: str) -> str:
+    """移除 JavaScript 风格注释（// ... 和 /* ... */）
+
+    仅处理行首的 // 注释（避免误删 URL 中的 //），以及跨行 /* */ 块。
+    """
+    # 块注释 /* ... */
+    text = re.sub(r'/\*[\s\S]*?\*/', '', text)
+    # 行注释 // ...（仅行首，避免碰 URL 中的 ://
+    text = re.sub(r'^[ \t]*//[^\n]*', '', text, flags=re.MULTILINE)
+    return text
+
+
+def _py_to_json_literals(text: str) -> str:
+    """将 Python 字面量转为 JSON：True→true, False→false, None→null
+
+    仅当它们作为 JSON 值出现时替换（跟在 : [ , 后面），避免误伤字符串内容。
+    """
+    text = re.sub(r'([:\[,])\s*\bTrue\b', r'\1 true', text)
+    text = re.sub(r'([:\[,])\s*\bFalse\b', r'\1 false', text)
+    text = re.sub(r'([:\[,])\s*\bNone\b', r'\1 null', text)
+    return text
+
+
 def parse_llm_json(text: str) -> object | None:
     """从 LLM 响应中提取 JSON（容错：markdown 代码块、前后多余文字、思考块、截断修复）"""
     if not text:
@@ -249,6 +285,9 @@ def parse_llm_json(text: str) -> object | None:
     if cleaned != text:
         text = cleaned
         logger.debug("已移除 LLM 思考块")
+
+    # 0.5 移除末尾多余逗号（LLM 常输出 {"a": 1,}）
+    text = _remove_trailing_commas(text)
 
     # 1. 直接解析
     try:
@@ -317,6 +356,61 @@ def parse_llm_json(text: str) -> object | None:
                     return json.loads(repaired)
                 except json.JSONDecodeError:
                     pass
+
+    # ── 以下为兜底变换：对原文做清理后重新走解析链 ──
+
+    # 辅助：对候选文本尝试各路径
+    def _try_parse_candidate(candidate: str) -> object | None:
+        if not candidate:
+            return None
+        # 直接解析
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            pass
+        # markdown 代码块
+        m = re.search(r"```(?:json)?\s*\n?(.*?)```", candidate, re.DOTALL)
+        if m:
+            try:
+                return json.loads(m.group(1).strip())
+            except json.JSONDecodeError:
+                pass
+        # 深度匹配
+        result = _extract_json_block(candidate)
+        if result is not None:
+            return result
+        # 截断修复
+        repaired = _repair_truncated_json(candidate)
+        if repaired is not None:
+            try:
+                return json.loads(repaired)
+            except json.JSONDecodeError:
+                pass
+        return None
+
+    # 8. 去除 JavaScript 注释后重试
+    de_commented = _strip_js_comments(text)
+    if de_commented != text:
+        result = _try_parse_candidate(de_commented)
+        if result is not None:
+            logger.debug("去 JS 注释后 JSON 解析成功")
+            return result
+
+    # 9. 转换 Python 字面量后重试
+    py_fixed = _py_to_json_literals(text)
+    if py_fixed != text:
+        result = _try_parse_candidate(py_fixed)
+        if result is not None:
+            logger.debug("Python→JSON 字面量转换后解析成功")
+            return result
+
+    # 10. 注释 + Python 字面量 组合
+    combined = _py_to_json_literals(_strip_js_comments(text))
+    if combined != text:
+        result = _try_parse_candidate(combined)
+        if result is not None:
+            logger.debug("去注释 + Python→JSON 转换后解析成功")
+            return result
 
     logger.warning(f"无法从 LLM 回复中提取 JSON（len={len(text)}, 前 200 字）: {text[:200]}")
     return None
