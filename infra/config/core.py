@@ -22,11 +22,13 @@ logger = logging.getLogger(__name__)
 
 _ROOT = Path(__file__).resolve().parent.parent.parent  # infra/config/core.py → project root
 
+# ── 路径常量（定义在前，使用在后） ──
+ENV_FILE_PATH = _ROOT / ".env"
+
 try:
     from dotenv import load_dotenv
-    _env = _ROOT / ".env"
-    if _env.exists():
-        load_dotenv(_env, override=False)
+    if ENV_FILE_PATH.exists():
+        load_dotenv(ENV_FILE_PATH, override=False)
 except ImportError:
     logger.debug("dotenv 导入跳过")
 
@@ -36,7 +38,8 @@ PROMPT_TEMPLATES_PATH = str(_ROOT / "config" / "prompt_templates.yaml")
 REPO_WORKFLOWS_DIR = _ROOT / "workflows"
 REPO_LOGS_DIR = _ROOT / "logs"
 
-__all__ = ["Config", "SYSTEM_CONFIG_PATH", "REGISTRY_PATH", "PROMPT_TEMPLATES_PATH", "REPO_WORKFLOWS_DIR", "REPO_LOGS_DIR"]
+__all__ = ["Config", "ENV_FILE_PATH", "SYSTEM_CONFIG_PATH", "REGISTRY_PATH",
+           "PROMPT_TEMPLATES_PATH", "REPO_WORKFLOWS_DIR", "REPO_LOGS_DIR"]
 
 
 # ══════════════════════════════════════════════════════════

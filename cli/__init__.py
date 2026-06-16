@@ -29,7 +29,8 @@ if str(ROOT) not in sys.path:
 # ── 共享工具函数 ──────────────────────────────────────
 
 def _load_env():
-    env_file = ROOT / ".env"
+    from infra.config.core import ENV_FILE_PATH
+    env_file = ENV_FILE_PATH
     if env_file.exists():
         try:
             from dotenv import load_dotenv
