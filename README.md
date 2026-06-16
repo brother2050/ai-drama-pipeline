@@ -1021,23 +1021,39 @@ ai-drama-pipeline/
 │       └── training/             #   LoRA 训练: ai_toolkit
 │
 ├── engines/                      # 引擎层（核心业务逻辑）
-│   ├── storyboard.py             #   分镜表加载/验证/保存（DB 为唯一数据源）
-│   ├── prompt.py                 #   Prompt 构建 + LLM 翻译（批量/单条）
-│   ├── prompt_compiler.py        #   Mustache 风格模板编译器（从 prompt_templates.yaml 加载）
-│   ├── llm_generator.py          #   LLM 内容生成（分镜/角色/场景）
-│   ├── shot_utils.py             #   镜头工具（后处理、文本清理、角色 ID 解析）
-│   ├── workflow_builder.py       #   ComfyUI 工作流构建（首帧/视频，含 mtime 缓存）
-│   ├── workflow.py               #   工作流节点查找/参数注入
-│   ├── workflow_inject.py        #   一致性方案注入（IP-Adapter/PuLID/LoRA）
-│   ├── portrait.py               #   定妆照生成（五视图 + 服装图）
-│   ├── multi_char.py             #   多人同框 prompt 处理
-│   ├── character_bible.py        #   角色圣经系统（跨镜头一致性）
-│   ├── consistency_checker.py    #   分镜一致性校验（服装/角色/场景/情绪）
+│   ├── dialogue.py               #   对话解析
 │   ├── quality_gate.py           #   质量门禁系统（管线各阶段自动检查）
-│   └── entity_utils.py           #   实体生成公共工具（统一角色/场景的生成+保存逻辑）
+│   ├── content/                  #   内容生成子包
+│   │   ├── storyboard.py         #     分镜表加载/验证/保存（DB 为唯一数据源）
+│   │   ├── llm.py                #     LLM 内容生成编排
+│   │   ├── generator.py          #     LLM 内容生成器（分镜/角色/场景）
+│   │   ├── portrait.py           #     定妆照生成（五视图 + 服装图）
+│   │   ├── episode.py            #     集级状态管理
+│   │   └── validator.py          #     实体校验
+│   ├── prompt/                   #   Prompt 子包
+│   │   ├── builder.py            #     Prompt 构建
+│   │   ├── compiler.py           #     Mustache 风格模板编译器（从 prompt_templates.yaml 加载）
+│   │   ├── translate.py          #     LLM 翻译（批量/单条）
+│   │   └── view.py               #     Prompt 视图
+│   ├── workflow/                 #   工作流子包
+│   │   ├── builder.py            #     ComfyUI 工作流构建（首帧/视频，含 mtime 缓存）
+│   │   ├── node_graph.py         #     工作流节点图
+│   │   ├── utils.py              #     工作流工具
+│   │   ├── inject.py             #     一致性方案注入（IP-Adapter/PuLID/LoRA）
+│   │   ├── upload.py             #     资产上传
+│   │   └── video.py              #     视频生成工作流
+│   ├── consistency/              #   一致性子包
+│   │   ├── bible.py              #     角色圣经系统（跨镜头一致性）
+│   │   └── checker.py            #     分镜一致性校验（服装/角色/场景/情绪）
+│   └── utils/                    #   工具子包
+│       ├── entity.py             #     实体生成公共工具（统一角色/场景的生成+保存逻辑）
+│       ├── multi_char.py         #     多人同框 prompt 处理
+│       └── shot.py               #     镜头工具（后处理、文本清理、角色 ID 解析）
 │
 ├── pipeline/                     # Celery 异步任务
-│   ├── app.py             #   Celery 配置 + 统一错误格式 + Worker 启动钩子
+│   ├── app.py                    #   Celery 配置 + 统一错误格式 + Worker 启动钩子
+│   ├── portraits.py              #   定妆照批量生成
+│   ├── scene_images.py           #   场景图批量生成
 │   └── tasks/                    #   任务定义（按职责拆分）
 │       ├── pipeline.py           #     管线编排（shot_task / produce / post / run_all）
 │       ├── steps/                #     单镜头步骤模块
@@ -1046,9 +1062,11 @@ ai-drama-pipeline/
 │       │   ├── video.py          #       视频生成
 │       │   └── lipsync.py        #       口型同步
 │       ├── ai.py                 #     AI 生成（分镜/实体/准备/对话编辑）
-│       ├── portrait_tasks.py     #     定妆照 / 场景图生成任务
-│       ├── media_tasks.py        #     后期 / TTS / 配乐 / 字幕任务
-│       ├── training_tasks.py     #     LoRA 训练 / JSON 导入任务
+│       ├── portrait.py           #     定妆照 / 场景图生成任务
+│       ├── media.py              #     后期 / TTS / 配乐 / 字幕任务
+│       ├── training.py           #     LoRA 训练 / JSON 导入任务
+│       ├── preflight.py          #     预检任务
+│       ├── prepare.py            #     准备阶段任务
 │       ├── seko.py               #     Seko 策划案导入任务
 │       └── helpers.py            #     共享工具（加载/校验/DB 记录/上下文缓存）
 │
@@ -1058,31 +1076,38 @@ ai-drama-pipeline/
 │   ├── music.py                  #   配乐生成（FFmpeg 模板）
 │   └── vertical.py               #   横转竖（含人脸检测定位）
 │
-├── flow/                         # 编排层
-│   ├── episode.py                #   集级状态管理
-│   └── model_registry.py         #   模型注册表（从 YAML 加载，零硬编码后端名）
-│
 ├── infra/                        # 基础设施
-│   ├── config.py                 #   配置管理（mtime 缓存 + 热重载 + 注册表默认值合并）
 │   ├── constants.py              #   共享常量（情绪/景别/运镜/状态码/步骤名）
-│   ├── models.py                 #   共享数据模型（ImportPlan/ImportValidator/normalize_character）
-│   ├── toolcheck.py              #   工具可用性检测（注册表驱动，零 if-elif）
-│   ├── ffmpeg.py                 #   FFmpeg 封装（链式 API）
-│   ├── transitions.py            #   转场拼接（xfade offset 精确计算）
-│   ├── gpu.py                    #   GPU / 生成参数配置
-│   ├── retry.py                  #   指数退避重试
-│   ├── safe_executor.py          #   安全执行器（任务级错误边界 + 超时 + 降级）
-│   ├── http_pool.py              #   HTTP 连接池（httpx，按 base_url+timeout 缓存）
-│   ├── network.py                #   网络工具（端口检测）
-│   ├── json_parse.py             #   LLM JSON 解析（容错：截断修复/代码块提取/单引号兼容）
-│   ├── asset_tracker.py          #   ComfyUI 资产跟踪（PostgreSQL 持久化）
-│   ├── batch_processor.py        #   自适应批处理器（三重约束分批 + 错误驱动学习）
-│   ├── concurrency.py            #   并发控制（错开启动 + 信号量限流）
-│   ├── concurrency_groups.py     #   并发组（互斥锁按资源组管理）
-│   ├── monitor.py                #   任务监控（超时检测 + 空闲淘汰 + 健康检查缓存）
-│   ├── hooks.py                  #   后端钩子系统（init/cleanup/health_check/cache_invalidate）
 │   ├── globals.py                #   全局基础设施实例（看门狗/健康缓存/并发组）
-│   ├── file_watcher.py           #   文件系统监控（YAML 变化自动失效缓存）
+│   ├── hooks.py                  #   后端钩子系统（init/cleanup/health_check/cache_invalidate）
+│   ├── http_pool.py              #   HTTP 连接池（httpx，按 base_url+timeout 缓存）
+│   ├── json_parse.py             #   LLM JSON 解析（容错：截断修复/代码块提取/单引号兼容）
+│   ├── models.py                 #   共享数据模型（ImportPlan/ImportValidator/normalize_character）
+│   ├── network.py                #   网络工具（端口检测）
+│   ├── normalize.py              #   数据规范化
+│   ├── toolcheck.py              #   工具可用性检测（注册表驱动，零 if-elif）
+│   ├── transitions.py            #   转场拼接（xfade offset 精确计算）
+│   ├── validation.py             #   输入校验
+│   ├── compute/                  #   计算子包
+│   │   ├── ffmpeg.py             #     FFmpeg 封装（链式 API）
+│   │   └── gpu.py                #     GPU / 生成参数配置
+│   ├── concurrency/              #   并发控制子包
+│   │   ├── batch.py              #     自适应批处理器（三重约束分批 + 错误驱动学习）
+│   │   ├── executor.py           #     安全执行器（任务级错误边界 + 超时 + 降级）
+│   │   ├── groups.py             #     并发组（互斥锁按资源组管理）
+│   │   └── monitor.py            #     任务监控（超时检测 + 空闲淘汰 + 健康检查缓存）
+│   ├── config/                   #   配置子包
+│   │   ├── core.py               #     配置管理核心（mtime 缓存 + 热重载 + 注册表默认值合并）
+│   │   ├── cache.py              #     配置缓存
+│   │   ├── loader.py             #     配置加载器
+│   │   ├── paths.py              #     路径管理
+│   │   ├── registry.py           #     模型注册表
+│   │   ├── registry_llm.py       #     LLM 注册表
+│   │   ├── registry_media.py     #     媒体注册表
+│   │   └── resolver.py           #     配置解析器
+│   ├── storage/                  #   存储子包
+│   │   ├── asset_tracker.py      #     ComfyUI 资产跟踪（PostgreSQL 持久化）
+│   │   └── file_watcher.py       #     文件系统监控（YAML 变化自动失效缓存）
 │   └── database/                 #   PostgreSQL（分镜表/生成状态/资产跟踪）
 │       ├── schema.py             #     表结构定义（CREATE IF NOT EXISTS）
 │       ├── pool.py               #     连接池（ThreadedConnectionPool）
@@ -1103,7 +1128,7 @@ ai-drama-pipeline/
 │   │   ├── storyboard.py         #     分镜表 / 集数 / 管线 / LLM 生成（18 路由）
 │   │   ├── assets.py             #     资产上传/下载/共享库（7 路由）
 │   │   ├── imports.py            #     项目管理 / 导入 / Seko / 训练（14 路由）
-│   │   └── voices.py             #     声线库（列表/试听/分配，3 路由）
+│   │   ├── voices.py             #     声线库（列表/试听/分配，3 路由）
 │   │   └── deps.py               #     共享依赖（配置访问/校验/任务提交/YAML CRUD）
 │   └── static/                   #   前端 SPA
 │       ├── index.html            #     单页应用（9 个页面：仪表盘/角色/场景/分镜/管线/项目/资产/Seko/设置）
@@ -1115,17 +1140,25 @@ ai-drama-pipeline/
 │   ├── project_mgr.py            #   项目管理（新建/切换/删除/预设列表）
 │   ├── project_builder.py        #   项目构建器（JSON 导入时原子性创建项目）
 │   ├── ai_toolkit_api.py         #   AI Toolkit 训练 API 客户端
+│   ├── musicgen_server.py        #   MusicGen API 服务器
 │   └── voice_sync.py             #   声线库同步（克隆仓库 + 生成索引）
 │
-├── tests/                        # 测试（8 个文件）
+├── tests/                        # 测试（15 个测试文件）
 │   ├── conftest.py               #   共享 fixtures + 环境检测
 │   ├── test_all.py               #   基础功能测试
 │   ├── test_api.py               #   API 集成测试
+│   ├── test_append.py            #   追加导入测试
 │   ├── test_celery.py            #   Celery 任务测试
 │   ├── test_core.py              #   核心引擎测试
+│   ├── test_dialogue.py          #   对话解析测试
 │   ├── test_e2e.py               #   前端 E2E 测试
+│   ├── test_full_coverage.py     #   覆盖率补充测试
+│   ├── test_import_e2e_standalone.py  # 导入 E2E 测试
 │   ├── test_import_standalone.py #   导入测试
-│   └── test_import_e2e_standalone.py  # 导入 E2E 测试
+│   ├── test_node_graph.py        #   节点图测试
+│   ├── test_p2_review.py         #   P2 审查测试
+│   ├── test_post.py              #   后期处理测试
+│   └── test_session_changes.py   #   会话变更回归测试
 │
 ├── config/                       # 全局配置
 │   ├── system.yaml               #   系统全局配置（ComfyUI/LLM/TTS/一致性方案/预设）
@@ -1133,12 +1166,13 @@ ai-drama-pipeline/
 │   ├── prompt_templates.yaml     #   Prompt 模板（翻译/分镜/角色/场景/圣经生成）
 │   └── default_storyboard.py     #   默认分镜种子数据
 │
-├── workflows/                    # ComfyUI 工作流模板（7 个 JSON）
+├── workflows/                    # ComfyUI 工作流模板（8 个 JSON）
 │   ├── 01_first_frame_sd15.json  #   SD1.5 首帧
 │   ├── 01_first_frame_flux.json  #   Flux 首帧
-│   ├── cosmos_predict2_2B_t2i.json  # Cosmos 首帧
+│   ├── 01_first_frame_flux_fp8.json  # Flux FP8 首帧
+│   ├── cosmos_predict2_2B_t2i.json   # Cosmos 首帧
 │   ├── 02_img2video.json         #   AnimateDiff 视频
-│   ├── 03_img2video_cogvideo.json   # CogVideoX 视频
+│   ├── 03_img2video_cogvideo.json    # CogVideoX 视频
 │   ├── 04_img2video_cosmos.json  #   Cosmos 视频
 │   └── 05_img2img_hidream.json   #   HiDream img2img
 │
@@ -1150,15 +1184,18 @@ ai-drama-pipeline/
 │   ├── default/                  #   默认项目模板
 │   │   ├── config/
 │   │   │   ├── project.yaml      #     项目配置
-│   │   │   ├── characters/       #     角色配置（guchen.yaml / linxia.yaml）
-│   │   │   └── scenes/           #     场景配置（living_room.yaml / street.yaml）
+│   │   │   ├── characters/       #     角色配置
+│   │   │   └── scenes/           #     场景配置
 │   │   ├── assets/               #     资产（定妆照/场景图/LoRA）
 │   │   └── output/               #     生成产物
 │   └── <你的项目名>/             #   新建项目（结构同上）
 │
 └── docs/                         # 文档
     ├── pipeline.md               #   管线全流程架构详解
-    └── script-import-design.md   #   剧本导入功能设计文档
+    ├── PROJECT_FLOWCHART.md      #   项目流程总览
+    ├── musicgen-deploy.md        #   MusicGen 部署指南
+    └── internal/
+        └── script-import-design.md   # 剧本导入功能设计文档
 ```
 
 ---
