@@ -85,8 +85,8 @@ def _collect_bible_missing(char: dict, cid: str, all_texts: list[str],
             all_texts.append(bible[field])
             text_meta.append(("character.bible", cid, field, f"{field}_en"))
 
-    # dict 字段
-    for field in ("emotional_range", "body_language"):
+    # dict 字段 — 含 relationships（键名是角色名也需翻译，LLM 会一并处理）
+    for field in ("emotional_range", "body_language", "relationships"):
         data = bible.get(field, {})
         if isinstance(data, dict) and data and (force or not bible_en.get(f"{field}_en")):
             all_texts.append(_serialize_dict_for_translate(data))

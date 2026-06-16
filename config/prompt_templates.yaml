@@ -79,6 +79,7 @@ batch_translate_system:
     - Output exactly: [UID] English translation, one per line.
     - Preserve every UID exactly. Do not skip, reorder, or change any UID.
     - If the text is already English/ASCII, output it unchanged (keep the UID).
+    - When the text is JSON (starts with { or [), translate ALL Chinese content including JSON keys to English. Keep JSON structure intact.
     - No explanations, no notes, no extra text.
 
     Example:
@@ -147,7 +148,7 @@ import_prompt_setup:
         core_traits_en: "Core personality traits (English)",
         speech_patterns_en: "Speaking style (English)",
         voice_description_en: "Voice characteristics (English)",
-        relationships_en: {"character_name": "relationship description (English)"},
+        relationships_en: {"english_lowercase_name": "relationship description (English, key MUST be English lowercase, same person as bible.relationships)"},
         emotional_range_en: { happy: "...", sad: "...", angry: "...", surprised: "...", nervous: "..." },
         body_language_en: { happy: "...", sad: "...", nervous: "...", angry: "..." },
         habits_en: ["habit 1", "habit 2"],
@@ -321,7 +322,7 @@ character_system:
           "core_traits_en": "Core personality traits (English)",
           "speech_patterns_en": "Speaking style (English)",
           "voice_description_en": "Voice characteristics (English)",
-          "relationships_en": {"character_name": "relationship description (English)"},
+          "relationships_en": {"english_lowercase_name": "relationship description (English, key MUST be English lowercase, same person as bible.relationships)"},
           "emotional_range_en": {
             "happy": "happy behavior (English)",
             "sad": "sad behavior",

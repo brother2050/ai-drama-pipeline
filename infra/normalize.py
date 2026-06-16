@@ -61,7 +61,10 @@ def _backfill_bible_en(bible: dict, bible_en: dict) -> None:
             bible_en[en_key] = bible[f]
 
     # dict 字段：空值回退（逐 key）
+    # 跳过 relationships：其 key 为角色名，中英文不对应，回填会引入中文键名污染
     for f in _BIBLE_DICT_FIELDS:
+        if f == "relationships":
+            continue
         en_key = f"{f}_en"
         en_dict = bible_en.get(en_key)
         zh_dict = bible.get(f)
