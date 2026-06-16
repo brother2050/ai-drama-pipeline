@@ -101,7 +101,13 @@ def generate_storyboard(llm: object, params: StoryboardGenParams) -> tuple[list[
             traits = bible.get("core_traits", "未指定")
             voice = bible.get("voice_description", "")
             voice_part = f"，声音：{voice}" if voice else ""
-            details.append(f"- {cid}（{cname}，{traits}{voice_part}{oi}）: {c.get('appearance', '')[:300]}")
+            # 人际关系：仅在已有数据时注入（先分镜后角色的流程中可能为空）
+            rels = bible.get("relationships") or {}
+            rels_part = ""
+            if rels:
+                rels_items = [f"与{k}{v}" for k, v in rels.items()]
+                rels_part = f"，人际关系：{'，'.join(rels_items)}"
+            details.append(f"- {cid}（{cname}，{traits}{voice_part}{rels_part}{oi}）: {c.get('appearance', '')[:300]}")
         parts.append("\n=== 角色名映射 ===\n" + "\n".join(mapping))
         parts.append("\n=== 角色详情 ===\n" + "\n".join(details))
 

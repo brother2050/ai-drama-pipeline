@@ -81,7 +81,6 @@ class CharacterBible:
         parts = []
         _append_simple(bible, "core_traits", "核心性格", parts)
         _append_simple(bible, "speech_patterns", "说话风格", parts)
-        _append_map(bible, "relationships", "人际关系", "与{key}", parts)
         _append_map(bible, "emotional_range", "情绪表达", "{key}时{val}", parts)
         _append_map(bible, "body_language", "肢体语言", "{key}时{val}", parts)
         _append_list(bible, "habits", "习惯", parts)
