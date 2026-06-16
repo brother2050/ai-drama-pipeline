@@ -9,13 +9,6 @@ from engines.prompt.compiler import tpl
 
 logger = logging.getLogger(__name__)
 
-_FALLBACK_TRANSLATE_SYSTEM = (
-    "You are a professional translator. The user will send tagged Chinese texts with unique IDs.\n"
-    "Translate each to English. Output format: [UID] translation, one per line.\n"
-    "You MUST preserve the exact UID for each line. Do not reorder or skip any UID.\n"
-    "Do not add explanations. If a line is already English, output it unchanged."
-)
-
 
 def translate_to_english(text: str, llm: object = None) -> str:
     """中文→英文翻译（LLM）。失败返回空串，不回退到原文。"""
@@ -28,7 +21,7 @@ def translate_to_english(text: str, llm: object = None) -> str:
         return ""
     try:
         result = llm.chat(f"Translate to English: {text}",
-                          system=tpl("translate_system") or _FALLBACK_TRANSLATE_SYSTEM)
+                          system=tpl("translate_system"))
         if not result or not result.strip():
             return ""
         from infra.json_parse import _strip_thinking_blocks
@@ -57,7 +50,7 @@ def batch_translate_to_english(texts: list[str], llm: object = None) -> list[str
 
     from infra.concurrency.batch import AdaptiveBatchProcessor, estimate_tokens
     processor = AdaptiveBatchProcessor(llm)
-    system_prompt = tpl("batch_translate_system") or _FALLBACK_TRANSLATE_SYSTEM
+    system_prompt = tpl("batch_translate_system")
 
     def build_prompts(batch):
         tagged = []
@@ -164,7 +157,7 @@ def _retry_missing_in_small_batches(
 
     SMALL_BATCH = 10
     batches = [missing[i:i + SMALL_BATCH] for i in range(0, len(missing), SMALL_BATCH)]
-    system_prompt = tpl("batch_translate_system") or _FALLBACK_TRANSLATE_SYSTEM
+    system_prompt = tpl("batch_translate_system")
 
     for bi, batch in enumerate(batches):
         try:

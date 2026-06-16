@@ -1,27 +1,21 @@
 comfyui:
-  url: http://127.0.0.1:8188
+  url: https://f0884998acd74a63a3dee293264273fd--8188.ap-shanghai2.cloudstudio.club
   api_key: ''
-  # 本机 ComfyUI 安装目录（用于 LoRA 文件检测，不填则自动搜索 ~/ComfyUI/models/）
   models_dir: ''
-# 本地优先策略：true 时优先使用本地部署的后端（gpt-sovits/cosyvoice/musetalk 等）
-# 适合有本地模型的用户，无网络也能工作
 local_first: false
 models:
   image_backend: flux
   video_backend: cosmos-video
-  tts_backend: mimo-voicedesign
+  tts_backend: gpt-sovits
   lip_sync_backend: musetalk
   music_backend: template
-  # 全局 LoRA：所有首帧生成时自动注入（不需要训练，直接用）
-  # 格式：- {name: "文件名.safetensors", strength: 权重}
-  # 文件放入 ComfyUI/models/loras/
   global_loras:
-    - {name: "comfyui_portrait_lora64.safetensors", strength: 0.7}  # ACE++ Portrait（角色一致性）
+  - name: comfyui_portrait_lora64.safetensors
+    strength: 0.7
   gpt_sovits:
-    api_url: http://127.0.0.1:9880
-    # 参考音频目录：纯文件名自动拼接此前缀（GPT-SoVITS API 要求绝对路径）
-    # 默认 /workspace/refs，按实际部署目录修改
+    api_url: https://1de6f982768c4831be6dac4a5855239a--9880.ap-shanghai2.cloudstudio.club
     refs_dir: /workspace/refs
+    api_key: ''
   musetalk:
     api_url: http://127.0.0.1:8080
   wav2lip:
@@ -33,16 +27,12 @@ models:
   chattts:
     api_url: http://127.0.0.1:9966
 llm:
-  # ⚠ 新用户须知：设为 true 并配置 api_key 后才能使用 AI 生成（分镜/角色/场景）
-  enabled: false
+  enabled: true
   backend: openai
-  # ── 服务商选择（以下任选一组，取消注释并填入 api_key） ──
-  #
-  # ① 硅基流动（推荐，免费模型多，注册送 14 元 ≈ 1 亿 Token）
-  #    注册: https://cloud.siliconflow.cn
   base_url: https://api.siliconflow.cn/v1
-  model: Qwen/Qwen2.5-7B-Instruct
-  api_key: ''
+  model: Qwen/Qwen3-8B
+  api_key: sk-mvdvmhohwhmabpauoulhuyhuevvtreqruxuegiqneqbdptlx
+  stream: true
   #
   # ② 智谱 AI（GLM-4-Flash 永久免费，注册送 2000 万 Token）
   #    注册: https://open.bigmodel.cn
@@ -271,3 +261,40 @@ presets:
     angry: "愤怒"
     calm: "平静"
     neutral: "中性/无明显情绪"
+
+  # ── 生图 Prompt 映射（中文→英文生图提示词，从 infra/constants.py 硬编码移入） ──
+  shot_type_prompts:
+    特写: "extreme close-up shot, detailed face, looking at viewer"
+    近景: "close-up shot, head and shoulders"
+    中景: "medium shot, waist up"
+    过肩: "over-the-shoulder shot"
+    全身: "full body shot"
+    全景: "wide shot, full scene"
+    远景: "extreme wide shot, establishing shot"
+    双人全景: "two-shot, both characters visible"
+    侧面特写: "side profile close-up shot, detailed side view of face, from the side"
+    背面特写: "back view close-up shot, seen from behind, back of head, facing away from viewer"
+
+  camera_prompts:
+    固定: "static camera"
+    缓慢推近: "slow zoom in, dolly in"
+    跟随平移: "tracking shot, pan"
+    手持晃动: "handheld camera, slight shake"
+    环绕: "orbiting camera, 360 degree"
+    俯视: "top-down shot, bird's eye view"
+    仰视: "low angle shot, looking up"
+
+  emotion_prompts:
+    angry: "angry, furrowed brows, clenched jaw"
+    sad: "sad, teary eyes, downturned mouth"
+    happy: "happy, bright smile, sparkling eyes"
+    worried: "worried, anxious expression, biting lip"
+    surprised: "surprised, wide eyes, open mouth"
+    smug: "smug, slight smirk, raised chin"
+    serious: "serious, focused expression, firm gaze"
+    calm: "calm, serene expression, relaxed posture"
+    determined: "determined, intense gaze, set jaw"
+    fearful: "fearful, trembling, wide eyes"
+    neutral: "neutral expression, natural pose"
+    romantic: "romantic, soft gaze, gentle smile"
+    action: "action pose, intense expression, dynamic"

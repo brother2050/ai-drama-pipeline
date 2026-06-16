@@ -1,6 +1,10 @@
 """共享常量 — 情绪/景别/运镜/后端状态的单一数据源
 
 校验脚本和运行时引擎共用此模块，消除值域不一致问题。
+
+EMOTION_MAP / SHOT_TYPE_MAP / CAMERA_MAP 从 config/system.yaml 的
+presets.emotion_prompts / presets.shot_type_prompts / presets.camera_prompts
+加载，不在此硬编码。
 """
 from __future__ import annotations
 
@@ -32,63 +36,34 @@ STEP_VIDEO = "video"
 STEP_LIPSYNC = "lipsync"
 
 # ══════════════════════════════════════════════════════════
-#  情绪
+#  情绪 / 景别 / 运镜（从 config/system.yaml presets 加载）
 # ══════════════════════════════════════════════════════════
 
-VALID_EMOTIONS = frozenset({
-    "angry", "sad", "happy", "worried", "surprised", "smug",
-    "serious", "calm", "determined", "fearful", "neutral", "romantic", "action",
-})
+def _load_prompt_maps():
+    """从 system.yaml presets 加载生图 prompt 映射（唯一数据源）"""
+    try:
+        from infra.config.core import SYSTEM_CONFIG_PATH
+        import os as _os
+        if not _os.path.isfile(SYSTEM_CONFIG_PATH):
+            return {}, {}, {}
+        from infra.config import load_config
+        cfg = load_config(SYSTEM_CONFIG_PATH)
+        presets = cfg.get("presets", {})
+        return (
+            presets.get("emotion_prompts", {}),
+            presets.get("shot_type_prompts", {}),
+            presets.get("camera_prompts", {}),
+        )
+    except Exception:
+        return {}, {}, {}
 
-EMOTION_MAP: dict[str, str] = {
-    "angry": "angry, furrowed brows, clenched jaw",
-    "sad": "sad, teary eyes, downturned mouth",
-    "happy": "happy, bright smile, sparkling eyes",
-    "worried": "worried, anxious expression, biting lip",
-    "surprised": "surprised, wide eyes, open mouth",
-    "smug": "smug, slight smirk, raised chin",
-    "serious": "serious, focused expression, firm gaze",
-    "calm": "calm, serene expression, relaxed posture",
-    "determined": "determined, intense gaze, set jaw",
-    "fearful": "fearful, trembling, wide eyes",
-    "neutral": "neutral expression, natural pose",
-    "romantic": "romantic, soft gaze, gentle smile",
-    "action": "action pose, intense expression, dynamic",
-}
+_em, _st, _ca = _load_prompt_maps()
+EMOTION_MAP: dict[str, str] = _em
+SHOT_TYPE_MAP: dict[str, str] = _st
+CAMERA_MAP: dict[str, str] = _ca
 
-# ══════════════════════════════════════════════════════════
-#  景别
-# ══════════════════════════════════════════════════════════
-
-SHOT_TYPE_MAP: dict[str, str] = {
-    "特写": "extreme close-up shot, detailed face, looking at viewer",
-    "近景": "close-up shot, head and shoulders",
-    "中景": "medium shot, waist up",
-    "过肩": "over-the-shoulder shot",
-    "全身": "full body shot",
-    "全景": "wide shot, full scene",
-    "远景": "extreme wide shot, establishing shot",
-    "双人全景": "two-shot, both characters visible",
-    "侧面特写": "side profile close-up shot, detailed side view of face, from the side",
-    "背面特写": "back view close-up shot, seen from behind, back of head, facing away from viewer",
-}
-
+VALID_EMOTIONS = frozenset(EMOTION_MAP.keys())
 VALID_SHOT_TYPES = frozenset(SHOT_TYPE_MAP.keys())
-
-# ══════════════════════════════════════════════════════════
-#  运镜
-# ══════════════════════════════════════════════════════════
-
-CAMERA_MAP: dict[str, str] = {
-    "固定": "static camera",
-    "缓慢推近": "slow zoom in, dolly in",
-    "跟随平移": "tracking shot, pan",
-    "手持晃动": "handheld camera, slight shake",
-    "环绕": "orbiting camera, 360 degree",
-    "俯视": "top-down shot, bird's eye view",
-    "仰视": "low angle shot, looking up",
-}
-
 VALID_CAMERAS = frozenset(CAMERA_MAP.keys())
 
 # ══════════════════════════════════════════════════════════
