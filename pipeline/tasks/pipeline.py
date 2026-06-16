@@ -431,7 +431,20 @@ def run_all_task(self, config_path: str, episode: int, vertical: bool = False, f
                 logger.error(f"全流程 {name} 阶段异常: {e}", exc_info=True)
                 return {"status": STATUS_ERROR, "stage": name,
                         "reason": str(e), "results": results}
-        return {"status": STATUS_DONE, "episode": episode, "results": results}
+        return {"status": STATUS_DONE, "episode": episode, "results": results,
+                "quality_issues": _collect_all_quality_issues(results)}
+
+
+def _collect_all_quality_issues(results: dict) -> list:
+    """从各阶段结果中汇总所有 quality_issues"""
+    all_issues = []
+    for stage_key in ("prepare", "post"):
+        stage_result = results.get(stage_key)
+        if isinstance(stage_result, dict):
+            qis = stage_result.get("quality_issues")
+            if isinstance(qis, list):
+                all_issues.extend(qis)
+    return all_issues
 
 
 def _run_stage_entities(config_path: str, episode: int) -> dict:

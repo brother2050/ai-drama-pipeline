@@ -55,7 +55,61 @@ async function loadPipeline() {
     shots = _normalizeShotsFromBackend(d.shots || []);
     if (!shots.length) { el.innerHTML = `<div class="card"><h2>${t('wb.no_storyboard')}</h2><p class="dim">${t('wb.add_shots_first')}</p><button class="btn btn-primary" style="margin-top:0.5rem" onclick="navTo('storyboard')">${t('wb.go_edit_btn')}</button></div>`; return; }
     renderWB(episodes);
+    loadQualityWarnings();  // 加载质量警告
   } catch (e) { el.innerHTML = `<div class="card"><h2>${t('common.error')}</h2><p>${esc(e.message)}</p></div>`; }
+}
+
+// ── 质量警告展示 ──
+
+async function loadQualityWarnings() {
+  try {
+    const data = await api('/quality/status');
+    if (!data.has_warnings) return;
+    const allWarnings = [];
+    for (const [stage, result] of Object.entries(data.stages || {})) {
+      for (const w of (result.warnings || [])) {
+        allWarnings.push({ stage, ...w });
+      }
+      for (const e of (result.errors || [])) {
+        allWarnings.push({ stage, ...e });
+      }
+    }
+    if (allWarnings.length > 0) showQualityWarnings(allWarnings);
+  } catch {}
+}
+
+function showQualityWarnings(issues) {
+  // 移除已有警告卡片
+  const existing = document.getElementById('quality-warn-card');
+  if (existing) existing.remove();
+
+  const statusEl = document.getElementById('wb-batch-status');
+  if (!statusEl) return;
+
+  // 摘取前 6 条详情
+  const details = issues.flatMap(i => (i.details || []).map(d => `• ${d}`));
+  const topDetails = details.slice(0, 6);
+  const moreCount = details.length - topDetails.length;
+
+  statusEl.style.display = 'block';
+  const warnDiv = document.createElement('div');
+  warnDiv.id = 'quality-warn-card';
+  warnDiv.style.cssText = 'margin-bottom:.7rem;padding:.6rem .8rem;background:var(--yellow-soft,rgba(251,191,36,.12));border:1px solid var(--yellow,#fbbf24);border-radius:8px;font-size:.85rem;line-height:1.6;position:relative';
+  warnDiv.innerHTML = `<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem">
+    <span style="font-size:1.1rem">⚠️</span>
+    <b style="color:var(--yellow,#f57f17)">${t('quality.title') || '质量检查提醒'}</b>
+    <span style="color:var(--fg2);font-size:.78rem">${issues.length} 项问题</span>
+    <button onclick="this.parentElement.parentElement.remove()" style="margin-left:auto;background:none;border:none;cursor:pointer;font-size:1.1rem;color:var(--fg2)" title="关闭">✕</button>
+  </div>
+  <div style="color:var(--fg);margin-bottom:.3rem">${topDetails.join('<br>')}${moreCount > 0 ? `<br><span style="color:var(--fg2)">...还有 ${moreCount} 项</span>` : ''}</div>
+  <div style="color:var(--fg2);font-size:.78rem">💡 ${t('quality.hint') || '请在角色/场景编辑页补全缺失的英文翻译和 prompt 后再执行生产'}</div>`;
+  statusEl.before(warnDiv);
+}
+
+function showQualityWarningsInline(qualityIssues) {
+  // 从任务 result 中的 quality_issues 直接展示（不需要 API 调用）
+  if (!qualityIssues || !qualityIssues.length) return;
+  showQualityWarnings(qualityIssues);
 }
 
 function renderWB(episodes) {
@@ -617,6 +671,12 @@ async function runPrepare() {
           翻译: ${r.characters || 0}角色 + ${r.scenes || 0}场景 + ${r.shots || 0}镜头${r.view_prompts ? ` + ${r.view_prompts}视角prompt` : ''}
         </span></div>`;
       toast('✅ ' + t('wb.prepare'));
+      // 检查质量警告
+      const qualityIssues = r.quality_issues;
+      if (qualityIssues && qualityIssues.length > 0) {
+        showQualityWarningsInline(qualityIssues);
+        toast('⚠️ ' + (t('quality.has_warnings') || `发现 ${qualityIssues.length} 项质量问题，请查看详情`), 'warning');
+      }
       // 刷新资源
       invalidateCache(`storyboard/${ep}`);
       invalidateCache(`res/${ep}`);
@@ -651,6 +711,11 @@ async function runAll() {
     if (result.status === 'success' && result.result?.status !== 'error') {
       statusEl.innerHTML = `<div class="batch-done">✅ ${t('wb.run_all')}</div>`;
       toast('✅ ' + t('wb.run_all'));
+      // 检查质量警告（run_all 包含 prepare 阶段）
+      const r = result.result || {};
+      if (r.quality_issues && r.quality_issues.length > 0) {
+        showQualityWarningsInline(r.quality_issues);
+      }
     } else {
       const r = result.result || {};
       statusEl.innerHTML = `<div class="batch-done">❌ ${r.stage || ''}: ${esc(r.reason || result.error || t('wb.shot_fail'))}</div>`;
@@ -682,9 +747,10 @@ async function runSubtitle() { await _runTool('/tools/subtitle', { episode: ep }
 // ══════════════════════════════════════════════════════════
 
 // ── Module: pipeline ──
-Drama.pipeline = { renderShotsGrid, previewRes, loadResources, loadPipeline };
+Drama.pipeline = { renderShotsGrid, previewRes, loadResources, loadPipeline, loadQualityWarnings, showQualityWarnings, showQualityWarningsInline };
 Drama.pages.pipeline = loadPipeline;
 window.loadPipeline = loadPipeline;
+window.loadQualityWarnings = loadQualityWarnings;
 window.renderShotsGrid = renderShotsGrid;
 window.previewRes = previewRes;
 window.loadResources = loadResources;

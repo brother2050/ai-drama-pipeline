@@ -216,6 +216,10 @@ const I18N = {
   'wb.post_short': { zh: '后期', en: 'Post' },
   'wb.portrait_short': { zh: '定妆照', en: 'Portrait' },
   'wb.scene_short': { zh: '场景图', en: 'Scene' },
+  // 质量检查
+  'quality.title': { zh: '质量检查提醒', en: 'Quality Check Warning' },
+  'quality.has_warnings': { zh: '发现质量问题，请查看详情', en: 'Quality issues found, please check details' },
+  'quality.hint': { zh: '请在角色/场景编辑页补全缺失的英文翻译和 prompt 后再执行生产', en: 'Please complete missing English translations and prompts in the character/scene editor before production' },
 
   // 角色补充
   'char.not_found': { zh: '角色不存在', en: 'Character not found' },

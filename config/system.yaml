@@ -6,7 +6,7 @@ local_first: false
 models:
   image_backend: flux
   video_backend: cosmos-video
-  tts_backend: gpt-sovits
+  tts_backend: mimo-voicedesign
   lip_sync_backend: musetalk
   music_backend: template
   global_loras:
@@ -26,84 +26,22 @@ models:
     api_url: http://127.0.0.1:8080
   chattts:
     api_url: http://127.0.0.1:9966
+  mimo_voicedesign:
+    api_key: ''
 llm:
   enabled: true
   backend: openai
   base_url: https://api.siliconflow.cn/v1
   model: Qwen/Qwen3-8B
-  api_key: ''  # 从环境变量 LLM_API_KEY 读取
+  api_key: ''
   stream: true
-  #
-  # ② 智谱 AI（GLM-4-Flash 永久免费，注册送 2000 万 Token）
-  #    注册: https://open.bigmodel.cn
-  # base_url: https://open.bigmodel.cn/api/paas/v4
-  # model: glm-4-flash
-  # api_key: ''
-  #
-  # ③ 阿里云百炼（新用户 7000 万 Token，Qwen-Long 每月 500 万免费）
-  #    注册: https://dashscope.aliyun.com
-  # base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
-  # model: qwen-turbo
-  # api_key: ''
-  #
-  # ④ 字节火山引擎（新用户 5000 万 Token，2026 年最壕）
-  #    注册: https://console.volcengine.com/ark
-  #    ⚠️ model 填推理接入点 ID（ep-xxxx），不是模型名！控制台创建接入点后复制 ID
-  # base_url: https://ark.cn-beijing.volces.com/api/v3
-  # model: ep-xxxxxxxxxxxx-xxxxx
-  # api_key: ''
-  #
-  # ⑤ 腾讯混元（Hunyuan-Lite 长期免费不限总量）
-  #    注册: https://cloud.tencent.com/product/hunyuan
-  # base_url: https://api.hunyuan.cloud.tencent.com/v1
-  # model: hunyuan-lite
-  # api_key: ''
-  #
-  # ⑥ 月之暗面 Kimi（不限 Token 总量，限频 3 次/分钟）
-  #    注册: https://platform.moonshot.cn
-  # base_url: https://api.moonshot.cn/v1
-  # model: moonshot-v1-8k
-  # api_key: ''
-  #
-  # ⑦ 百度千帆（ERNIE-Speed 永久免费，RPM 60）
-  #    注册: https://qianfan.cloud.baidu.com
-  # base_url: https://qianfan.baidubce.com/v2
-  # model: ernie-speed-128k
-  # api_key: ''
-  #
-  # ⑧ DeepSeek（新用户送 10 元额度）
-  #    注册: https://platform.deepseek.com
-  # base_url: https://api.deepseek.com/v1
-  # model: deepseek-chat
-  # api_key: ''
-  #
-  # ⑨ 魔搭社区（每天 2000 次免费调用）
-  #    注册: https://modelscope.cn
-  # base_url: https://api-inference.modelscope.cn/v1
-  # model: Qwen/Qwen2.5-7B-Instruct
-  # api_key: ''
-  #
-  # ⑩ 讯飞星火（spark-lite 总量不限，QPS 2）
-  #    注册: https://xinghuo.xfyun.cn/sparkapi
-  # base_url: https://spark-api-open.xf-yun.com/v1
-  # model: spark-lite
-  # api_key: ''
-  #
-  # ── 本地 Ollama（无需 api_key，需本地安装 Ollama） ──
-  # backend: ollama
-  # base_url: http://localhost:11434
-  # model: qwen3:8b
-  #
-  # context_length: 32768  # 模型上下文长度（token 数，不填则自动检测。常见值：8K/32K/128K）
-  # stream: true          # 流式输出（减少长文本截断风险，推荐开启）
-  # temperature: 0.7      # 生成温度（0.0-2.0，不填用模型默认值）
-  # top_p: 0.9            # 核采样（0.0-1.0，不填用模型默认值）
 training:
   enabled: false
   backend: ai-toolkit
   api_url: http://127.0.0.1:7860
-# MusicGen 配乐（通用 HTTP API，兼容 RunPod / AutoDL / 自部署）
-# 部署参考: https://github.com/alcunii/musicgen-serverless
+  api_key: ''
+  timeout: 3600
+  poll_interval: 10
 music:
   api_url: ''
   api_key: ''
@@ -114,187 +52,160 @@ post_production:
   transition: crossfade
   transition_duration: 0.5
   bgm_volume: 0.15
-  # 双语字幕：中文+英文双行显示（需先运行 prepare 生成 dialogue_en）
   bilingual_subtitle: false
-# 角色面部一致性方案（auto 根据 image_backend 自动选择）
 consistency_method: auto
-
 voices:
-  dir: ""
-  repo_url: "https://github.com/brother2050/voices.git"
-
+  dir: ''
+  repo_url: https://github.com/brother2050/voices.git
 ip_adapter:
   enabled: true
-  model: "ip-adapter-plus-face_sd15.safetensors"
-  clip_vision: "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
+  model: ip-adapter-plus-face_sd15.safetensors
+  clip_vision: CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors
   weight: 0.75
   secondary_weight: 0.45
-  weight_type: "linear"
-  combine_embeds: "concat"
+  weight_type: linear
+  combine_embeds: concat
   start_at: 0.0
   end_at: 1.0
-  embeds_scaling: "V only"
+  embeds_scaling: V only
   multi_ref:
     enabled: true
     max_refs: 3
-    full_body_view: "full_body"
+    full_body_view: full_body
     outfit_weight: 0.6
-
 ip_adapter_flux:
   enabled: true
-  model: "ip-adapter-plus_sdxl_vit-h.safetensors"
-  clip_vision: "CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors"
+  model: ip-adapter-plus_sdxl_vit-h.safetensors
+  clip_vision: CLIP-ViT-bigG-14-laion2B-39B-b160k.safetensors
   weight: 0.75
   secondary_weight: 0.45
-  weight_type: "linear"
-  combine_embeds: "concat"
+  weight_type: linear
+  combine_embeds: concat
   start_at: 0.0
   end_at: 1.0
-  embeds_scaling: "V only"
+  embeds_scaling: V only
   multi_ref:
     enabled: true
     max_refs: 3
-    full_body_view: "full_body"
+    full_body_view: full_body
     outfit_weight: 0.6
-
 pulid_flux:
   enabled: true
-  model: "pulid_flux_v0.9.0.safetensors"
+  model: pulid_flux_v0.9.0.safetensors
   weight: 0.75
   start_at: 0.0
   end_at: 1.0
-  fusion: "mean"
-
+  fusion: mean
 controlnet_depth:
   enabled: false
-  model: "diffusers_Flux-ControlNet-depth.safetensors"
+  model: diffusers_Flux-ControlNet-depth.safetensors
   strength: 0.8
   start_percent: 0.0
   end_percent: 1.0
-
 timeouts:
   comfyui: 900
   tts: 60
   lipsync: 120
   llm: 300
   music: 120
-# 分辨率和步数：默认使用各工作流 JSON 中的模型原生值，无需配置
-# 如需覆盖比例，取消注释并修改（代码自动根据后端原生分辨率计算）：
-# generation:
-#   aspect_ratio: "16:9"      # 横屏（默认）
-#   aspect_ratio: "9:16"      # 竖屏
-#   aspect_ratio: "1:1"       # 方形
-#   resolution: [576, 1024]   # 或精确值（优先级高于 aspect_ratio）
-#   image_steps: 35           # 覆盖步数
-
-# ── 预设（可自由添加，提示词生成器会动态读取） ──
 presets:
   styles:
-    cinematic: "电影质感 — 专业打光、宽银幕构图、电影色调"
-    anime: "动漫风格 — 日系画风、鲜艳色彩、夸张表情"
-    realistic: "写实风格 — 真实光影、自然色彩、纪录片质感"
-    noir: "黑色电影 — 暗调光影、高对比度、冷峻氛围"
-    fantasy: "奇幻风格 — 魔法元素、华丽特效、异世界感"
-    vintage: "复古风格 — 胶片质感、暖色调、怀旧氛围"
-    minimalist: "极简风格 — 干净画面、留白构图、淡雅色调"
-    cyberpunk: "赛博朋克 — 霓虹灯光、科技感、暗色调"
-    watercolor: "水彩风格 — 柔和晕染、通透色彩、手绘质感"
-    ink_wash: "水墨风格 — 东方意境、留白泼墨、古典韵味"
-    comic: "漫画风格 — 粗线条、网点纸、分镜感"
-    oil_painting: "油画风格 — 厚涂笔触、浓郁色彩、古典构图"
-    steampunk: "蒸汽朋克 — 齿轮机械、铜色金属、维多利亚风"
-    pop_art: "波普艺术 — 高饱和、拼贴感、商业视觉"
-    glitch: "故障艺术 — 数字失真、RGB偏移、科技废墟感"
-    dream: "梦幻风格 — 柔焦朦胧、粉紫色调、超现实"
-    dark: "暗黑风格 — 低饱和、阴郁氛围、哥特元素"
-    pixel: "像素风格 — 复古游戏、8-bit、点阵画面"
+    cinematic: 电影质感 — 专业打光、宽银幕构图、电影色调
+    anime: 动漫风格 — 日系画风、鲜艳色彩、夸张表情
+    realistic: 写实风格 — 真实光影、自然色彩、纪录片质感
+    noir: 黑色电影 — 暗调光影、高对比度、冷峻氛围
+    fantasy: 奇幻风格 — 魔法元素、华丽特效、异世界感
+    vintage: 复古风格 — 胶片质感、暖色调、怀旧氛围
+    minimalist: 极简风格 — 干净画面、留白构图、淡雅色调
+    cyberpunk: 赛博朋克 — 霓虹灯光、科技感、暗色调
+    watercolor: 水彩风格 — 柔和晕染、通透色彩、手绘质感
+    ink_wash: 水墨风格 — 东方意境、留白泼墨、古典韵味
+    comic: 漫画风格 — 粗线条、网点纸、分镜感
+    oil_painting: 油画风格 — 厚涂笔触、浓郁色彩、古典构图
+    steampunk: 蒸汽朋克 — 齿轮机械、铜色金属、维多利亚风
+    pop_art: 波普艺术 — 高饱和、拼贴感、商业视觉
+    glitch: 故障艺术 — 数字失真、RGB偏移、科技废墟感
+    dream: 梦幻风格 — 柔焦朦胧、粉紫色调、超现实
+    dark: 暗黑风格 — 低饱和、阴郁氛围、哥特元素
+    pixel: 像素风格 — 复古游戏、8-bit、点阵画面
   genres:
-    urban: "都市情感 — 现代城市背景、职场/恋爱/家庭"
-    suspense: "悬疑推理 — 悬念迭起、推理破案、心理博弈"
-    romance: "甜蜜恋爱 — 浪漫邂逅、甜蜜互动、情感纠葛"
-    action: "动作热血 — 激烈打斗、追逐场面、英雄主义"
-    comedy: "轻松喜剧 — 幽默搞笑、反转误会、欢乐日常"
-    horror: "惊悚恐怖 — 阴森氛围、恐怖元素、心理压迫"
-    scifi: "科幻未来 — 太空/未来/科技、赛博元素"
-    historical: "古装历史 — 古代背景、宫廷/武侠/历史"
-    campus: "校园青春 — 校园生活、青春成长、同学情谊"
-    family: "家庭温情 — 亲情温暖、家庭矛盾、成长治愈"
-    fantasy_xuanhuan: "玄幻仙侠 — 修仙升级、法术对决、异界大陆"
-    wuxia: "武侠江湖 — 刀光剑影、侠义恩仇、武林纷争"
-    mythology: "神话传说 — 上古神兽、天宫地府、仙魔大战"
-    adventure: "冒险探索 — 未知世界、寻宝探险、极限挑战"
-    workplace: "职场商战 — 商业博弈、创业奋斗、办公室政治"
-    sports: "体育竞技 — 热血赛场、逆袭夺冠、团队拼搏"
-    music_dance: "音乐舞蹈 — 舞台梦想、唱跳练习、偶像成长"
-    slice_of_life: "日常治愈 — 慢节奏、小确幸、温馨日常"
-    thriller: "惊悚犯罪 — 高智商犯罪、心理博弈、正邪对决"
-    war_military: "战争军事 — 战场硝烟、军人荣耀、生死抉择"
-    period: "年代怀旧 — 80/90年代、老街旧巷、时代记忆"
-    children: "儿童亲子 — 童趣故事、寓教于乐、温馨陪伴"
-
-  # ── 景别预设（提示词中 ${shot_types} 会替换为此列表） ──
+    urban: 都市情感 — 现代城市背景、职场/恋爱/家庭
+    suspense: 悬疑推理 — 悬念迭起、推理破案、心理博弈
+    romance: 甜蜜恋爱 — 浪漫邂逅、甜蜜互动、情感纠葛
+    action: 动作热血 — 激烈打斗、追逐场面、英雄主义
+    comedy: 轻松喜剧 — 幽默搞笑、反转误会、欢乐日常
+    horror: 惊悚恐怖 — 阴森氛围、恐怖元素、心理压迫
+    scifi: 科幻未来 — 太空/未来/科技、赛博元素
+    historical: 古装历史 — 古代背景、宫廷/武侠/历史
+    campus: 校园青春 — 校园生活、青春成长、同学情谊
+    family: 家庭温情 — 亲情温暖、家庭矛盾、成长治愈
+    fantasy_xuanhuan: 玄幻仙侠 — 修仙升级、法术对决、异界大陆
+    wuxia: 武侠江湖 — 刀光剑影、侠义恩仇、武林纷争
+    mythology: 神话传说 — 上古神兽、天宫地府、仙魔大战
+    adventure: 冒险探索 — 未知世界、寻宝探险、极限挑战
+    workplace: 职场商战 — 商业博弈、创业奋斗、办公室政治
+    sports: 体育竞技 — 热血赛场、逆袭夺冠、团队拼搏
+    music_dance: 音乐舞蹈 — 舞台梦想、唱跳练习、偶像成长
+    slice_of_life: 日常治愈 — 慢节奏、小确幸、温馨日常
+    thriller: 惊悚犯罪 — 高智商犯罪、心理博弈、正邪对决
+    war_military: 战争军事 — 战场硝烟、军人荣耀、生死抉择
+    period: 年代怀旧 — 80/90年代、老街旧巷、时代记忆
+    children: 儿童亲子 — 童趣故事、寓教于乐、温馨陪伴
   shot_types:
-    特写: "面部/物体细节，情感冲击最强"
-    近景: "胸以上，对话/内心戏"
-    中景: "腰以上，日常交互/动作展示"
-    过肩: "双人对话，增强对话感"
-    全身: "完整人物，展示服装/姿态/动作"
-    全景: "人物+环境，建立空间关系"
-    远景: "环境为主，交代场景/营造氛围"
-
-  # ── 运镜预设（提示词中 ${cameras} 会替换为此列表） ──
+    特写: 面部/物体细节，情感冲击最强
+    近景: 胸以上，对话/内心戏
+    中景: 腰以上，日常交互/动作展示
+    过肩: 双人对话，增强对话感
+    全身: 完整人物，展示服装/姿态/动作
+    全景: 人物+环境，建立空间关系
+    远景: 环境为主，交代场景/营造氛围
   cameras:
-    固定: "稳定叙事/对话场景/静态画面"
-    缓慢推近: "聚焦情绪/揭示细节/营造压迫感"
-    跟随平移: "角色行走/场景转换/动态叙事"
-    手持晃动: "紧张感/纪实感/追逐场景"
-    环绕: "展示全貌/仪式感/角色独白"
-    俯视: "渺小感/全局视角/上帝视角"
-    仰视: "威严感/压迫感/英雄登场"
-
-  # ── 情绪预设（提示词中 ${emotions} 会替换为此列表） ──
+    固定: 稳定叙事/对话场景/静态画面
+    缓慢推近: 聚焦情绪/揭示细节/营造压迫感
+    跟随平移: 角色行走/场景转换/动态叙事
+    手持晃动: 紧张感/纪实感/追逐场景
+    环绕: 展示全貌/仪式感/角色独白
+    俯视: 渺小感/全局视角/上帝视角
+    仰视: 威严感/压迫感/英雄登场
   emotions:
-    happy: "开心"
-    sad: "悲伤"
-    worried: "担忧"
-    surprised: "惊讶"
-    angry: "愤怒"
-    calm: "平静"
-    neutral: "中性/无明显情绪"
-
-  # ── 生图 Prompt 映射（中文→英文生图提示词，从 infra/constants.py 硬编码移入） ──
+    happy: 开心
+    sad: 悲伤
+    worried: 担忧
+    surprised: 惊讶
+    angry: 愤怒
+    calm: 平静
+    neutral: 中性/无明显情绪
   shot_type_prompts:
-    特写: "extreme close-up shot, detailed face, looking at viewer"
-    近景: "close-up shot, head and shoulders"
-    中景: "medium shot, waist up"
-    过肩: "over-the-shoulder shot"
-    全身: "full body shot"
-    全景: "wide shot, full scene"
-    远景: "extreme wide shot, establishing shot"
-    双人全景: "two-shot, both characters visible"
-    侧面特写: "side profile close-up shot, detailed side view of face, from the side"
-    背面特写: "back view close-up shot, seen from behind, back of head, facing away from viewer"
-
+    特写: extreme close-up shot, detailed face, looking at viewer
+    近景: close-up shot, head and shoulders
+    中景: medium shot, waist up
+    过肩: over-the-shoulder shot
+    全身: full body shot
+    全景: wide shot, full scene
+    远景: extreme wide shot, establishing shot
+    双人全景: two-shot, both characters visible
+    侧面特写: side profile close-up shot, detailed side view of face, from the side
+    背面特写: back view close-up shot, seen from behind, back of head, facing away from
+      viewer
   camera_prompts:
-    固定: "static camera"
-    缓慢推近: "slow zoom in, dolly in"
-    跟随平移: "tracking shot, pan"
-    手持晃动: "handheld camera, slight shake"
-    环绕: "orbiting camera, 360 degree"
-    俯视: "top-down shot, bird's eye view"
-    仰视: "low angle shot, looking up"
-
+    固定: static camera
+    缓慢推近: slow zoom in, dolly in
+    跟随平移: tracking shot, pan
+    手持晃动: handheld camera, slight shake
+    环绕: orbiting camera, 360 degree
+    俯视: top-down shot, bird's eye view
+    仰视: low angle shot, looking up
   emotion_prompts:
-    angry: "angry, furrowed brows, clenched jaw"
-    sad: "sad, teary eyes, downturned mouth"
-    happy: "happy, bright smile, sparkling eyes"
-    worried: "worried, anxious expression, biting lip"
-    surprised: "surprised, wide eyes, open mouth"
-    smug: "smug, slight smirk, raised chin"
-    serious: "serious, focused expression, firm gaze"
-    calm: "calm, serene expression, relaxed posture"
-    determined: "determined, intense gaze, set jaw"
-    fearful: "fearful, trembling, wide eyes"
-    neutral: "neutral expression, natural pose"
-    romantic: "romantic, soft gaze, gentle smile"
-    action: "action pose, intense expression, dynamic"
+    angry: angry, furrowed brows, clenched jaw
+    sad: sad, teary eyes, downturned mouth
+    happy: happy, bright smile, sparkling eyes
+    worried: worried, anxious expression, biting lip
+    surprised: surprised, wide eyes, open mouth
+    smug: smug, slight smirk, raised chin
+    serious: serious, focused expression, firm gaze
+    calm: calm, serene expression, relaxed posture
+    determined: determined, intense gaze, set jaw
+    fearful: fearful, trembling, wide eyes
+    neutral: neutral expression, natural pose
+    romantic: romantic, soft gaze, gentle smile
+    action: action pose, intense expression, dynamic

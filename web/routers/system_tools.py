@@ -594,3 +594,29 @@ def cancel_task(task_id: str) -> dict:
         app.control.revoke(task_id, terminate=True)
         return {"status": "cancelled", "task_id": task_id}
     return {"status": "already_finished", "task_id": task_id, "state": state}
+
+
+# ══════════════════════════════════════════════════════════
+# 质量检查
+# ══════════════════════════════════════════════════════════
+
+@router.get("/quality/status")
+def get_quality_status() -> dict:
+    """查询当前项目各阶段的质量检查状态（持久化检查，页面加载和任务完成时调用）"""
+    from engines.quality_gate import check_quality
+    project_dir = str(_paths().root)
+    results = {}
+    has_warnings = False
+    # 检查所有已启用的阶段
+    for stage in ("after_prepare", "after_portrait", "after_produce", "after_post"):
+        try:
+            issues = check_quality(stage, project_dir)
+            if issues:
+                warnings = [i for i in issues if i["severity"] == "warning"]
+                errors = [i for i in issues if i["severity"] == "error"]
+                results[stage] = {"warnings": warnings, "errors": errors}
+                if warnings or errors:
+                    has_warnings = True
+        except Exception:
+            continue
+    return {"has_warnings": has_warnings, "stages": results}
