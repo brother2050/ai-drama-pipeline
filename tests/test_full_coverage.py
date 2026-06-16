@@ -874,6 +874,81 @@ class TestInfrastructure:
         assert parse_llm_json('{"url": "https://example.com"}') == {"url": "https://example.com"}
         assert parse_llm_json('{"note": "a, b, c"}') == {"note": "a, b, c"}
 
+    def test_json_parse_real_llm_outputs(self):
+        """模拟真实 LLM 返回结果 — 每种格式 3 个用例"""
+        from infra.json_parse import parse_llm_json
+
+        # ═══════════════════════════════════════════════════
+        #  末尾多余逗号 — LLM 常输出 {"a": 1,}
+        # ═══════════════════════════════════════════════════
+        # 用例1: markdown 代码块内带末尾逗号（GPT-4 常见）
+        assert parse_llm_json(
+            '```json\n{"name": "Tom", "age": 25,}\n```'
+        ) == {"name": "Tom", "age": 25}
+
+        # 用例2: 前后有解释文字 + 嵌套数组末尾逗号（Claude 常见）
+        assert parse_llm_json(
+            'Here is the character data:\n'
+            '{"shots": [{"id": 1, "text": "hello",}, {"id": 2, "text": "world",},]}'
+        ) == {"shots": [{"id": 1, "text": "hello"}, {"id": 2, "text": "world"}]}
+
+        # 用例3: 对象+数组多层末尾逗号（llama.cpp 本地模型常见）
+        assert parse_llm_json(
+            '{"results": [1, 2, 3, 4, 5,  ],}'
+        ) == {"results": [1, 2, 3, 4, 5]}
+
+        # ═══════════════════════════════════════════════════
+        #  Python 字面量 — LLM 输出 True/False/None 而非 true/false/null
+        # ═══════════════════════════════════════════════════
+        # 用例1: markdown 代码块 + 嵌套 Python 字面量（Qwen 常见）
+        assert parse_llm_json(
+            '```json\n'
+            '{"success": True, "data": {"name": "Tom", "admin": False, "extra": None}}\n'
+            '```'
+        ) == {"success": True, "data": {"name": "Tom", "admin": False, "extra": None}}
+
+        # 用例2: 前后有说明文字 + 数组中 Python 字面量（Gemini 常见）
+        assert parse_llm_json(
+            'The generation result is:\n'
+            '{"characters": [{"name": "Tom", "approved": True}, '
+            '{"name": "Jerry", "approved": False}]}\n'
+            'Done.'
+        ) == {"characters": [{"name": "Tom", "approved": True},
+                             {"name": "Jerry", "approved": False}]}
+
+        # 用例3: 深层嵌套的 Python 字面量（Mistral 常见）
+        assert parse_llm_json(
+            '{"config": {"enabled": True, "options": [None, False, True]}}'
+        ) == {"config": {"enabled": True, "options": [None, False, True]}}
+
+        # ═══════════════════════════════════════════════════
+        #  JavaScript 注释 — LLM 在 JSON 前后或中间插入注释
+        # ═══════════════════════════════════════════════════
+        # 用例1: JSON 中穿插行注释（DeepSeek 有时会）
+        assert parse_llm_json(
+            '{"characters": [\n'
+            '  // 主角团队\n'
+            '  {"name": "Tom", "role": "hero"},\n'
+            '  {"name": "Jerry", "role": "sidekick"}\n'
+            ']}'
+        ) == {"characters": [{"name": "Tom", "role": "hero"},
+                             {"name": "Jerry", "role": "sidekick"}]}
+
+        # 用例2: JSON 前面有块注释（一些 Agent 框架的输出）
+        assert parse_llm_json(
+            '/* Auto-generated character data */\n'
+            '{\n'
+            '  "name": "Tom",\n'
+            '  "traits": ["brave", "clever"]\n'
+            '}'
+        ) == {"name": "Tom", "traits": ["brave", "clever"]}
+
+        # 用例3: JSON 中间有块注释（AI coding assistant 输出）
+        assert parse_llm_json(
+            '{"name": "Tom", /* inline comment */ "age": 25, '
+            '"role": "hero" /* another */}'
+        ) == {"name": "Tom", "age": 25, "role": "hero"}
+
     def test_constants(self):
         """常量完整性"""
         from infra.constants import (
