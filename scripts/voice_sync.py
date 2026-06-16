@@ -20,14 +20,16 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 _REPO_URL = "https://github.com/brother2050/voices.git"
+# 统一使用集中式路径工具
+_DEFAULT_DIR = get_voices_dir()
 
 
 def _get_repo_url() -> str:
     """从 system.yaml 读取 voices.repo_url，回退到环境变量或默认值"""
     try:
         from infra.config import load_config
-        from infra.config.resolver import get_root
-        system = load_config(get_root() / "config" / "system.yaml", safe=True) or {}
+        from infra.config.core import SYSTEM_CONFIG_PATH
+        system = load_config(SYSTEM_CONFIG_PATH, safe=True) or {}
         return system.get("voices", {}).get("repo_url", "")
     except Exception:
         return ""
@@ -48,8 +50,7 @@ def sync_voices(target_dir: Path | None = None, repo_url: str = "", index_only: 
     Returns:
         {"status": "ok", "count": N, "index_path": "..."}
     """
-    from infra.config.resolver import get_voices_dir
-    target_dir = target_dir or get_voices_dir()
+    target_dir = target_dir or _DEFAULT_DIR
     repo_url = repo_url or _get_repo_url() or _REPO_URL
     target_dir.mkdir(parents=True, exist_ok=True)
 

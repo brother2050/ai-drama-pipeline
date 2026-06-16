@@ -159,10 +159,11 @@ def _estimate_parallelism(model_mem_mb: int) -> int:
 
 def _setup_hf_env():
     """配置 HuggingFace 镜像和 Token（从 .env 或环境变量读取）"""
+    from infra.config.resolver import get_root
+    env_file = get_root() / ".env"
+
     # HF_ENDPOINT: 国内镜像加速（.env.example 中有配置）
     if not os.environ.get("HF_ENDPOINT"):
-        # 尝试从项目 .env 读取
-        env_file = Path(__file__).resolve().parent.parent / ".env"
         if env_file.exists():
             for line in env_file.read_text().splitlines():
                 line = line.strip()
@@ -177,7 +178,6 @@ def _setup_hf_env():
     if os.environ.get("HF_TOKEN"):
         logger.info("HF_TOKEN 已配置（认证请求，速率更高）")
     else:
-        env_file = Path(__file__).resolve().parent.parent / ".env"
         if env_file.exists():
             for line in env_file.read_text().splitlines():
                 line = line.strip()
