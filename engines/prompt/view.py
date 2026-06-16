@@ -39,84 +39,19 @@ def get_view_appearance(char: dict, shot_type: str, *, view_key: str = "") -> st
     return build_view_prompt(base_en, body_features, view_key)
 
 
-_VIEW_PREFIX_FALLBACK = {
-    "front": "front view portrait, facing directly at camera, looking into camera, centered face, full frontal, both eyes visible, symmetrical face, detailed face, clear eyes, sharp focus, well-lit, high resolution skin texture",
-    "left_side": (
-        "strict left side profile portrait, head turned exactly 90 degrees to the left, "
-        "camera positioned directly to the left of the subject, "
-        "only the left side of the face is visible from this angle, "
-        "right side of face completely hidden and not visible, "
-        "left eye visible and looking left, right eye hidden behind nose bridge, "
-        "left ear fully visible and prominent, right ear not visible, "
-        "nose profile pointing left, nostril visible from left side, "
-        "chin and jawline clearly defined from left angle, "
-        "left cheek fully illuminated by light from the left, "
-        "right cheek in shadow and not visible, "
-        "hair parted showing left temple, "
-        "dramatic lighting from the left side casting shadows to the right, "
-        "asymmetric composition, single eye visible, profile portrait, shot from the left"
-    ),
-    "right_side": (
-        "strict right side profile portrait, head turned exactly 90 degrees to the right, "
-        "camera positioned directly to the right of the subject, "
-        "only the right side of the face is visible from this angle, "
-        "left side of face completely hidden and not visible, "
-        "right eye visible and looking right, left eye hidden behind nose bridge, "
-        "right ear fully visible and prominent, left ear not visible, "
-        "nose profile pointing right, nostril visible from right side, "
-        "chin and jawline clearly defined from right angle, "
-        "right cheek fully illuminated by light from the right, "
-        "left cheek in shadow and not visible, "
-        "hair parted showing right temple, "
-        "dramatic lighting from the right side casting shadows to the left, "
-        "asymmetric composition, single eye visible, profile portrait, shot from the right"
-    ),
-    "back": "back view, rear view, seen from behind, facing away from viewer, camera behind the subject, back of head visible, back of body visible, no face visible, facing away, looking away from camera, back of shoulders visible, hair seen from behind",
-    "three_quarter": "three-quarter view, head turned approximately 45 degrees to the right, camera positioned slightly to the right of the subject, right side of face more visible than left, right ear partially visible, left ear barely visible, nose angled slightly right, looking slightly to the right, one eye closer to camera than the other, asymmetric face lighting, from the right at 45 degrees",
-    "full_body": "full body portrait, head to toe, showing entire body from head to feet, complete figure visible, body proportions visible, clothing fully visible, hair fully visible, standing pose, neutral stance, full body shot, wide angle",
-}
-
-_VIEW_NEGATIVE_FALLBACK = {
-    "left_side": "front view, facing camera, both sides of face visible, looking at viewer, symmetrical face, forward facing, straight on, right side profile, facing right, both eyes visible, both ears visible, mirror image, flipped, reversed, three-quarter view, 45 degree angle, partial profile",
-    "right_side": "front view, facing camera, both sides of face visible, looking at viewer, symmetrical face, forward facing, straight on, left side profile, facing left, both eyes visible, both ears visible, mirror image, flipped, reversed, three-quarter view, 45 degree angle, partial profile",
-    "back": "front view, facing camera, face visible, looking at viewer, side view, profile, eyes visible, nose visible, mouth visible, facing forward, both sides of face visible, symmetrical face, three-quarter view",
-    "three_quarter": "front view, straight on, back view, full profile, 90 degree turn, symmetrical face, facing directly at camera, both ears equally visible, facing away, both sides of face visible",
-    "full_body": "close-up, portrait only, face only, headshot, cropped, half body, upper body, bust, missing legs, missing feet, missing arms",
-}
+def get_view_prefix(view: str, default_view: str = "front") -> str:
+    """从 prompt_templates.yaml 读取视角前缀 prompt"""
+    return tpl(f"view_prefix_{view}") or tpl(f"view_prefix_{default_view}")
 
 
-class _ViewPromptDict:
-    """从 prompt_templates.yaml 懒加载视角 prompt 的 dict-like 对象"""
-    def __init__(self, prefix: str, fallback: dict[str, str]):
-        self._prefix = prefix
-        self._fallback = fallback
-        self._cache: dict[str, str] = {}
-
-    def get(self, key: str, default: str = "") -> str:
-        if key in self._cache:
-            return self._cache[key]
-        val = tpl(f"{self._prefix}_{key}")
-        result = val if val else self._fallback.get(key, default)
-        self._cache[key] = result
-        return result
-
-    def __getitem__(self, key: str) -> str:
-        val = self.get(key)
-        if not val:
-            raise KeyError(key)
-        return val
-
-    def __contains__(self, key: str) -> bool:
-        return bool(self.get(key))
-
-
-_VIEW_PREFIX = _ViewPromptDict("view_prefix", _VIEW_PREFIX_FALLBACK)
-_VIEW_NEGATIVE = _ViewPromptDict("view_negative", _VIEW_NEGATIVE_FALLBACK)
+def get_view_negative(view_key: str) -> str:
+    """从 prompt_templates.yaml 读取视角负面 prompt"""
+    return tpl(f"view_negative_{view_key}")
 
 
 def build_view_prompt(base_en: str, body_features: str, view: str) -> str:
     """从通用 prompt + 身体特征构建视角专属 prompt"""
-    prefix = _VIEW_PREFIX.get(view, _VIEW_PREFIX["front"])
+    prefix = get_view_prefix(view)
 
     filtered_base = _filter_features_in_text(base_en, view) if base_en else ""
     parts = [prefix, filtered_base]
