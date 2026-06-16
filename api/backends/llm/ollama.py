@@ -1,6 +1,7 @@
 """Ollama / OpenAI 兼容 LLM — HTTP API（含错误驱动模型限制发现）"""
 from __future__ import annotations
 import logging
+import os
 import time
 from api.registry import BackendMeta, registry
 from infra.http_pool import get_client, auth_headers
@@ -156,7 +157,7 @@ class OpenAICompatLLM:
         if not self._url:
             raise ValueError("OpenAI 兼容 LLM base_url 未配置，请在 system.yaml 的 llm.base_url 中设置")
         self._model = config.get("model", "qwen2.5-7b")
-        self._api_key = config.get("api_key", "")
+        self._api_key = config.get("api_key") or os.environ.get("LLM_API_KEY", "")
         self._timeout = config.get("timeouts", {}).get("llm", 300)
         self._ctx = config.get("context_length", 0)
         self._temperature = config.get("temperature")

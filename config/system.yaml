@@ -31,7 +31,7 @@ llm:
   backend: openai
   base_url: https://api.siliconflow.cn/v1
   model: Qwen/Qwen3-8B
-  api_key: sk-mvdvmhohwhmabpauoulhuyhuevvtreqruxuegiqneqbdptlx
+  api_key: ''  # 从环境变量 LLM_API_KEY 读取
   stream: true
   #
   # ② 智谱 AI（GLM-4-Flash 永久免费，注册送 2000 万 Token）
