@@ -252,7 +252,7 @@ def run_pipeline(req: PipelineRequest) -> dict:
 
 @router.get("/pipeline/status/{episode}")
 def pipeline_status(episode: int) -> dict:
-    from flow.episode import get_episode_status
+    from engines.content.episode import get_episode_status
     return get_episode_status(str(_proj()), episode)
 
 

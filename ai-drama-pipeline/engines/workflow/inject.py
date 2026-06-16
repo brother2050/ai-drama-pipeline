@@ -41,8 +41,10 @@ def _next_suffix() -> int:
 # ══════════════════════════════════════════════════════════
 
 def _find_model_pipeline(wf: dict) -> tuple[str | None, str | None]:
-    """查找 KSampler 和其 model source 节点"""
+    """查找 KSampler / KSamplerAdvanced 和其 model source 节点"""
     ksampler = find_first_node(wf, "KSampler")
+    if not ksampler:
+        ksampler = find_first_node(wf, "KSamplerAdvanced")
     if not ksampler:
         return None, None
     model_source = resolve_model_source(wf, ksampler)

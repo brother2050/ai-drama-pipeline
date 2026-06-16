@@ -23,6 +23,17 @@ _REPO_URL = "https://github.com/brother2050/voices.git"
 _ROOT = Path(__file__).resolve().parent.parent
 _DEFAULT_DIR = _ROOT / "shared_assets" / "voices"
 
+
+def _get_repo_url() -> str:
+    """从 system.yaml 读取 voices.repo_url，回退到环境变量或默认值"""
+    try:
+        from infra.config import load_config
+        system = load_config(_ROOT / "config" / "system.yaml", safe=True) or {}
+        return system.get("voices", {}).get("repo_url", "")
+    except Exception:
+        return ""
+
+
 # 文件名模式: {序号}_{场景}_{声线}.wav
 _NAME_RE = re.compile(r"^(\d+)_(.+?)_(.+?)\.wav$")
 
@@ -39,7 +50,7 @@ def sync_voices(target_dir: Path | None = None, repo_url: str = "", index_only: 
         {"status": "ok", "count": N, "index_path": "..."}
     """
     target_dir = target_dir or _DEFAULT_DIR
-    repo_url = repo_url or _REPO_URL
+    repo_url = repo_url or _get_repo_url() or _REPO_URL
     target_dir.mkdir(parents=True, exist_ok=True)
 
     count = 0

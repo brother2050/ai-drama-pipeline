@@ -141,11 +141,22 @@ def _resolve_shot_context(shot: dict, cfg, characters: dict | None, scenes: dict
 
 
 def _ensure_char_scene_data(cfg, characters, scenes):
-    """确保角色/场景数据已加载（按需加载，不预加载分镜）"""
+    """确保角色/场景数据已加载（按需加载，不预加载分镜）
+
+    返回 (characters, scenes) 两个 dict，其中 characters 的 key 同时支持
+    name（来自 parse_char_names）和 hash_id（来自 load_project_entities）。
+    """
     if characters is not None and scenes is not None:
         return characters, scenes
     from infra.config import load_project_entities
     characters, scenes = load_project_entities(cfg.paths)
+    # load_project_entities 返回 id-keyed dict，但 _resolve_shot_context
+    # 使用 parse_char_names 返回的 name 进行查找。
+    # 构建 name→id 映射，使两种 key 都能命中。
+    name_to_id_map = {v.get("name", ""): k for k, v in characters.items() if isinstance(v, dict)}
+    for name, cid in name_to_id_map.items():
+        if name and name not in characters:
+            characters[name] = characters[cid]
     return characters, scenes
 
 

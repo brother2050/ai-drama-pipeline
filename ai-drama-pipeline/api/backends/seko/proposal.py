@@ -15,7 +15,7 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-_API_BASE = "https://seko.sensetime.com"
+_API_BASE = os.environ.get("SEKO_API_URL", "https://seko.sensetime.com")
 _TIMEOUT = httpx.Timeout(30.0, connect=10.0)
 
 
