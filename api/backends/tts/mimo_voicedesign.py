@@ -92,35 +92,42 @@ class MimoVoiceDesign:
         voice_config = voice_config or {}
         voice_desc = voice_config.get("voice_description", "") or voice_config.get("core_traits", "")
         voice_id = voice_config.get("voice_id", "")
-        is_v25 = "v2.5" in self._model or "voicedesign" in self._model
-        is_voicedesign = "voicedesign" in self._model
+
+        # 动态选模型：有 voice_id 用基础模型（预设音色），无则用 voicedesign（纯描述驱动）
+        if voice_id:
+            model = self._model  # 默认 mimo-v2.5-tts
+        else:
+            model = "mimo-v2.5-tts-voicedesign"
+
+        is_v25 = "v2.5" in model or "voicedesign" in model
+        is_voicedesign = "voicedesign" in model
 
         messages = _build_messages(text, voice_desc, emotion, is_v25, is_voicedesign)
         audio_params: dict = {"format": "wav"}
         if not is_voicedesign and voice_id:
             audio_params["voice"] = voice_id
 
-        logger.info(f"TTS 请求 [{self._model}] text={text[:100]!r} voice={voice_desc[:60]!r} emotion={emotion}")
+        logger.info(f"TTS 请求 [{model}] text={text[:100]!r} voice={voice_desc[:60]!r} emotion={emotion}")
         t0 = time.time()
         r = self._client.post(
             self._api_url,
             headers=auth_headers(self._api_key, api_key_header="api-key"),
-            json={"model": self._model, "audio": audio_params, "messages": messages})
+            json={"model": model, "audio": audio_params, "messages": messages})
         r.raise_for_status()
         resp = r.json()
         if resp.get("error"):
-            logger.error(f"TTS 失败 [{self._model}] {time.time()-t0:.1f}s API错误: {resp['error']}")
+            logger.error(f"TTS 失败 [{model}] {time.time()-t0:.1f}s API错误: {resp['error']}")
             raise RuntimeError(f"MiMo TTS API 错误: {resp['error']}")
 
         try:
             audio_data = resp["choices"][0]["message"]["audio"]["data"]
             raw = base64.b64decode(audio_data)
         except (KeyError, IndexError, TypeError) as e:
-            logger.error(f"TTS 失败 [{self._model}] {time.time()-t0:.1f}s 响应格式异常: {e}")
+            logger.error(f"TTS 失败 [{model}] {time.time()-t0:.1f}s 响应格式异常: {e}")
             raise RuntimeError(f"MiMo TTS 响应格式异常: {e}") from e
 
         write_wav_or_pcm(raw, output)
-        logger.info(f"TTS 完成 [{self._model}] {time.time()-t0:.1f}s → {output} ({len(raw)} bytes)")
+        logger.info(f"TTS 完成 [{model}] {time.time()-t0:.1f}s → {output} ({len(raw)} bytes)")
         return output
 
     def shutdown(self):
