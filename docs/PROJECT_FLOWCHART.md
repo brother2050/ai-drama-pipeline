@@ -121,11 +121,13 @@
 │ 输入: 角色YAML (appearance_prompt_en + outfits)                │
 │ 处理:                                                         │
 │   1. WorkflowBuilder 构建 ComfyUI 首帧工作流                   │
-│   2. 注入 IP-Adapter/PuLID 面部一致性                          │
-│   3. 注入角色 LoRA（如有训练）                                  │
-│   4. 注入全局 LoRA（如 ACE++ Portrait）                        │
-│   5. ComfyUI 生成 → cover.png                                 │
-│   6. 各服装 outfit_*.png                                       │
+│   2. 调用 ComfyUI /object_info 获取可用节点                      │
+│   3. 注入 IP-Adapter/PuLID 面部一致性（按节点可用性自动跳过）     │
+│      - 若 required_comfyui_nodes 缺失 → Warning + 跳过，不中断  │
+│   4. 注入角色 LoRA（如有训练）                                  │
+│   5. 注入全局 LoRA（如 ACE++ Portrait）                        │
+│   6. ComfyUI 生成 → cover.png                                 │
+│   7. 各服装 outfit_*.png                                       │
 │ 输出: assets/characters/{id}/cover.png                         │
 │       assets/characters/{id}/default/outfit_*.png              │
 │ ──────────────────────────────────────────────────────────────│
@@ -134,6 +136,9 @@
 │   sd15  → IP-Adapter Plus (面部特征注入)                       │
 │   cosmos → 无一致性方案（仅LoRA+seed）                         │
 │   auto  → 根据 image_backend 自动选择                          │
+│ ──────────────────────────────────────────────────────────────│
+│ 节点可用性校验 (启动时):                                        │
+│   检查 required_comfyui_nodes → 缺失则跳过对应方案 (WARNING)    │
 └───────────────────────────────────────────────────────────────┘
     │
     ▼
@@ -186,6 +191,7 @@
 │ │      - GPU参数注入 (分辨率/步数/采样器)                  │   │
 │ │      - Prompt注入 (positive/negative)                    │   │
 │ │      - 一致性方案注入 (IP-Adapter/PuLID/LoRA)           │   │
+│ │        (自动节点检测: 缺失则 WARNING 跳过，不中断管线)     │   │
 │ │      - Seed随机化                                        │   │
 │ │   3. 并行上传参考图到ComfyUI                             │   │
 │ │   4. comfyui_generate → frame.png                       │   │
@@ -608,6 +614,7 @@ LLM 翻译>30%失败      跳过重试（服务异常）
 配乐生成失败          跳过（不阻断）
 横转竖失败            跳过（不阻断）
 角色参考图上传失败    阻断（raise RuntimeError）
+一致性插件节点缺失     跳过，记录 WARNING（/object_info 自动检测）
 场景图上传失败        警告（不阻断）
 DB 连接失败           降级（文件系统回退）
 Redis 不可用          CLI 自动尝试启动

@@ -19,9 +19,10 @@
 | **Seko 策划案** | 集成 seko.sensetime.com 影视策划案生成/修改 |
 | **IP-Adapter Plus** | 基于 ip-adapter-plus-face 模型的角色面部一致性（SD1.5/SDXL 后端） |
 | **PuLID-Flux** | 基于 PuLID 的 Flux 面部一致性（Flux 后端，推荐） |
+| **自动节点检测** | 启动时自动查询 ComfyUI /object_info，一致性方案按可用节点动态跳过 |
 | **声线库** | 1000 种声线一键选用，搜索/试听/分配到角色 |
 | **安全加固** | 输入校验、路径遍历防护、速率限制 |
-| **277 项测试** | 集成测试 + Celery Mock + 前端 E2E + 导入测试 |
+| **防御式后端** | AIToolkitTrainer / ComfyUI / VideoBase 全部标准化 health_check + shutdown |
 
 ---
 
@@ -367,6 +368,8 @@ consistency_method: auto   # auto / pulid_flux / ip_adapter / none
 #   ip_adapter:  强制使用 IP-Adapter Plus（需 SD1.5/SDXL 后端）
 #   none:        不使用一致性方案（仅靠 LoRA + seed）
 ```
+
+> **启动时自动检测**：管线启动时会调用 ComfyUI `/object_info` 端点获取已注册节点类型，与 YAML 中每个一致性方案的 `required_comfyui_nodes` 比对。若所需插件未安装，对应方案自动跳过（带 Warning 日志），不会报错中断。
 
 #### 6.1 安装 ComfyUI 自定义节点
 

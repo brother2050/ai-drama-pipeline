@@ -3,7 +3,8 @@
 > 2026-06-07 全项目 5 链路审查（5 子代理 + 人工复核，约 25,000 行代码）
 > 2026-06-10 分阶段执行职责分离（AI分镜/实体/准备各管各的）
 > 2026-06-14 6 agent 深度审查（infra/engines/pipeline/web+api/flow+post+cli）+ 翻译自修复
-> 已修复 75+ 项，见 git log。
+> 2026-06-16 hasattr 静默失败 + 一致性节点检测 + 后端标准化审查
+> 已修复 80+ 项，见 git log。
 
 ---
 
@@ -77,3 +78,8 @@ _无_
 | 死代码 get_or_check / get_cached | `infra/monitor.py` | 被 get_or_check_full 取代 / 从未调用 |
 | 死代码 is_available / stats | `infra/concurrency_groups.py` | 从未调用，is_available 有 TOCTOU 问题 |
 | 短剧管理 AI 从大纲预填 | `web/static/js/drama.js` | 生成角色/场景时从总大纲/各集大纲自动预填描述到 textarea |
+| get_available_node_types 缺失 | `api/backends/image/comfyui.py` | ComfyUI 类缺少该方法 → available_nodes 恒空 → 全部一致性方案静默跳过 |
+| controlnet_depth 硬编码重复 | `engines/workflow/inject.py` + `node_graph.py` | 节点可用性检查统一到 inject_from_registry() 入口，去除 Python 硬编码 |
+| AIToolkitTrainer 缺少标准接口 | `api/backends/training/ai_toolkit.py` | 新增 health_check() + shutdown()，参与 Container fallback |
+| upload_image 无 hasattr 保护 | `engines/workflow/builder.py` | 添加 hasattr(self.comfyui, 'upload_image') 防御 |
+| _ComfyUIVideoBase 未代理 | `api/backends/video/animatediff.py` | 添加 get_available_node_types() 代理方法 |

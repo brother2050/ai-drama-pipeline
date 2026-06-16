@@ -22,5 +22,7 @@
 工作流中的节点会被自动识别：
 - `LoadImage` / `LoadImageFromPath` / `ImageLoad` → 角色参考图注入
 - `CLIPTextEncode` → Prompt 自动注入
-- `IPAdapterAdvanced` → 角色一致性权重调整
+- `IPAdapterAdvanced` → IP-Adapter 角色一致性权重调整
+- `PulidFluxModelLoader` / `ApplyPulidFlux` → PuLID-Flux 面部一致性（启动时通过 /object_info 自动检测）
+- `FluxControlNetLoader` / `ApplyFluxControlNet` → ControlNet Depth 全身结构一致性
 - `KSampler` → 采样参数调整

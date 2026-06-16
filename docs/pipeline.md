@@ -433,6 +433,8 @@ consistency_method: auto   # auto / pulid_flux / ip_adapter / none
 | `ip_adapter` | IP-Adapter Plus 面部一致性 | SD1.5/SDXL（UNet） |
 | `none` | 不使用一致性（仅 LoRA + seed） | 全部 |
 
+> **自动节点检测**：启动时调用 ComfyUI `/object_info` 获取已注册节点类型，与各方案的 `required_comfyui_nodes`（定义在 `models_registry.yaml`）比对。若所需插件未安装，对应方案自动跳过并记录 Warning，不中断管线。检查统一在 `inject_from_registry()` 入口执行，覆盖泛型 `NodeGraphInjector` 和 `inject_method` 覆盖（如 ControlNet Depth）两条路径。
+
 ### PuLID-Flux（Flux 后端推荐）
 
 > InsightFace 检测人脸 → EVA CLIP 编码 → 注入 Flux DiT 注意力层
