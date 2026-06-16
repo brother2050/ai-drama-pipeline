@@ -949,6 +949,174 @@ class TestInfrastructure:
             '"role": "hero" /* another */}'
         ) == {"name": "Tom", "age": 25, "role": "hero"}
 
+    def test_json_parse_step_chain_coverage(self):
+        """parse_llm_json 全部 7 层核心步骤 — 每步 3 个真实 LLM 返回用例"""
+        from infra.json_parse import parse_llm_json
+
+        # ═══════════════════════════════════════════════════
+        # Step 0: <think>...</think> 思考块清理 → DeepSeek-R1 / Qwen3
+        # ═══════════════════════════════════════════════════
+        # 用例0-1: DeepSeek-R1 典型输出 — <think> 在 JSON 前
+        assert parse_llm_json(
+            '<think>让我分析一下角色设定...角色需要勇敢、聪明两个特质。</think>\n'
+            '{"name": "Tom", "traits": ["brave", "clever"]}'
+        ) == {"name": "Tom", "traits": ["brave", "clever"]}
+
+        # 用例0-2: Qwen3 变体 — <thinking> 标签
+        assert parse_llm_json(
+            '<thinking>Analyzing the scene requirements...</thinking>\n'
+            '{"scene_id": 1, "duration": 30}'
+        ) == {"scene_id": 1, "duration": 30}
+
+        # 用例0-3: 未闭合 — 模型截断只留 <think> 开头，无有效 JSON
+        assert parse_llm_json(
+            '<think>正在分析角色数据...'
+        ) is None
+
+        # ═══════════════════════════════════════════════════
+        # Step 1: 纯 JSON 直接解析 → GPT-4 JSON mode / Claude / Gemini
+        # ═══════════════════════════════════════════════════
+        # 用例1-1: GPT-4 JSON mode — 干净的嵌套对象
+        assert parse_llm_json(
+            '{"script": {"title": "The Adventure", "scenes": ['
+            '{"id": 1, "location": "forest"}, '
+            '{"id": 2, "location": "castle"}]}}'
+        ) == {"script": {"title": "The Adventure",
+                         "scenes": [{"id": 1, "location": "forest"},
+                                    {"id": 2, "location": "castle"}]}}
+
+        # 用例1-2: Claude — 干净的数组
+        assert parse_llm_json(
+            '[{"character": "Tom", "lines": ["Hello!", "Goodbye!"]}, '
+            '{"character": "Jerry", "lines": ["Hi!"]}]'
+        ) == [{"character": "Tom", "lines": ["Hello!", "Goodbye!"]},
+              {"character": "Jerry", "lines": ["Hi!"]}]
+
+        # 用例1-3: Gemini — 含 float / bool / 0 / 数组的纯 JSON
+        assert parse_llm_json(
+            '{"name": "Tom", "score": 95.5, "tags": ["hero", "clever"], '
+            '"meta": {"approved": true, "count": 0}}'
+        ) == {"name": "Tom", "score": 95.5, "tags": ["hero", "clever"],
+              "meta": {"approved": True, "count": 0}}
+
+        # ═══════════════════════════════════════════════════
+        # Step 2: markdown 代码块 ```json → GPT-4 / Claude / Qwen
+        # ═══════════════════════════════════════════════════
+        # 用例2-1: GPT-4 — ```json 块内含复杂 JSON
+        assert parse_llm_json(
+            '```json\n'
+            '{"storyboard": {"panels": ['
+            '{"number": 1, "action": "fade in"}, '
+            '{"number": 2, "action": "cut"}]}}\n'
+            '```'
+        ) == {"storyboard": {"panels": [{"number": 1, "action": "fade in"},
+                                       {"number": 2, "action": "cut"}]}}
+
+        # 用例2-2: Claude — 无语言标签的 ``` 块
+        assert parse_llm_json(
+            '```\n{"status": "ok", "data": [1, 2, 3]}\n```'
+        ) == {"status": "ok", "data": [1, 2, 3]}
+
+        # 用例2-3: Qwen — markdown 块前有简短说明
+        assert parse_llm_json(
+            '返回结果如下：\n'
+            '```json\n{"result": {"code": 0, "msg": "success"}}\n```'
+        ) == {"result": {"code": 0, "msg": "success"}}
+
+        # ═══════════════════════════════════════════════════
+        # Step 3: 深度括号匹配提取（前后有文字）→ GPT-4 / Claude / Llama
+        # ═══════════════════════════════════════════════════
+        # 用例3-1: GPT-4 — JSON 前后都有英文说明
+        assert parse_llm_json(
+            'Based on your request, here is the character profile: '
+            '{"name": "Tom", "role": "protagonist", '
+            '"background": "A brave young man"} '
+            'Hope this helps!'
+        ) == {"name": "Tom", "role": "protagonist",
+              "background": "A brave young man"}
+
+        # 用例3-2: Claude — 长解释 + JSON 嵌套在中间
+        assert parse_llm_json(
+            'Let me break down the scene. First, consider the emotional arc. '
+            'Then: {"scene": {"id": 5, "emotion": "tension", '
+            '"characters": ["Tom", "Jerry"]}} '
+            'After that, the resolution comes naturally.'
+        ) == {"scene": {"id": 5, "emotion": "tension",
+                        "characters": ["Tom", "Jerry"]}}
+
+        # 用例3-3: Llama — 前面中文叙述 + 嵌套数组 JSON
+        assert parse_llm_json(
+            '根据你提供的剧本需求，我为你生成了以下分镜表：\n'
+            '{"shots": [{"id": 1, "camera": "特写", "duration": 3}, '
+            '{"id": 2, "camera": "中景", "duration": 5}]}\n'
+            '希望这些分镜能帮到你！'
+        ) == {"shots": [{"id": 1, "camera": "特写", "duration": 3},
+                        {"id": 2, "camera": "中景", "duration": 5}]}
+
+        # ═══════════════════════════════════════════════════
+        # Step 4: 单引号 Python dict → ast.literal_eval
+        # ═══════════════════════════════════════════════════
+        # 用例4-1: LangChain 旧版 — 简单单引号 dict
+        assert parse_llm_json(
+            "{'name': 'Tom', 'age': 25}"
+        ) == {"name": "Tom", "age": 25}
+
+        # 用例4-2: 嵌套单引号 dict + 数组
+        assert parse_llm_json(
+            "{'data': {'items': [{'id': 1, 'label': 'A'}, "
+            "{'id': 2, 'label': 'B'}]}}"
+        ) == {"data": {"items": [{"id": 1, "label": "A"},
+                                 {"id": 2, "label": "B"}]}}
+
+        # 用例4-3: 单引号 + Python None/True/False
+        assert parse_llm_json(
+            "{'ok': True, 'val': None, 'flag': False}"
+        ) == {"ok": True, "val": None, "flag": False}
+
+        # ═══════════════════════════════════════════════════
+        # Step 5-6: 截断 JSON 补全闭合括号（token 限制）
+        # ═══════════════════════════════════════════════════
+        # 用例5-1: token 限制 — 对象截断在下一个 key 中间
+        # LLM 实际输出: {"name": "Tom", "ag (被硬截断)
+        assert parse_llm_json(
+            '{"name": "Tom", "ag'
+        ) == {"name": "Tom"}
+
+        # 用例5-2: token 限制 — 嵌套数组截断，逗号后中断
+        # LLM 实际输出: {"items": [1, 2, 3, (被硬截断)
+        assert parse_llm_json(
+            '{"items": [1, 2, 3,'
+        ) == {"items": [1, 2, 3]}
+
+        # 用例5-3: token 限制 — 深层嵌套对象截断
+        # LLM 实际输出: {"data": {"nested": {"key": "val" (被硬截断)
+        assert parse_llm_json(
+            '{"data": {"nested": {"key": "val"'
+        ) == {"data": {"nested": {"key": "val"}}}
+
+        # ═══════════════════════════════════════════════════
+        # Step 7: 剥离前缀非 JSON 文本
+        # ═══════════════════════════════════════════════════
+        # 用例7-1: JSON 前有日志风格前缀
+        assert parse_llm_json(
+            '[INFO] Generation complete. Output: '
+            '{"title": "My Story", "word_count": 500}'
+        ) == {"title": "My Story", "word_count": 500}
+
+        # 用例7-2: 前面大段英文说明
+        assert parse_llm_json(
+            'I have carefully considered your request for a drama script. '
+            'After analyzing the character dynamics, plot structure, and '
+            'emotional beats, here is the result: '
+            '{"script": {"version": "1.0", "author": "AI"}}'
+        ) == {"script": {"version": "1.0", "author": "AI"}}
+
+        # 用例7-3: 中文前缀 + JSON 被截断（step7 + step5/6 协同）
+        assert parse_llm_json(
+            '生成完毕，以下是结果：'
+            '{"characters": [{"name": "张三", "role": "主角"'
+        ) == {"characters": [{"name": "张三", "role": "主角"}]}
+
     def test_constants(self):
         """常量完整性"""
         from infra.constants import (
