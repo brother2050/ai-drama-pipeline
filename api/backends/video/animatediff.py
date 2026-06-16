@@ -41,6 +41,10 @@ class _ComfyUIVideoBase:
     def check_image_exists(self, filename: str, subfolder: str = "", asset_type: str = "output") -> bool:
         return self._get_comfyui().check_image_exists(filename, subfolder=subfolder, asset_type=asset_type)
 
+    def get_available_node_types(self) -> set[str]:
+        """代理到内部 ComfyUI 实例，获取已注册节点类型"""
+        return self._get_comfyui().get_available_node_types()
+
     def health_check(self) -> tuple[bool, str]:
         try:
             c = get_client(timeout=3)

@@ -33,17 +33,7 @@ _（已全部修复）_
 
 ## 低优先级
 
-### 🔹 3. `builder.py` 中 `upload_image()` 无 `hasattr` 保护
-
-- **文件**: `engines/workflow/builder.py` 第 338 行
-- **问题**: `self.comfyui.upload_image(...)` 只做了 `None` 检查，没有 `hasattr` 保护。当前 `cfg.comfyui` 始终是 `ComfyUI` 实例所以安全，但如果未来传入其他后端类型会直接抛 `AttributeError`。
-- **建议**: 添加 `hasattr(self.comfyui, 'upload_image')` 保护。
-
-### 🔹 4. `_ComfyUIVideoBase` 未代理 `get_available_node_types()`
-
-- **文件**: `api/backends/video/animatediff.py`
-- **问题**: 视频后端内部持有 `ComfyUI` 实例，但未暴露 `get_available_node_types()`。当前不影响功能（builder 用 image 后端查询），但属于隐式耦合。如果未来视频工作流也需要节点可用性检查，会失败。
-- **建议**: 在 `_ComfyUIVideoBase` 中添加代理方法，透传到内部 `ComfyUI` 实例。
+_（已全部修复）_
 
 ---
 

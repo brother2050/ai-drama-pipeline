@@ -332,7 +332,7 @@ class WorkflowBuilder:
             return
 
         # 上传到 ComfyUI
-        if self.comfyui:
+        if self.comfyui and hasattr(self.comfyui, 'upload_image'):
             try:
                 upload_name = f"img2img_ref_{Path(ref_image).name}"
                 self.comfyui.upload_image(ref_image, filename=upload_name)
