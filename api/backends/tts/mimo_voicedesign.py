@@ -70,7 +70,7 @@ class MimoVoiceDesign:
     """MiMo VoiceDesign TTS 后端（云 API，免费）"""
 
     _DEFAULT_API_URL = "https://api.xiaomimimo.com/v1/chat/completions"
-    _DEFAULT_MODEL = "mimo-v2.5-tts"
+    _DEFAULT_MODEL = "mimo-v2.5-tts-voicedesign"
 
     def __init__(self, config: dict):
         self._api_url = config.get("api_url") or os.environ.get("MIMO_API_ENDPOINT", self._DEFAULT_API_URL)
@@ -93,11 +93,8 @@ class MimoVoiceDesign:
         voice_desc = voice_config.get("voice_description", "") or voice_config.get("core_traits", "")
         voice_id = voice_config.get("voice_id", "")
 
-        # 动态选模型：有 voice_id 用基础模型（预设音色），无则用 voicedesign（纯描述驱动）
-        if voice_id:
-            model = self._model  # 默认 mimo-v2.5-tts
-        else:
-            model = "mimo-v2.5-tts-voicedesign"
+        # 动态选模型：默认 voicedesign（纯描述驱动），有 voice_id 时切到基础模型（预设音色）
+        model = "mimo-v2.5-tts" if voice_id else self._model
 
         is_v25 = "v2.5" in model or "voicedesign" in model
         is_voicedesign = "voicedesign" in model
