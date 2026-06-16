@@ -109,13 +109,11 @@ class WorkflowBuilder:
             from infra.config.registry import ModelRegistry
             self.registry = ModelRegistry()
 
-        defaults = self.registry.get_defaults()
-
-        # 首帧 + 视频工作流
+        # 首帧 + 视频工作流（后端选择由 system.yaml 的 models 段统一定义）
         self.first_frame_wf = self._load_backend_wf(
-            "image", self.registry.get_image_workflow, defaults.get("image_backend"), available_nodes)
+            "image", self.registry.get_image_workflow, self.models.get("image_backend", "flux"), available_nodes)
         self.video_wf = self._load_backend_wf(
-            "video", self.registry.get_video_workflow, defaults.get("video_backend"), available_nodes)
+            "video", self.registry.get_video_workflow, self.models.get("video_backend", "cosmos-video"), available_nodes)
 
         # GPU 适配
         gpu_cfg = get_gpu_config(config=self.config)
@@ -393,8 +391,7 @@ class WorkflowBuilder:
 
         style = self.config.get("project", {}).get("style", "cinematic")
         genre = self.config.get("project", {}).get("genre", "urban")
-        defaults = self.registry.get_defaults()
-        img_backend = self.models.get("image_backend", defaults.get("image_backend"))
+        img_backend = self.models.get("image_backend", "flux")
 
         # 获取角色圣经上下文 + 注入角色专属情绪/肢体语言到 shot
         character_bible = ""

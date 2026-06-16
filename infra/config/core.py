@@ -12,8 +12,6 @@ import threading
 from pathlib import Path
 from typing import Any
 
-import yaml
-
 from infra.config.paths import ProjectPaths
 from infra.config.cache import load_config, invalidate_config_cache, _deep_merge_into
 from infra.config.resolver import resolve_project_config
@@ -99,24 +97,12 @@ class Config:
         return resolve_project_config()
 
     def _merge(self, path: str) -> dict:
-        """合并默认配置 + 注册表默认值 + 系统全局配置 + 项目配置"""
+        """合并默认配置 + 系统全局配置 + 项目配置
+
+        后端选择由 system.yaml 的 models 段统一定义，不再从 models_registry.yaml 读取默认值。
+        """
         merged = copy.deepcopy(self.DEFAULTS)
-        # 0. 从 models_registry.yaml 读取默认后端名（注册表是唯一真相来源）
-        try:
-            from infra.config.registry import ModelRegistry
-            reg = ModelRegistry()
-            reg_defaults = reg.get_defaults()
-            if reg_defaults:
-                # 注入 models 段的后端默认值（tts_backend, image_backend 等）
-                models_defaults = {k: v for k, v in reg_defaults.items()
-                                   if k.endswith("_backend") and k != "llm_backend"}
-                merged.setdefault("models", {}).update(models_defaults)
-                # 注入 llm.backend（llm 段独立于 models）
-                if "llm_backend" in reg_defaults:
-                    merged.setdefault("llm", {})["backend"] = reg_defaults["llm_backend"]
-        except (ImportError, FileNotFoundError, ValueError, yaml.YAMLError) as e:
-            logger.warning(f"模型注册表加载失败: {e}")
-        # 1. 合并系统全局配置
+        # 1. 合并系统全局配置（包含 models.image_backend / models.video_backend 等后端选择）
         sys_path = getattr(Config, 'SYSTEM_CONFIG', None)
         if sys_path and os.path.isfile(sys_path):
             sys_data = load_config(sys_path, readonly=True)

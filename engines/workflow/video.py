@@ -136,8 +136,7 @@ def _inject_video_prompt(builder, wf: dict, shot: dict,
     if positive != fallback:
         positive = f"{positive}, {suffix}"
 
-    reg_defaults = builder.registry.get_defaults()
-    video_backend = builder.models.get("video_backend", reg_defaults.get("video_backend"))
+    video_backend = builder.models.get("video_backend", "cosmos-video")
     video_meta = builder.registry.get_backend("video", video_backend) if video_backend else {}
     negative = (video_meta or {}).get("negative_prompt",
         "static, frozen, no motion, glitch, distortion, watermark, text")
@@ -152,8 +151,7 @@ def _apply_duration(builder, wf: dict, shot: dict) -> None:
     from infra.constants import clip_duration
     duration = clip_duration(shot.get("duration"))
 
-    reg_defaults = builder.registry.get_defaults()
-    video_backend = builder.models.get("video_backend", reg_defaults.get("video_backend"))
+    video_backend = builder.models.get("video_backend", "cosmos-video")
     model_fps = 8
     if builder.registry:
         defaults = builder.registry.get_video_defaults(video_backend)

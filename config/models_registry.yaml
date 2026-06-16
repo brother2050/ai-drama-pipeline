@@ -3,15 +3,9 @@
 # 修改此文件即可切换/新增模型，无需改代码
 # ============================================================
 
-# ── 全局默认后端（Config.DEFAULTS 的真实来源） ──
+# ── 服务类型 → 配置读取路径映射（统一 toolcheck/Container 查询逻辑） ──
+# 注意：后端的默认选择在 config/system.yaml 中定义，此处仅为元数据映射
 defaults:
-  tts_backend: "mimo-voicedesign"
-  lip_sync_backend: "musetalk"
-  music_backend: "template"
-  image_backend: "flux"
-  video_backend: "cosmos-video"
-  llm_backend: "openai"
-  # 服务类型 → 配置读取路径（统一 toolcheck 查询逻辑）
   config_paths:
     tts: "models.tts_backend"
     lipsync: "models.lip_sync_backend"

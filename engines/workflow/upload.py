@@ -34,8 +34,7 @@ def build_upload_map(builder, shot: dict, wf: dict) -> dict[str, str]:
                    and not n.startswith("pulid_")
                    and not n.startswith("controlnet_ref_")]
 
-    defaults = builder.registry.get_defaults() if builder.registry else {}
-    img_backend = builder.models.get("image_backend", defaults.get("image_backend"))
+    img_backend = builder.models.get("image_backend", "flux")
     ip_config = builder.config.get("ip_adapter", {})
     if img_backend == "flux":
         flux_config = builder.config.get("ip_adapter_flux", {})

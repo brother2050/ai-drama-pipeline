@@ -518,9 +518,7 @@ def inject_from_registry(builder, wf: dict, char_names: list[str],
 
     # Flux 后端：优先使用 ip_adapter_flux 配置
     if config_key == "ip_adapter" and method_config:
-        defaults = registry.get_defaults()
-        img_backend = getattr(builder, 'models', {}).get("image_backend",
-                                            defaults.get("image_backend"))
+        img_backend = getattr(builder, 'models', {}).get("image_backend", "flux")
         if img_backend == "flux":
             flux_config = config.get("ip_adapter_flux", {})
             if flux_config and flux_config.get("enabled") is not False:

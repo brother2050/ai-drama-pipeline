@@ -290,11 +290,10 @@ def _check_service_type_backend(service_type: str, cfg: dict, registry: ModelReg
         registry: ModelRegistry 实例
     """
     cfg_key = registry.get_service_cfg_key(service_type)
-    default_backend = registry.get_defaults().get(cfg_key, "")
 
     # 统一从注册表 config_paths 读取后端名
     config_path = registry.get_config_path(service_type)
-    backend_name = _get_cfg_value(cfg, config_path) or default_backend
+    backend_name = _get_cfg_value(cfg, config_path)
 
     if not backend_name:
         return _result(False, service_type, "unknown",

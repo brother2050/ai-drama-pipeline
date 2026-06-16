@@ -209,11 +209,10 @@ def _resolve_health_check(name: str, reg, cfg: dict) -> dict | None:
     if hc:
         return hc
 
-    defaults = reg.get_defaults()
     backend_map = {
-        "tts": ("tts", cfg.get("models", {}).get("tts_backend", defaults.get("tts_backend"))),
-        "lipsync": ("lipsync", cfg.get("models", {}).get("lip_sync_backend", defaults.get("lip_sync_backend"))),
-        "music": ("music", cfg.get("models", {}).get("music_backend", defaults.get("music_backend"))),
+        "tts": ("tts", cfg.get("models", {}).get("tts_backend")),
+        "lipsync": ("lipsync", cfg.get("models", {}).get("lip_sync_backend")),
+        "music": ("music", cfg.get("models", {}).get("music_backend")),
     }
     if name in backend_map:
         svc_type, backend_name = backend_map[name]
@@ -382,7 +381,7 @@ def _test_llm(cfg: dict, result: dict) -> dict:
 
     from infra.config.registry import ModelRegistry
     reg = ModelRegistry()
-    backend = llm_cfg.get("backend", reg.get_defaults().get("llm_backend"))
+    backend = llm_cfg.get("backend", "openai")
     hc = reg.get_health_check("llm", backend)
     hc_type = hc.get("type", "") if hc else ""
 

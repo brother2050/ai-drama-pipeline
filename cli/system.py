@@ -120,12 +120,12 @@ def register_system_commands(cli):
 
         from infra.config.registry import ModelRegistry as _MR
         try:
-            _reg, _defaults = _MR(), _MR().get_defaults()
+            _reg = _MR()
         except Exception:
-            _reg, _defaults = None, {}
-        _check_tts(cfg, _reg, _defaults, table)
+            _reg = None
+        _check_tts(cfg, _reg, table)
 
-        llm_ok, llm_backend, llm_base_url, llm_enabled = _check_llm(cfg, _defaults)
+        llm_ok, llm_backend, llm_base_url, llm_enabled = _check_llm(cfg)
         if not llm_enabled:
             table.add_row(f"LLM ({llm_backend})", "[yellow]⚠ 未启用[/yellow]",
                            llm_base_url or "-", "AI 生成（在 project.yaml 中设置 llm.enabled: true）")
@@ -280,10 +280,10 @@ def _check_comfyui(cfg: dict) -> tuple[bool, str]:
         return False, url
 
 
-def _check_llm(cfg: dict, defaults: dict) -> tuple[bool, str, str, bool]:
+def _check_llm(cfg: dict) -> tuple[bool, str, str, bool]:
     llm_cfg = cfg.get("llm", {})
     enabled = llm_cfg.get("enabled", False)
-    backend = llm_cfg.get("backend", defaults.get("llm_backend", "openai"))
+    backend = llm_cfg.get("backend", "openai")
     base_url = llm_cfg.get("base_url", "")
     if not enabled:
         return False, backend, base_url, False
@@ -302,9 +302,9 @@ def _check_llm(cfg: dict, defaults: dict) -> tuple[bool, str, str, bool]:
         return False, backend, base_url, True
 
 
-def _check_tts(cfg: dict, reg, defaults: dict, table: Table):
+def _check_tts(cfg: dict, reg, table: Table):
     from infra.config import cfg_get
-    tts = cfg.get("models", {}).get("tts_backend", defaults.get("tts_backend"))
+    tts = cfg.get("models", {}).get("tts_backend")
     if not tts:
         table.add_row("TTS", "[yellow]⚠ 未配置后端[/yellow]", "-", "语音合成")
         return

@@ -757,7 +757,7 @@ class TestModelRegistry:
         """注册表加载"""
         from infra.config.registry import ModelRegistry
         reg = ModelRegistry()
-        assert reg.get_defaults()["image_backend"] == "flux"
+        assert "config_paths" in reg.get_defaults()
 
     def test_registry_backends(self):
         """后端列表"""
