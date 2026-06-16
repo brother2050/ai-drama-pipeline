@@ -67,8 +67,10 @@ def _execute_batches(
             result, attempts = processor._execute_with_retry(batch, build_prompts, parse_result)
             all_results.append(result)
             total_attempts += attempts
+            if result is None:
+                failed += 1
             # 增量持久化：批次成功后立即回调（防止中途崩溃）
-            if on_batch_complete and result is not None:
+            elif on_batch_complete:
                 try:
                     on_batch_complete(i, result, batch)
                 except Exception as cb_err:
@@ -245,27 +247,35 @@ class AdaptiveBatchProcessor:
         build_prompts: Callable[[list[Any]], dict],
         parse_result: Callable[[str, list[Any]], Any],
     ) -> tuple[Any, int]:
-        """执行单个批次，带指数退避重试。返回 (result, total_attempts)。"""
-        last_error = None
+        """执行单个批次，带指数退避重试（含 JSON 解析失败重试）。返回 (result, total_attempts)。
+
+        LLM 每次调用是非确定性的，JSON 解析失败后重新调用 LLM 可能得到合法输出。
+        """
         for attempt in range(self._max_retries + 1):
             try:
                 prompts = build_prompts(batch)
-                # max_tokens: 用模型真实上限，不用 _output_budget（分批决策用的预算）
-                # _output_budget 仅控制"每批放多少项"，不应限制 API 生成量
                 raw = self._llm.chat(
                     prompts["user"],
                     system=prompts.get("system", ""),
                     max_tokens=self._max_output,
                 )
-                return parse_result(raw, batch), attempt + 1
+                result = parse_result(raw, batch)
+                if result is not None:
+                    return result, attempt + 1
+                # JSON 解析失败 → 重试 LLM 调用（非确定性，下次可能输出合法 JSON）
+                if attempt < self._max_retries:
+                    wait = self._retry_base_delay * (2 ** attempt)
+                    logger.warning(f"JSON 解析失败, {wait}s 后重试 LLM (尝试 {attempt+1}/{self._max_retries + 1}): {raw[:120]!r}")
+                    time.sleep(wait)
+                else:
+                    return None, attempt + 1
             except Exception as e:
-                last_error = e
                 self._last_error = e
                 if attempt < self._max_retries:
                     wait = self._retry_base_delay * (2 ** attempt)
                     logger.warning(f"批次失败 (尝试 {attempt+1}/{self._max_retries + 1}), {wait}s 后重试: {e}")
                     time.sleep(wait)
-        raise last_error
+        return None, self._max_retries + 1
 
     def _learn_from_last_error(self) -> None:
         """从 API 错误中学习模型限制"""
