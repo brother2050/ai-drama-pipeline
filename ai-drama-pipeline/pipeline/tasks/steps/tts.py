@@ -64,6 +64,7 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
 
     out_dir.mkdir(parents=True, exist_ok=True)
     audio_path = str(out_dir / "audio.wav")
+    tmp_audio_path = str(out_dir / ".audio.tmp.wav")
 
     if not force and Path(audio_path).exists():
         return _skip(shot_id, STEP_TTS, "音频已存在")
@@ -90,7 +91,7 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
     language = cfg.get("project.language", "zh")
     tts_backend = cfg.get("models.tts_backend", "mimo-voicedesign")
 
-    # 单条台词：直接合成
+    # 单条台词：原子写入（先写临时文件，成功后再 rename）
     if len(lines) == 1:
         line = lines[0]
         char_data = _resolve_char(line.speaker, all_chars)
@@ -99,16 +100,21 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
         voice_config = _build_voice_config(char_data, tts_backend)
         emotion = shot.get("emotion", "neutral")
 
+        # 清理上次可能残留的临时文件
+        Path(tmp_audio_path).unlink(missing_ok=True)
+
         def _do_tts():
             with groups.acquire(STEP_TTS):
                 with wd.track(f"{shot_id}:tts", backend=STEP_TTS):
                     tts_inst, _ = cont.get_with_fallback(STEP_TTS)
-                    tts_inst.synthesize(line.text, audio_path, voice_config=voice_config,
+                    tts_inst.synthesize(line.text, tmp_audio_path, voice_config=voice_config,
                                         emotion=emotion, language=language)
 
         try:
             safe_run(_do_tts, retries=2, base_delay=1.0, task_id=f"{shot_id}:tts")
+            Path(tmp_audio_path).rename(audio_path)
         except Exception as e:
+            Path(tmp_audio_path).unlink(missing_ok=True)
             return _err(shot_id, STEP_TTS, f"TTS 合成失败: {e}")
 
     # 多条台词：逐条合成 → 拼接
@@ -137,7 +143,8 @@ def tts_core(shot_id: str, shot: dict, cfg, cont, out_dir: Path, *,
                     return _err(shot_id, STEP_TTS, f"TTS 合成失败 (line {i}): {e}")
                 seg_paths.append(seg_path)
 
-            concat_wav(seg_paths, audio_path)
+            concat_wav(seg_paths, tmp_audio_path)
+            Path(tmp_audio_path).rename(audio_path)
         finally:
             # 清理临时分段文件（无论成功或失败）
             for p in seg_paths:

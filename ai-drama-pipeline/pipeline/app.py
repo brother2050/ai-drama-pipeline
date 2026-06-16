@@ -40,8 +40,25 @@ class DramaTask(_CeleryTask):
 # 抑制 Celery 默认的成功日志（DramaTask 已替代，避免重复输出）
 logging.getLogger("celery.worker.request").addFilter(_SuppressDefaultSuccess())
 
-broker = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
-backend = os.environ.get("REDIS_BACKEND_URL", broker.replace("/0", "/1"))
+def _redis_url() -> str:
+    """读取 Redis URL：环境变量 > system.yaml > 默认值"""
+    url = os.environ.get("REDIS_URL", "")
+    if url:
+        return url
+    try:
+        from infra.config import load_config
+        from pathlib import Path
+        system = load_config(Path(__file__).resolve().parent.parent / "config" / "system.yaml", safe=True) or {}
+        url = system.get("redis", {}).get("url", "")
+        if url:
+            return url
+    except Exception:
+        pass
+    return "redis://localhost:6379/0"
+
+
+broker = _redis_url()
+backend = os.environ.get("REDIS_BACKEND_URL", _redis_url().replace("/0", "/1"))
 
 app = Celery("drama", broker=broker, backend=backend,
              include=["pipeline.tasks"],
