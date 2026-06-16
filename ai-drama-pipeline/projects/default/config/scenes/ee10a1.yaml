@@ -1,0 +1,8 @@
+scene:
+  id: "ee10a1"
+  name: "街道"
+  description: "城市街道，两侧有商铺和行道树，路面为柏油路，远处可见高楼天际线，傍晚暖色调天光"
+  description_en: "city street, shops and trees on both sides, asphalt road, distant skyscraper skyline, warm evening light"
+  lighting: "傍晚自然光，暖色调，路灯微亮"
+  lighting_en: "evening natural light, warm tones, street lamps dimly lit"
+  reference_images: []

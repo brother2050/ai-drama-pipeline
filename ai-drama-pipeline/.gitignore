@@ -1,0 +1,44 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+.venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+logs/
+output/
+*.log
+.DS_Store
+Thumbs.db
+projects/*
+!projects/default/
+
+.vscode/
+# 测试产物
+test_tts*.wav
+
+# OpenClaw workspace files
+.openclaw/
+AGENTS.md
+BOOTSTRAP.md
+HEARTBEAT.md
+IDENTITY.md
+SOUL.md
+TOOLS.md
+USER.md
+tests/projects/
+venv/
+cover*.png
+*.mp4
+tt.txt
+worker.log
+.checkpoints/
+
+# 声线库（通过 drama voices sync 同步，不提交到 git）
+shared_assets/voices/
+checkpoint.json
+
+.ruff_cache
+.mimocode

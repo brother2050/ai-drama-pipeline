@@ -1,0 +1,8 @@
+scene:
+  id: "c151cd"
+  name: "客厅"
+  description: "现代简约风格客厅，米色沙发，落地窗，暖色调灯光，茶几上有水杯和手机"
+  description_en: "modern minimalist living room, beige sofa, floor-to-ceiling windows, warm-toned lighting, water glass and phone on coffee table"
+  lighting: "暖色室内光，自然光从窗户照入"
+  lighting_en: "warm indoor lighting, natural light from window"
+  reference_images: []

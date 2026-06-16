@@ -1,0 +1,33 @@
+character:
+  id: "2df5a0"
+  name: "林夏"
+  gender: "female"
+  age: "22"
+  appearance: "22岁年轻女性，长发及肩，瓜子脸，大眼睛，柳叶眉，身高165cm，体型偏瘦，皮肤白皙"
+  outfits:
+    default:
+      description: "白色T恤，浅蓝色牛仔裤，白色帆布鞋，斜挎小包"
+      reference_images: []
+    home:
+      description: "浅粉色居家服，棉拖鞋"
+      reference_images: []
+  bible:
+    core_traits: "温柔但坚强，容易害羞，对顾辰有好感"
+    speech_patterns: "语速较慢，常用'嗯...'开头，不说脏话"
+    relationships:
+      顾辰: "暗恋对象，相处时会紧张"
+    emotional_range:
+      happy: "微笑为主，不会大笑"
+      sad: "沉默，不哭出声"
+      angry: "抿嘴不说话，眼眶微红"
+      surprised: "睁大眼睛，捂嘴"
+      nervous: "低头，声音变小"
+    body_language:
+      nervous: "低头，手指绞在一起"
+      happy: "眼睛弯成月牙"
+      sad: "抱住膝盖，缩成一团"
+    habits: ["紧张时咬下嘴唇", "说话前先清嗓子"]
+    taboos: ["不喜欢被人说矮"]
+  appearance_prompt_en: ""
+  body_features: ""
+  reference_images: []

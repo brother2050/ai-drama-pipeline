@@ -1,0 +1,30 @@
+character:
+  id: "9dbae1"
+  name: "顾辰"
+  gender: "male"
+  age: "22"
+  appearance: "22岁年轻男性，短发，剑眉星目，身高180cm，体型匀称"
+  outfits:
+    default:
+      description: "黑色卫衣，深色休闲裤，运动鞋，双肩包"
+      reference_images: []
+  bible:
+    core_traits: "沉稳可靠，行动派，对林夏有好感但不善表达"
+    speech_patterns: "语速适中，简洁直接，偶尔会突然关心人"
+    relationships:
+      林夏: "喜欢的人，会默默关注和保护"
+    emotional_range:
+      happy: "嘴角微扬，眼神温柔"
+      angry: "沉默不语，眉头紧锁"
+      surprised: "愣住，随即恢复平静"
+      worried: "反复确认细节"
+      nervous: "挠头，眼神躲闪"
+    body_language:
+      nervous: "挠头，眼神躲闪"
+      happy: "嘴角上扬，眼神明亮"
+      angry: "双手插兜，下颌绷紧"
+    habits: ["思考时转笔", "紧张时摸后脑勺"]
+    taboos: ["不喜欢被当作靠山或工具人"]
+  appearance_prompt_en: ""
+  body_features: ""
+  reference_images: []

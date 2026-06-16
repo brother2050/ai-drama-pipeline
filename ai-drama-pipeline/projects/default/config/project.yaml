@@ -1,0 +1,20 @@
+# AI 短剧管线 v2 — 项目配置
+# 系统级配置（ComfyUI、TTS、LLM 等）请编辑 config/system.yaml
+
+project:
+  name: "AI短剧"
+  episodes: 1
+  fps: 24
+  style: "cinematic"
+  genre: "urban"
+  language: "zh"  # 短剧语言（TTS 合成 / 字幕生成）
+
+# 定妆照配置
+# portraits:
+#   auto_outfit: false  # 管线自动生成 outfit 参考图（默认 true，设为 false 仅生成主图）
+
+# 项目级覆盖（可选，取消注释可覆盖系统配置）
+# comfyui:
+#   url: "http://192.168.1.100:8188"
+# llm:
+#   enabled: true
