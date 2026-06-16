@@ -97,8 +97,8 @@ class MimoVoiceDesign:
 
         messages = _build_messages(text, voice_desc, emotion, is_v25, is_voicedesign)
         audio_params: dict = {"format": "wav"}
-        if not is_voicedesign:
-            audio_params["voice"] = voice_id or "mimo_default"
+        if not is_voicedesign and voice_id:
+            audio_params["voice"] = voice_id
 
         logger.info(f"TTS 请求 [{self._model}] text={text[:100]!r} voice={voice_desc[:60]!r} emotion={emotion}")
         t0 = time.time()
