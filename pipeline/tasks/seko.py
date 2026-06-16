@@ -268,7 +268,8 @@ def seko_import_task(
         proj_dir = projects_dir(_ROOT)
         created_project_dir = proj_dir / project_name
         create_project(project_name, _ROOT, Console())
-        config_path = str(created_project_dir / "config" / "project.yaml")
+        from infra.config.paths import ProjectPaths
+        config_path = str(ProjectPaths(created_project_dir).project_yaml)
         # 重置缓存（Celery worker 进程内 + DB 项目解析）
         invalidate_config_cache()
         from infra.database._db import _reset_project_cache

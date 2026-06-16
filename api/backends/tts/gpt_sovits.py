@@ -192,10 +192,8 @@ class GptSovits:
            查找 assets/characters/{角色名}/voice/ref.wav
         """
         import glob as _glob
-        # 从 api/backends/tts/ 回到 workspace 根
-        candidate_dirs = [
-            Path(__file__).resolve().parents[3],  # workspace root
-        ]
+        from infra.config.resolver import get_root
+        candidate_dirs = [get_root()]
         for root in candidate_dirs:
             # 策略 1: 精确匹配 basename
             pattern = str(root / "projects" / "*" / "assets" / "characters" / "*" / "voice" / basename)

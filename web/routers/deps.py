@@ -49,8 +49,9 @@ def _merged_cfg_public() -> dict:
 def _cfg_path() -> str:
     """获取当前活动项目的 project.yaml 绝对路径。"""
     global _cfg_path_cache
+    from infra.config.paths import ProjectPaths
     p = _proj()
-    candidate = str(p / "config" / "project.yaml")
+    candidate = str(ProjectPaths(p).project_yaml)
     if _cfg_path_cache != candidate:
         _cfg_path_cache = candidate
     return _cfg_path_cache
