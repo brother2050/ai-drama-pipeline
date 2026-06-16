@@ -185,6 +185,16 @@ class ComfyUI:
                 files.append(str(out_path))
         return files
 
+    def get_available_node_types(self) -> set[str]:
+        """获取 ComfyUI 服务器上已注册的所有节点类型（用于一致性方案可行性检查）"""
+        try:
+            r = self._fast_client.get(f"{self._url}/object_info", headers=self._headers())
+            r.raise_for_status()
+            return set(r.json().keys())
+        except Exception as e:
+            logger.warning(f"获取 ComfyUI /object_info 失败: {e}")
+            return set()
+
     def shutdown(self):
         """释放资源（共享连接池由 Container.shutdown_all 统一清理）"""
 
