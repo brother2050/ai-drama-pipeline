@@ -584,6 +584,16 @@ class AIToolkitTrainer:
     # 状态查询
     # ────────────────────────────────────────────────
 
+    def health_check(self) -> tuple[bool, str]:
+        """标准健康检查接口（Container 自动发现）"""
+        status = self.check_status()
+        if status.get("status") == "connected":
+            return True, status.get("message", "AI Toolkit 就绪")
+        return False, status.get("error", "AI Toolkit 不可达")
+
+    def shutdown(self) -> None:
+        """释放资源（共享连接池由 Container.shutdown_all 统一清理）"""
+
     def check_status(self) -> dict:
         """检查 AI Toolkit 服务状态"""
         try:

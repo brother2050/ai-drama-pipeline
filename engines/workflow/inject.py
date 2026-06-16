@@ -714,15 +714,6 @@ def inject_controlnet_depth(builder: object, wf: dict, char_names: list[str],
         logger.info(f"ControlNet Depth strength={strength}，跳过注入")
         return wf
 
-    # 检查 ComfyUI 插件是否可用
-    available = getattr(builder, 'available_nodes', None)
-    if available:
-        required_nodes = {"FluxControlNetLoader", "ApplyFluxControlNet"}
-        missing = required_nodes - available
-        if missing:
-            logger.warning(f"ControlNet Depth 需要 ComfyUI 插件: {missing}，跳过注入")
-            return wf
-
     ksampler, model_source = _find_model_pipeline(wf)
     if not ksampler or not model_source:
         logger.warning("未找到 KSampler 或模型加载节点，无法注入 ControlNet Depth")

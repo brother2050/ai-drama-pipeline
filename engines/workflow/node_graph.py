@@ -507,6 +507,15 @@ def inject_from_registry(builder, wf: dict, char_names: list[str],
             logger.warning(f"未注册的 node graph: {consistency}")
         return wf
 
+    # Check ComfyUI node availability (unified for both paths)
+    required = graph_def.get("required_comfyui_nodes", [])
+    if required and hasattr(builder, 'available_nodes'):
+        available = builder.available_nodes or set()
+        missing = set(required) - available
+        if missing:
+            logger.warning(f"缺少 ComfyUI 插件节点: {missing}，跳过 {consistency}")
+            return wf
+
     # Escape hatch: inject_method override for complex Python logic
     override = graph_def.get("inject_method")
     if override:
