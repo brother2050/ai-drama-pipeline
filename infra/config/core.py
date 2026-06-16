@@ -33,9 +33,10 @@ except ImportError:
 SYSTEM_CONFIG_PATH = str(_ROOT / "config" / "system.yaml")
 REGISTRY_PATH = str(_ROOT / "config" / "models_registry.yaml")
 PROMPT_TEMPLATES_PATH = str(_ROOT / "config" / "prompt_templates.yaml")
+REPO_WORKFLOWS_DIR = _ROOT / "workflows"
 REPO_LOGS_DIR = _ROOT / "logs"
 
-__all__ = ["Config", "SYSTEM_CONFIG_PATH", "REGISTRY_PATH", "PROMPT_TEMPLATES_PATH", "REPO_LOGS_DIR"]
+__all__ = ["Config", "SYSTEM_CONFIG_PATH", "REGISTRY_PATH", "PROMPT_TEMPLATES_PATH", "REPO_WORKFLOWS_DIR", "REPO_LOGS_DIR"]
 
 
 # ══════════════════════════════════════════════════════════

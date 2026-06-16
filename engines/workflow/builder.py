@@ -135,8 +135,8 @@ class WorkflowBuilder:
         if os.path.exists(path):
             cache_key = os.path.normpath(path)
         else:
-            from infra.config.resolver import get_root
-            root_wf = str(get_root() / "workflows" / name)
+            from infra.config.core import REPO_WORKFLOWS_DIR
+            root_wf = str(REPO_WORKFLOWS_DIR / name)
             root_wf = os.path.normpath(root_wf)
             if os.path.exists(root_wf):
                 cache_key = root_wf
