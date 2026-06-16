@@ -1169,7 +1169,7 @@ ai-drama-pipeline/
 |------|------|---------|
 | `Redis 未运行` | Redis 服务未启动 | `redis-server --daemonize yes` 或 `brew services start redis` |
 | `AI_DRAMA_DB_DSN 未配置` | 缺少 `.env` 文件 | `cp .env.example .env` 并填写 PostgreSQL 连接信息 |
-| `PostgreSQL 连接被拒绝` | PostgreSQL 未启动 | `sudo systemctl start postgresql` 或 `brew services start postgresql@16` |
+| `PostgreSQL 连接被拒绝` | PostgreSQL 未启动 | 见下方「PostgreSQL 启动方式」 |
 | `PostgreSQL 认证失败` | 用户名/密码不匹配 | 检查 `.env` 中的 `AI_DRAMA_DB_DSN`，确认用户和密码 |
 | `数据库不存在` | 未创建 ai_drama 数据库 | `sudo -u postgres psql -c "CREATE DATABASE ai_drama OWNER drama;"` |
 | `Celery Worker 未启动` | Worker 进程未运行 | 在另一个终端运行 `drama worker` |
@@ -1178,6 +1178,43 @@ ai-drama-pipeline/
 | `LLM 未启用` | LLM 配置未开启 | 在项目配置中设置 `llm.enabled: true`，或在 Web 设置页开启 |
 | `角色缺定妆照` | 未生成角色形象图 | Web 工作台「👤 角色」→「🎨 AI 生成定妆照」 |
 | `请先执行准备阶段` | 生产前未翻译 | Web 工作台「🎬 生产管线」→「🔧 准备阶段」 |
+
+#### PostgreSQL 启动方式
+
+不同环境下 PostgreSQL 启动命令不同，按顺序尝试：
+
+**方式一：pg_ctlcluster（Debian/Ubuntu）**
+
+```bash
+# 查看已安装的 PostgreSQL 版本
+ls /etc/postgresql/
+
+# 启动对应版本（替换 <version> 为实际版本号，如 16）
+sudo pg_ctlcluster <version> main start
+
+# 例如 PostgreSQL 16：
+sudo pg_ctlcluster 16 main start
+```
+
+**方式二：systemctl（大多数 Linux 发行版）**
+
+```bash
+sudo systemctl start postgresql
+```
+
+**方式三：macOS（Homebrew）**
+
+```bash
+brew services start postgresql@16
+```
+
+**方式四：Docker**
+
+```bash
+docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=drama123 -e POSTGRES_USER=drama -e POSTGRES_DB=ai_drama postgres:16-alpine
+```
+
+> **启动后验证**：`sudo -u postgres psql -c "SELECT 1;"` 返回 `1` 表示 PostgreSQL 正常运行。
 
 ---
 
