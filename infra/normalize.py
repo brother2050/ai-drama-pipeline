@@ -47,39 +47,6 @@ def _normalize_bible_section(section: dict, *, en_suffix: bool = False) -> dict:
     return section
 
 
-def _backfill_bible_en(bible: dict, bible_en: dict) -> None:
-    """bible_en 空值回退：用 bible 中文值填充（就地修改 bible_en）
-
-    prepare 阶段会将这些中文值替换为英文翻译。
-    在此之前，中文值比空值更有用（至少 prompt 中有内容）。
-    注意：bible_en 的 key 带 _en 后缀。
-    """
-    # 字符串字段
-    for f in _BIBLE_STR_FIELDS:
-        en_key = f"{f}_en"
-        if not bible_en.get(en_key) and bible.get(f):
-            bible_en[en_key] = bible[f]
-
-    # dict 字段：空值回退（逐 key）
-    # 跳过 relationships：其 key 为角色名，中英文不对应，回填会引入中文键名污染
-    for f in _BIBLE_DICT_FIELDS:
-        if f == "relationships":
-            continue
-        en_key = f"{f}_en"
-        en_dict = bible_en.get(en_key)
-        zh_dict = bible.get(f)
-        if isinstance(en_dict, dict) and isinstance(zh_dict, dict):
-            for k, v in zh_dict.items():
-                if not en_dict.get(k) and v:
-                    en_dict[k] = v
-
-    # list 字段：空列表回退
-    for f in _BIBLE_LIST_FIELDS:
-        en_key = f"{f}_en"
-        if not bible_en.get(en_key) and bible.get(f):
-            bible_en[en_key] = list(bible[f])
-
-
 def name_to_id(name: str) -> str:
     """从 name 生成确定性短 ID（SHA256 前 6 位 hex）
 
@@ -111,10 +78,6 @@ def normalize_character(char: dict) -> dict:
     bible_en = char.get("bible_en")
     if isinstance(bible_en, dict):
         _normalize_bible_section(bible_en, en_suffix=True)
-
-    # bible_en 空值回退：用 bible 中文值填充（比空值好，prepare 阶段会替换为英文）
-    if isinstance(bible, dict) and isinstance(bible_en, dict):
-        _backfill_bible_en(bible, bible_en)
 
     # 顶级字段
     char.setdefault("appearance_prompt_en", "")

@@ -60,7 +60,7 @@ def sample_character(project_dir):
                 "casual": {"description": "牛仔裤配T恤", "description_en": "jeans and t-shirt", "reference_images": []},
             },
             "bible": {"core_traits": "温柔但坚强"},
-            "bible_en": {"core_traits": "gentle, resilient"},
+            "bible_en": {"core_traits_en": "gentle, resilient"},
             "voice_config": {"core_traits": "温柔"},
         }
     }

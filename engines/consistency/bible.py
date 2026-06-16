@@ -91,46 +91,33 @@ class CharacterBible:
     def get_tags(self, char_id: str) -> str:
         """获取英文圣经 tag 摘要（逗号分隔，注入 ComfyUI prompt）
 
-        仅返回英文内容。中文值（翻译未完成）自动跳过，不注入 ComfyUI prompt。
-        嵌套字典（relationships/emotional_range/body_language）深度合并，避免丢失。
+        直接读取 bible_en（_en 后缀 key），不做中英文合并。
         """
-        zh = self.load(char_id)
         en = self.load_en(char_id)
-        if not zh and not en:
-            return ""
-        # 深度合并：中文打底，英文覆盖已翻译字段
-        source = dict(zh)
-        if en:
-            from infra.config import deep_merge
-            source = deep_merge(source, en)
-        if not source:
+        if not en:
             return ""
 
         tags: list[str] = []
 
-        def _add_if_en(val: str) -> None:
-            """仅添加英文值（ASCII），跳过中文"""
-            if val and val.strip() and val.strip().isascii():
-                tags.append(val.strip())
+        def _add(val: str) -> None:
+            v = (val or "").strip()
+            if v:
+                tags.append(v)
 
-        _add_if_en(source.get("core_traits", ""))
-        _add_if_en(source.get("speech_patterns", ""))
+        _add(en.get("core_traits_en", ""))
+        _add(en.get("speech_patterns_en", ""))
 
-        rels = source.get("relationships", {})
-        for rid, desc in rels.items():
-            _add_if_en(desc)
-        # relationships key 是角色名，中英文不对应，需单独读取英文版
-        rels_en = source.get("relationships_en", {})
-        for rid, desc in rels_en.items():
-            _add_if_en(desc)
+        rels = en.get("relationships_en", {})
+        for desc in rels.values():
+            _add(desc)
 
-        emo = source.get("emotional_range", {})
+        emo = en.get("emotional_range_en", {})
         for key in list(emo.keys())[:2]:
-            _add_if_en(emo.get(key, ""))
+            _add(emo.get(key, ""))
 
-        body = source.get("body_language", {})
+        body = en.get("body_language_en", {})
         for key in list(body.keys())[:1]:
-            _add_if_en(body.get(key, ""))
+            _add(body.get(key, ""))
 
         return ", ".join(tags) if tags else ""
 
