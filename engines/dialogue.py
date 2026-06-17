@@ -76,7 +76,7 @@ def parse_dialogue(raw: str) -> list[DialogueLine]:
             speaker, sep, text = part.partition(":")
         if sep:
             # text 是纯省略号 → 视同无台词（LLM 有时写 "角色名：......"）
-            if _is_empty_text(text):
+            if _is_empty_text(text) and text.strip():
                 continue
             lines.append(DialogueLine(speaker=speaker.strip(), text=text.strip()))
         else:
