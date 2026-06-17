@@ -218,7 +218,7 @@ def _hc_openai_chat(name: str, hc: dict, cfg: dict, backend: str, result_type: s
     api_key = _get_cfg_value(cfg, hc.get("api_key_from", ""))
     ok, reason = ping_openai_chat(url, api_key=api_key, model=model, env_key="LLM_API_KEY")
     if not ok and not reason:
-        reason = "" if ok else f"LLM 连接失败 ({url})"
+        reason = f"LLM 连接失败 ({url})"
     return _result(ok, backend, result_type, reason)
 
 
