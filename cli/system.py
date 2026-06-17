@@ -289,18 +289,10 @@ def _check_llm(cfg: dict) -> tuple[bool, str, str, bool]:
         return False, backend, base_url, False
     if not base_url:
         return False, backend, base_url, True
-    try:
-        from infra.http_pool import get_fast_client, auth_headers
-        model = llm_cfg.get("model", "")
-        api_key = llm_cfg.get("api_key", "")
-        headers = auth_headers(api_key) if api_key else {}
-        r = get_fast_client().post(
-            f"{base_url.rstrip('/')}/chat/completions",
-            headers=headers,
-            json={"model": model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1})
-        return r.status_code == 200, backend, base_url, True
-    except Exception:
-        return False, backend, base_url, True
+    from infra.toolcheck import ping_openai_chat
+    ok, _ = ping_openai_chat(base_url, api_key=llm_cfg.get("api_key", ""),
+                             model=llm_cfg.get("model", ""), env_key="LLM_API_KEY")
+    return ok, backend, base_url, True
 
 
 def _check_tts(cfg: dict, reg, table: Table):

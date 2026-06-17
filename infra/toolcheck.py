@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["check_tool", "reset_registry"]
+__all__ = ["check_tool", "reset_registry", "ping_openai_chat"]
 
 # 工具状态缓存 — 使用 HealthCache 统一管理
 from infra.globals import get_health_cache  # noqa: E402
@@ -179,8 +179,35 @@ def _hc_ollama(name: str, hc: dict, cfg: dict, backend: str, result_type: str = 
     return _result(ok, backend, result_type, reason)
 
 
+def ping_openai_chat(url: str, api_key: str = "", model: str = "",
+                     env_key: str = "") -> tuple[bool, str]:
+    """OpenAI 兼容 API 连通性检测 — POST /chat/completions, max_tokens=1
+
+    所有调用方（Web 面板 / CLI / 后台巡检）共用此函数，零重复。
+    支持环境变量回退: api_key 为空时自动读 os.environ[env_key]。
+    """
+    from infra.http_pool import get_fast_client, auth_headers
+
+    key = api_key or (os.environ.get(env_key, "") if env_key else "")
+    headers = auth_headers(key) if key else {}
+    ensure_model = model or "ping"
+
+    try:
+        r = get_fast_client().post(
+            f"{url.rstrip('/')}/chat/completions",
+            headers=headers,
+            json={"model": ensure_model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1})
+        if r.status_code in (401, 403):
+            return False, f"API Key 无效 ({r.status_code})"
+        if r.status_code == 200:
+            return True, ""
+        return False, f"HTTP {r.status_code}"
+    except Exception as e:
+        return False, str(e)
+
+
 def _hc_openai_chat(name: str, hc: dict, cfg: dict, backend: str, result_type: str = "cloud") -> dict:
-    """openai_chat 类型检查（POST /chat/completions，适用所有服务商）"""
+    """openai_chat 类型检查"""
     url = _get_cfg_value(cfg, hc.get("config_key", ""))
     if not url:
         return _result(False, backend, "cloud", "LLM 地址未配置")
@@ -188,20 +215,11 @@ def _hc_openai_chat(name: str, hc: dict, cfg: dict, backend: str, result_type: s
     if llm_enabled is None or str(llm_enabled).lower() in ("false", "0", ""):
         return _result(False, backend, result_type, "LLM 未启用")
     model = cfg.get("llm", {}).get("model", "")
-    headers = _resolve_auth(cfg, hc.get("api_key_from", ""))
-    try:
-        from infra.http_pool import get_fast_client
-        r = get_fast_client().post(
-            f"{url.rstrip('/')}/chat/completions",
-            headers=headers or {},
-            json={"model": model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1})
-        if r.status_code in (401, 403):
-            return _result(False, backend, result_type, f"API Key 无效 ({r.status_code})")
-        ok = r.status_code == 200
-        reason = "" if ok else f"LLM HTTP {r.status_code} ({url})"
-        return _result(ok, backend, result_type, reason)
-    except Exception as e:
-        return _result(False, backend, result_type, f"连接失败: {e}")
+    api_key = _get_cfg_value(cfg, hc.get("api_key_from", ""))
+    ok, reason = ping_openai_chat(url, api_key=api_key, model=model, env_key="LLM_API_KEY")
+    if not ok and not reason:
+        reason = "" if ok else f"LLM 连接失败 ({url})"
+    return _result(ok, backend, result_type, reason)
 
 
 def _hc_command(name: str, hc: dict, backend: str) -> dict:

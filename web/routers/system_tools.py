@@ -303,19 +303,13 @@ def _hc_handle_ollama(name: str, hc: dict, cfg: dict, result: dict) -> dict:
 
 def _hc_handle_openai_chat(name: str, hc: dict, cfg: dict, result: dict) -> dict:
     """OpenAI 兼容 API 连接检测（POST /chat/completions，适用所有服务商）"""
+    from infra.toolcheck import ping_openai_chat
     base_url = _cfg_get(cfg, hc.get("config_key", ""))
     api_key = _cfg_get(cfg, hc.get("api_key_from", ""))
     model = cfg.get("llm", {}).get("model", "unknown")
-    from infra.http_pool import get_fast_client, auth_headers
-    check_url = base_url.rstrip("/") + "/chat/completions"
-    r = get_fast_client().post(
-        check_url,
-        headers=auth_headers(api_key) if api_key else {},
-        json={"model": model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1})
-    if r.status_code in (401, 403):
-        return {"ok": False, "name": name, "message": f"API Key 无效 ({r.status_code})", **result}
-    if r.status_code != 200:
-        return {"ok": False, "name": name, "message": f"HTTP {r.status_code}: {check_url}", **result}
+    ok, reason = ping_openai_chat(base_url, api_key=api_key, model=model, env_key="LLM_API_KEY")
+    if not ok:
+        return {"ok": False, "name": name, "message": reason or f"连接失败: {base_url}", **result}
     return {"ok": True, "name": name, "message": f"LLM 连接成功 · {model}", **result}
 
 
