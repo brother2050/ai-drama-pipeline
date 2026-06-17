@@ -291,12 +291,13 @@ def _check_llm(cfg: dict) -> tuple[bool, str, str, bool]:
         return False, backend, base_url, True
     try:
         from infra.http_pool import get_fast_client, auth_headers
-        check_url = base_url.rstrip("/")
-        if not check_url.endswith("/v1"):
-            check_url += "/v1"
+        model = llm_cfg.get("model", "")
         api_key = llm_cfg.get("api_key", "")
         headers = auth_headers(api_key) if api_key else {}
-        r = get_fast_client().get(f"{check_url}/models", headers=headers)
+        r = get_fast_client().post(
+            f"{base_url.rstrip('/')}/chat/completions",
+            headers=headers,
+            json={"model": model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1})
         return r.status_code == 200, backend, base_url, True
     except Exception:
         return False, backend, base_url, True

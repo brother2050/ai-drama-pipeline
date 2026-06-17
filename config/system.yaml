@@ -31,9 +31,9 @@ models:
 llm:
   enabled: true
   backend: openai
-  base_url: https://api.siliconflow.cn/v1
-  model: Qwen/Qwen3-8B
-  api_key: ''
+  base_url: https://open.bigmodel.cn/api/paas/v4
+  model: GLM-4.7-Flash
+  api_key: ad304b79ed25498c821338392680770e.tU7bcA7eepxb78KI
   stream: true
 training:
   enabled: false

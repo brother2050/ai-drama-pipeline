@@ -179,25 +179,29 @@ def _hc_ollama(name: str, hc: dict, cfg: dict, backend: str, result_type: str = 
     return _result(ok, backend, result_type, reason)
 
 
-def _hc_openai(name: str, hc: dict, cfg: dict, backend: str, result_type: str = "cloud") -> dict:
-    """openai_models 类型检查"""
+def _hc_openai_chat(name: str, hc: dict, cfg: dict, backend: str, result_type: str = "cloud") -> dict:
+    """openai_chat 类型检查（POST /chat/completions，适用所有服务商）"""
     url = _get_cfg_value(cfg, hc.get("config_key", ""))
     if not url:
         return _result(False, backend, "cloud", "LLM 地址未配置")
     llm_enabled = cfg.get("llm", {}).get("enabled")
-    # 归一化：移除末尾版本路径，统一用 /v1/models 探测
-    # 兼容: /v1, /v2, /api/v1, /api/paas/v4, /compatible-mode/v1 等
-    import re
-    check_url = re.sub(r'/(?:api/(?:paas/)?)?v\d+$', '', url.rstrip("/"))
-    headers = _resolve_auth(cfg, hc.get("api_key_from", ""))
     if llm_enabled is None or str(llm_enabled).lower() in ("false", "0", ""):
-        if _url_ok(check_url + "/v1/models", headers=headers):
-            return _result(False, backend, result_type, "服务已就绪，但未启用（请在设置中开启）")
         return _result(False, backend, result_type, "LLM 未启用")
-    check_url += "/v1"
-    ok = _url_ok(check_url, "/models", headers=headers)
-    reason = "" if ok else f"LLM 服务不可达 ({url})"
-    return _result(ok, backend, result_type, reason)
+    model = cfg.get("llm", {}).get("model", "")
+    headers = _resolve_auth(cfg, hc.get("api_key_from", ""))
+    try:
+        from infra.http_pool import get_fast_client
+        r = get_fast_client().post(
+            f"{url.rstrip('/')}/chat/completions",
+            headers=headers or {},
+            json={"model": model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1})
+        if r.status_code in (401, 403):
+            return _result(False, backend, result_type, f"API Key 无效 ({r.status_code})")
+        ok = r.status_code == 200
+        reason = "" if ok else f"LLM HTTP {r.status_code} ({url})"
+        return _result(ok, backend, result_type, reason)
+    except Exception as e:
+        return _result(False, backend, result_type, f"连接失败: {e}")
 
 
 def _hc_command(name: str, hc: dict, backend: str) -> dict:
@@ -239,7 +243,7 @@ def _execute_health_check(name: str, hc: dict, cfg: dict,
         "api_key_env": lambda: _hc_api_key(name, hc, cfg, b),
         "http": lambda: _hc_http(name, hc, cfg, b, t),
         "ollama_tags": lambda: _hc_ollama(name, hc, cfg, b, t),
-        "openai_models": lambda: _hc_openai(name, hc, cfg, b, t),
+        "openai_chat": lambda: _hc_openai_chat(name, hc, cfg, b, t),
         "command": lambda: _hc_command(name, hc, b),
         "port": lambda: _hc_port(name, hc, b),
         "celery_active": lambda: _hc_celery(name, b),

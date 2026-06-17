@@ -117,7 +117,7 @@ llm_backends:
     description: "OpenAI 兼容 API（SiliconFlow / Zhipu / llama.cpp / vLLM / ...）"
     requires_api_key: false
     health_check:
-      type: "openai_models"
+      type: "openai_chat"
       config_key: "llm.base_url"
       api_key_from: "llm.api_key"
 

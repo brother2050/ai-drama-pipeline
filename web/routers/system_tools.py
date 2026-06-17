@@ -301,24 +301,22 @@ def _hc_handle_ollama(name: str, hc: dict, cfg: dict, result: dict) -> dict:
     return {"ok": True, "name": name, "message": f"Ollama 连接成功 · {len(models)} 模型", "models": models, **result}
 
 
-def _hc_handle_openai(name: str, hc: dict, cfg: dict, result: dict) -> dict:
-    """OpenAI 兼容 API 模型列表检测"""
+def _hc_handle_openai_chat(name: str, hc: dict, cfg: dict, result: dict) -> dict:
+    """OpenAI 兼容 API 连接检测（POST /chat/completions，适用所有服务商）"""
     base_url = _cfg_get(cfg, hc.get("config_key", ""))
     api_key = _cfg_get(cfg, hc.get("api_key_from", ""))
+    model = cfg.get("llm", {}).get("model", "unknown")
     from infra.http_pool import get_fast_client, auth_headers
-    headers = auth_headers(api_key) if api_key else {}
-    import re
-    check_url = re.sub(r'/(?:api/(?:paas/)?)?v\d+$', '', base_url.rstrip("/"))
-    check_url += "/v1"
-    r = get_fast_client().get(f"{check_url}/models", headers=headers)
+    check_url = base_url.rstrip("/") + "/chat/completions"
+    r = get_fast_client().post(
+        check_url,
+        headers=auth_headers(api_key) if api_key else {},
+        json={"model": model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1})
     if r.status_code in (401, 403):
         return {"ok": False, "name": name, "message": f"API Key 无效 ({r.status_code})", **result}
-    if r.status_code == 404:
-        return {"ok": False, "name": name, "message": f"接口不存在 (404)，检查 API URL: {check_url}", **result}
     if r.status_code != 200:
-        return {"ok": False, "name": name, "message": f"HTTP {r.status_code}", **result}
-    count = len(r.json().get("data", []))
-    return {"ok": True, "name": name, "message": f"LLM 连接成功 · {count} 模型", **result}
+        return {"ok": False, "name": name, "message": f"HTTP {r.status_code}: {check_url}", **result}
+    return {"ok": True, "name": name, "message": f"LLM 连接成功 · {model}", **result}
 
 
 def _hc_handle_training(name: str, hc: dict, cfg: dict, result: dict) -> dict:
@@ -360,7 +358,7 @@ def _run_health_check(name: str, hc: dict, cfg: dict, result: dict, reg) -> dict
         "port": lambda: _hc_handle_port(*_HC_ARGS),
         "celery_active": lambda: _hc_handle_celery(*_HC_ARGS),
         "ollama_tags": lambda: _hc_handle_ollama(*_HC_ARGS),
-        "openai_models": lambda: _hc_handle_openai(*_HC_ARGS),
+        "openai_chat": lambda: _hc_handle_openai_chat(*_HC_ARGS),
     }
 
     handler = _HANDLERS.get(hc_type)
@@ -390,7 +388,7 @@ def _test_llm(cfg: dict, result: dict) -> dict:
     try:
         if hc_type == "ollama_tags":
             return _hc_handle_ollama(name, fake_hc, cfg, result)
-        return _hc_handle_openai(name, fake_hc, cfg, result)
+        return _hc_handle_openai_chat(name, fake_hc, cfg, result)
     except Exception as e:
         ename = type(e).__name__
         if "Connect" in ename:
