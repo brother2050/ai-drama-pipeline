@@ -344,7 +344,8 @@ class WorkflowBuilder:
         all_load = [nid for nid, n in wf.items() if n.get("class_type") == "LoadImage"]
         plain_load = [nid for nid in all_load
                       if not nid.startswith("ipadapter_ref")
-                      and not nid.startswith("pulid_ref")]
+                      and not nid.startswith("pulid_ref")
+                      and not nid.startswith("controlnet_ref")]
         if plain_load:
             target_node = plain_load[0]
         elif all_load:

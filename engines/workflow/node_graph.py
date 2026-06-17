@@ -13,13 +13,11 @@ Template variable syntax:
 """
 from __future__ import annotations
 
-import itertools
 import logging
 import os
 import re
-import threading
 
-from engines.workflow.inject import _create_ref_nodes
+from engines.workflow.inject import _create_ref_nodes, _next_suffix
 from engines.workflow.utils import (
     find_first_node,
     find_nodes_by_class,
@@ -29,15 +27,6 @@ from engines.workflow.utils import (
 logger = logging.getLogger(__name__)
 
 __all__ = ["NodeGraphInjector", "inject_from_registry"]
-
-# Atomic counter — unique suffix per injection across threads
-_suffix_counter = itertools.count(2000)
-_counter_lock = threading.Lock()
-
-
-def _next_suffix() -> int:
-    with _counter_lock:
-        return next(_suffix_counter)
 
 
 # ══════════════════════════════════════════════════════════
@@ -218,7 +207,7 @@ class NodeGraphInjector:
         # Inject primary character
         primary_name, primary_refs = char_refs[0]
         suffix = _next_suffix()
-        ctx = self._build_context(primary_refs, suffix, builder)
+        ctx = self._build_context(primary_refs, suffix, builder, char_name=primary_name)
 
         # Check for existing nodes (update path)
         existing_class = self.graph.get("chain", {}).get("find_by_class", "")
@@ -236,16 +225,18 @@ class NodeGraphInjector:
                 chain_weight_decay = self.graph.get("chain", {}).get("weight_decay", 0.6)
                 chain_min_weight = self.graph.get("chain", {}).get("min_weight", 0.3)
                 ctx = self._build_context(refs, suffix, builder, weight_decay=chain_weight_decay,
-                                          min_weight=chain_min_weight)
+                                          min_weight=chain_min_weight, char_name=char_name)
                 wf = self._inject_chain(wf, refs, suffix, ctx, builder)
 
         return wf
 
     def _build_context(self, ref_images: list[str], suffix: int, builder,
-                       weight_decay: float = 1.0, min_weight: float = 0.0) -> dict:
+                       weight_decay: float = 1.0, min_weight: float = 0.0,
+                       char_name: str = "") -> dict:
         """Build template resolution context."""
         project_dir = getattr(builder, 'project_dir', '')
         name_to_id = getattr(builder, '_char_name_to_id', {})
+        char_id = name_to_id.get(char_name, char_name) if char_name else ""
 
         # Resolve model source and KSampler
         ksampler, model_source = _find_model_pipeline(wf={})  # placeholder, resolved per-wf
@@ -266,7 +257,7 @@ class NodeGraphInjector:
             "suffix": suffix,
             "ksampler": None,  # resolved per-workflow
             "project_dir": project_dir,
-            "char_id": "",
+            "char_id": char_id,
             "chain_weight": chain_weight,
             "base_weight": base_weight,
         }
@@ -351,15 +342,22 @@ class NodeGraphInjector:
         ctx["model_source"] = model_source
         ctx["ksampler"] = ksampler
 
-        # Find shared loader nodes to reuse
-        shared_loaders: dict[str, str] = {}  # class_type → node_id
+        # Resolve reusable loader node IDs, keyed by class_type
+        reuse_node_map: dict[str, str] = {}  # class_type → node_id
         for cls in reuse_classes:
             nodes = find_nodes_by_class(wf, cls)
             if nodes:
-                shared_loaders[cls] = nodes[0]
+                reuse_node_map[cls] = nodes[0]
+
+        # Build template-key → reused-node mapping for input reference remapping
+        nodes_template = self.graph.get("nodes", {})
+        template_remap: dict[str, str] = {}  # template_key → reused_node_id
+        for node_id_template, node_def in nodes_template.items():
+            ct = _resolve_value(node_def.get("class_type", ""), ctx)
+            if ct in reuse_node_map:
+                template_remap[node_id_template] = reuse_node_map[ct]
 
         # Create chain nodes (only non-reusable ones)
-        nodes_template = self.graph.get("nodes", {})
         last_chain_node = None
 
         for node_id_template, node_def in nodes_template.items():
@@ -367,13 +365,13 @@ class NodeGraphInjector:
             class_type = _resolve_value(node_def.get("class_type", ""), ctx)
 
             # Skip reusable loader nodes
-            if class_type in shared_loaders:
+            if class_type in reuse_node_map:
                 continue
 
             inputs_raw = node_def.get("inputs", {})
             inputs = self._resolve_inputs(inputs_raw, ctx, ref_images, wf,
                                           suffix, builder, node_id,
-                                          chain_source=last_instance, shared_loaders=shared_loaders)
+                                          chain_source=last_instance, shared_loaders=template_remap)
 
             wf[node_id] = {"class_type": class_type, "inputs": inputs}
             last_chain_node = node_id
@@ -429,10 +427,10 @@ class NodeGraphInjector:
 
         Handles both primary injection and chain injection.
         chain_source: for chain mode, replaces {model_source} with the previous chain node.
-        shared_loaders: for chain mode, maps class_type → node_id for reuse.
+        shared_loaders: for chain mode, maps template_key → reused_node_id for reuse.
         """
         resolved = {}
-        shared = shared_loaders or {}
+        remap = shared_loaders or {}
         for key, value in inputs_raw.items():
             if isinstance(value, str):
                 if value == "{ref_image}":
@@ -441,47 +439,20 @@ class NodeGraphInjector:
                     prefix = f"{node_id.split('_')[0]}_ref"
                     ref_node = _create_ref_nodes(wf, ref_images, prefix, suffix, project_dir, char_id)
                     resolved[key] = [ref_node, 0]
-                elif value == "{ref_node}":
-                    ref_node = self._find_ref_node(wf, ctx)
-                    resolved[key] = [ref_node, 0] if ref_node else value
                 elif value == "{model_source}" and chain_source:
                     resolved[key] = [chain_source, 0]
                 else:
                     resolved[key] = _resolve_value(value, ctx)
             elif isinstance(value, list) and len(value) == 2 and chain_source:
-                # Check if this list references a shared loader node
+                # Remap template-key references to reused node IDs
                 ref_id = value[0] if isinstance(value[0], str) else ""
-                if isinstance(ref_id, str):
-                    for cls, nid in shared.items():
-                        if f"_{cls.lower()}" in ref_id or ref_id.startswith(cls.lower()):
-                            resolved[key] = [nid, value[1]]
-                            break
-                    else:
-                        resolved[key] = _resolve_value(value, ctx)
+                if isinstance(ref_id, str) and ref_id in remap:
+                    resolved[key] = [remap[ref_id], value[1]]
                 else:
                     resolved[key] = _resolve_value(value, ctx)
             else:
                 resolved[key] = _resolve_value(value, ctx)
         return resolved
-
-    def _find_ref_node(self, wf: dict, ctx: dict) -> str | None:
-        """Find an existing reference image node in the workflow.
-
-        For ControlNet Depth: finds the character's full_body LoadImage node.
-        For other methods: finds ipadapter_ref or pulid_ref nodes.
-        """
-        # Try to find by prefix pattern
-        for prefix in ("full_body_ref", "controlnet_ref", "ipadapter_ref", "pulid_ref"):
-            for nid in wf:
-                if nid.startswith(prefix):
-                    return nid
-        # Fall back to any LoadImage that's not a scene reference
-        for nid, node in wf.items():
-            if node.get("class_type") == "LoadImage":
-                if not nid.startswith("img2img_ref"):
-                    return nid
-        return None
-
 
 # ══════════════════════════════════════════════════════════
 #  Public API — called from inject.py / builder.py
