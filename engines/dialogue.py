@@ -61,26 +61,7 @@ def is_empty_dialogue(raw: str | None) -> bool:
     覆盖所有 LLM 可能的无台词写法：
       "......" / "角色名：......" / "" / None
     """
-    if not raw or not raw.strip():
-        return True
-    stripped = raw.strip()
-    if set(stripped) <= _EMPTY_DIALOGUE:
-        return True
-    # 逐行检查：每行冒号右侧都是省略号 → 无台词
-    for line in stripped.split("\n"):
-        line = line.strip()
-        if not line or set(line) <= _EMPTY_DIALOGUE:
-            continue
-        _speaker, sep, text = line.partition("\uff1a")
-        if not sep:
-            _speaker, sep, text = line.partition(":")
-        if sep:
-            if not _is_empty_text(text):
-                return False
-        else:
-            # 无冒号且非省略号 → 有台词
-            return False
-    return True
+    return not parse_dialogue(raw or "")
 
 
 def parse_dialogue(raw: str) -> list[DialogueLine]:
