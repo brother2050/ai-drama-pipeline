@@ -91,10 +91,10 @@ def _shot_task_inner(task, config_path: str, episode: int, shot_data: dict, shot
 def _preload_shot_data(cfg):
     """预加载角色和场景数据（不加载分镜 — 分镜由调用方从 DB 新鲜读取）"""
     try:
-        from infra.config import load_project_entities
+        from infra.config import load_project_entities, load_char_name_to_id
         characters, scenes = load_project_entities(cfg.paths)
         # 构建 name→id 映射（资产文件用 hash ID，分镜用名称）
-        char_name_to_id = {name: c.get("id", "") for name, c in characters.items() if name}
+        char_name_to_id = load_char_name_to_id(cfg.paths)
         scene_name_to_id = {name: s.get("id", "") for name, s in scenes.items() if name}
         logger.info(f"预加载: {len(characters)} 角色, {len(scenes)} 场景")
         return characters, scenes, char_name_to_id, scene_name_to_id

@@ -142,3 +142,13 @@ def load_project_entities(paths_or_dir: ProjectPaths | str | Path) -> tuple[dict
         characters[name] = c
     scenes = {s["name"]: s for s in load_yaml_entities(paths.scenes_dir, "scene") if s.get("name")}
     return characters, scenes
+
+
+def load_char_name_to_id(paths_or_dir: ProjectPaths | str | Path) -> dict[str, str]:
+    """从角色 YAML 中提取 name→id 映射（单一数据源，避免 3 处重复构造）
+
+    返回 {name: id} dict，过滤掉 name 或 id 为空的条目。
+    所有需要 char_name_to_id 的地方统一调用此函数。
+    """
+    characters, _ = load_project_entities(paths_or_dir)
+    return {name: c.get("id", "") for name, c in characters.items() if name and c.get("id")}

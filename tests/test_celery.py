@@ -134,7 +134,7 @@ def test_step_tts_no_dialogue(test_project):
     from pipeline.tasks import step_tts
 
     # shot_id=002 的台词是 "......"，应该跳过
-    with patch("pipeline.tasks._check_available", return_value=(True, "")):
+    with patch("pipeline.tasks.helpers._check_available", return_value=(True, "")):
         result = step_tts.apply(args=[f"{test_project}/config/project.yaml", 1, "002"]).get()
         assert result["status"] == "skipped"
         assert "无台词" in result["reason"]
@@ -144,7 +144,7 @@ def test_step_tts_tool_unavailable(test_project):
     """TTS 任务: 工具不可用应跳过"""
     from pipeline.tasks import step_tts
 
-    with patch("pipeline.tasks._check_available", return_value=(False, "MIMO_API_KEY 未配置")):
+    with patch("pipeline.tasks.helpers._check_available", return_value=(False, "MIMO_API_KEY 未配置")):
         result = step_tts.apply(args=[f"{test_project}/config/project.yaml", 1, "001"]).get()
         assert result["status"] == "skipped"
         assert "不可用" in result["reason"]
@@ -154,7 +154,7 @@ def test_step_tts_shot_not_found(test_project):
     """TTS 任务: 镜头不存在"""
     from pipeline.tasks import step_tts
 
-    with patch("pipeline.tasks._check_available", return_value=(True, "")):
+    with patch("pipeline.tasks.helpers._check_available", return_value=(True, "")):
         result = step_tts.apply(args=[f"{test_project}/config/project.yaml", 1, "999"]).get()
         assert result["status"] == "error"
         assert "不存在" in result["reason"]
@@ -166,7 +166,7 @@ def test_step_first_frame_tool_unavailable(test_project):
     """首帧任务: ComfyUI 不可用"""
     from pipeline.tasks import step_first_frame
 
-    with patch("pipeline.tasks._check_available", return_value=(False, "ComfyUI 不可达")):
+    with patch("pipeline.tasks.helpers._check_available", return_value=(False, "ComfyUI 不可达")):
         result = step_first_frame.apply(args=[f"{test_project}/config/project.yaml", 1, "001"]).get()
         assert result["status"] == "skipped"
 
@@ -177,7 +177,7 @@ def test_step_video_no_frame(test_project):
     """视频任务: 首帧不存在应跳过"""
     from pipeline.tasks import step_video
 
-    with patch("pipeline.tasks._check_available", return_value=(True, "")):
+    with patch("pipeline.tasks.helpers._check_available", return_value=(True, "")):
         result = step_video.apply(args=[f"{test_project}/config/project.yaml", 1, "001"]).get()
         assert result["status"] == "skipped"
         assert "首帧" in result["reason"]
@@ -189,7 +189,7 @@ def test_step_lipsync_no_video(test_project):
     """口型任务: 视频不存在"""
     from pipeline.tasks import step_lipsync
 
-    with patch("pipeline.tasks._check_available", return_value=(True, "")):
+    with patch("pipeline.tasks.helpers._check_available", return_value=(True, "")):
         result = step_lipsync.apply(args=[f"{test_project}/config/project.yaml", 1, "001"]).get()
         assert result["status"] == "skipped"
         assert "视频" in result["reason"]
@@ -203,7 +203,7 @@ def test_step_lipsync_no_audio(test_project):
     video_path = f"{test_project}/output/e01/s001/video.mp4"
     Path(video_path).touch()
 
-    with patch("pipeline.tasks._check_available", return_value=(True, "")):
+    with patch("pipeline.tasks.helpers._check_available", return_value=(True, "")):
         result = step_lipsync.apply(args=[f"{test_project}/config/project.yaml", 1, "001"]).get()
         assert result["status"] == "skipped"
         assert "音频" in result["reason"]

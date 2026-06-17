@@ -735,12 +735,9 @@ def inject_controlnet_depth(builder: object, wf: dict, char_names: list[str],
             continue
 
         # 优先使用全身视图
-        char_dir = builder._paths.character_asset_dir(
-            builder._char_name_to_id.get(char_name, char_name))
-        full_body_ref = char_dir / "full_body.png"
-        if not full_body_ref.exists():
-            full_body_ref = char_dir / "three_quarter.png"
-        if not full_body_ref.exists():
+        resolved_id = builder._char_name_to_id.get(char_name, char_name)
+        full_body_ref = builder._paths.full_body_ref(resolved_id)
+        if not full_body_ref:
             full_body_ref = Path(refs[0])
 
         if not full_body_ref.exists():

@@ -65,6 +65,18 @@ class ProjectPaths:
     def character_outfit_dir(self, char_id: str, outfit_key: str) -> Path:
         return self._root / "assets" / "characters" / char_id / outfit_key
 
+    def full_body_ref(self, char_id: str) -> Path | None:
+        """获取角色全身参考图路径（回退链：full_body → three_quarter → cover → None）
+
+        所有需要全身参考图的地方统一调用此方法，消除 3 处重复回退逻辑。
+        """
+        asset_dir = self.character_asset_dir(char_id)
+        for name in ("full_body.png", "three_quarter.png", "cover.png"):
+            p = asset_dir / name
+            if p.exists():
+                return p
+        return None
+
     def scene_asset_dir(self, scene_id: str) -> Path:
         return self._root / "assets" / "scenes" / scene_id
 

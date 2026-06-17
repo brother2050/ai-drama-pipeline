@@ -18,6 +18,7 @@ from infra.config.paths import ProjectPaths
 from infra.config.loader import (
     cfg_get, load_yaml_full, load_character, load_scene,
     load_yaml_entities, load_existing_entities, load_project_entities,
+    load_char_name_to_id, validate_character_name, CHARACTER_NAME_PATTERN,
 )
 from infra.config.registry import ModelRegistry
 
@@ -28,6 +29,7 @@ __all__ = [
     "deep_merge", "resolve_project_config",
     "get_active_project_dir", "projects_dir", "get_root", "get_voices_dir",
     "load_project_entities", "load_yaml_entities",
+    "load_char_name_to_id", "validate_character_name", "CHARACTER_NAME_PATTERN",
     "atomic_write_bytes", "invalidate_config_cache",
     "ModelRegistry",
 ]

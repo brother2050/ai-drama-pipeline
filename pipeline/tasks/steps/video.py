@@ -84,7 +84,8 @@ def video_core(shot_id: str, cfg, cont, out_dir: Path, *,
 
     # 确保 char_name_to_id 存在（Celery 独立步骤分派路径不会传入）
     if not char_name_to_id:
-        char_name_to_id = {name: c.get("id", "") for name, c in (characters or {}).items() if name and c.get("id")}
+        from infra.config import load_char_name_to_id
+        char_name_to_id = load_char_name_to_id(paths)
 
     video_comfyui = cont.get("video")
     wb = WorkflowBuilder(WorkflowBuilderConfig(

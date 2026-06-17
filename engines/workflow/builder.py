@@ -658,10 +658,8 @@ class WorkflowBuilder:
             max_refs = multi_ref_cfg.get("max_refs", 3)
             if len(refs) < max_refs:
                 # 全身视图（捕捉体型、发型、服装轮廓）
-                full_body = char_dir / "full_body.png"
-                if not full_body.exists():
-                    full_body = char_dir / "three_quarter.png"  # 回退到 3/4 侧
-                if full_body.exists() and str(full_body) not in refs:
+                full_body = self._paths.full_body_ref(resolved_id)
+                if full_body and str(full_body) not in refs:
                     refs.append(str(full_body))
 
         self._refs_cache[resolved_id] = refs

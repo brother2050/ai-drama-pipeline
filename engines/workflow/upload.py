@@ -57,14 +57,11 @@ def build_upload_map(builder, shot: dict, wf: dict) -> dict[str, str]:
             uploads[all_load_nodes[0]] = refs[0]
 
         if controlnet_ref_nodes and refs:
-            char_dir = builder._paths.character_asset_dir(
-                builder._char_name_to_id.get(char_names[0], char_names[0]))
-            full_body = char_dir / "full_body.png"
-            if not full_body.exists():
-                full_body = char_dir / "three_quarter.png"
-            if not full_body.exists() and refs:
+            resolved_id = builder._char_name_to_id.get(char_names[0], char_names[0])
+            full_body = builder._paths.full_body_ref(resolved_id)
+            if not full_body and refs:
                 full_body = Path(refs[0])
-            if full_body.exists():
+            if full_body and full_body.exists():
                 uploads[controlnet_ref_nodes[0]] = str(full_body)
 
     for i, cid in enumerate(char_names[1:]):

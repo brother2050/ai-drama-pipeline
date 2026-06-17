@@ -215,9 +215,8 @@ def first_frame_core(p: FirstFrameParams) -> dict:
 
     # 确保 char_name_to_id 存在（Celery 独立步骤分派路径不会传入）
     if not p.char_name_to_id:
-        from infra.config import load_project_entities
-        chars, _ = load_project_entities(p.cfg.paths)
-        p.char_name_to_id = {name: c.get("id", "") for name, c in chars.items() if name and c.get("id")}
+        from infra.config import load_char_name_to_id
+        p.char_name_to_id = load_char_name_to_id(p.cfg.paths)
 
     paths = p.cfg.paths
     wb = WorkflowBuilder(WorkflowBuilderConfig(
