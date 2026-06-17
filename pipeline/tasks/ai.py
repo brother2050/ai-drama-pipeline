@@ -66,9 +66,11 @@ def _ai_storyboard_inner(self, config_path, episode, outline, duration, append):
         shots = shots_result
         gen_warnings = []
 
-    # 2. 保存分镜
+    # 2. 后处理 + 保存分镜
     self.update_state(state="PROGRESS", meta={"step": "ai_storyboard", "progress": 90, "message": "正在保存..."})
+    from engines.utils.shot import postprocess_shots
     from engines.content.storyboard import validate_shot
+    shots = postprocess_shots(shots, episode)
     invalid_shots = []
     for s in shots:
         errs = validate_shot(s)

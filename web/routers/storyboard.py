@@ -160,18 +160,9 @@ def get_storyboard(episode: int) -> dict:
 @router.post("/storyboard/{episode}")
 def save_storyboard(episode: int, req: StoryboardSaveRequest) -> dict:
     _check_episode(episode)
-    from infra.constants import VALID_EMOTIONS, VALID_SHOT_TYPES, VALID_CAMERAS, clip_duration
+    from engines.utils.shot import postprocess_shots
     shots = [s.model_dump() for s in req.shots]
-    for shot in shots:
-        shot["episode"] = episode
-        # 值域校验（Web 保存路径，防止非法值写入 DB）
-        if shot.get("emotion"):
-            shot["emotion"] = shot["emotion"].lower() if shot["emotion"].lower() in VALID_EMOTIONS else "neutral"
-        if shot.get("shot_type") and shot["shot_type"] not in VALID_SHOT_TYPES:
-            shot["shot_type"] = "中景"
-        if shot.get("camera") and shot["camera"] not in VALID_CAMERAS:
-            shot["camera"] = "固定"
-        shot["duration"] = clip_duration(shot.get("duration"))
+    shots = postprocess_shots(shots, episode)
     from engines.content.storyboard import save_storyboard
     try:
         save_storyboard(shots, episode)
