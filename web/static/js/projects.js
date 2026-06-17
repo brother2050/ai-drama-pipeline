@@ -375,6 +375,7 @@ async function _pollImportTask(taskId) {
             toast(`✅ 导入成功！${res.project_name || ''} (${res.characters || 0}角色, ${res.scenes || 0}场景, ${res.shots || 0}镜头)`);
           }
           if (typeof _updateSidebarProject !== 'undefined') _updateSidebarProject();
+          _cache.clear();
           loadProjects();
           return;
         }
@@ -443,6 +444,7 @@ async function newProj() {
     if (!result) return;
     api('/projects/new', { method: 'POST', body: result }).then(() => {
       toast(t('toast.created'));
+      _cache.clear();
       if (typeof _updateSidebarProject !== 'undefined') _updateSidebarProject();
       loadProjects();
     }).catch(e => toast(e.message, 'error'));

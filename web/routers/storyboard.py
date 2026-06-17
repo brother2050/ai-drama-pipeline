@@ -162,7 +162,7 @@ def save_storyboard(episode: int, req: StoryboardSaveRequest) -> dict:
     _check_episode(episode)
     from engines.utils.shot import postprocess_shots
     shots = [s.model_dump() for s in req.shots]
-    shots = postprocess_shots(shots, episode)
+    shots = postprocess_shots(shots, episode, strict=True)
     from engines.content.storyboard import save_storyboard
     try:
         save_storyboard(shots, episode)
