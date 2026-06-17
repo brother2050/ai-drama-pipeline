@@ -284,7 +284,7 @@ def _update_view_refs(char: dict, char_id: str, generated_urls: list[str]) -> No
     view_filenames = {fn for fn, *_ in _FIVE_VIEWS}
     char["reference_images"] = [
         u for u in char["reference_images"]
-        if not u.startswith(prefix) or u.rsplit("/", 1)[-1] not in view_filenames
+        if not u.startswith(prefix) or "/" in u[len(prefix):] or u[len(prefix):] not in view_filenames
     ]
     existing_set = set(char["reference_images"])
     for url in generated_urls:
