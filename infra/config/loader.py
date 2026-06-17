@@ -152,3 +152,13 @@ def load_char_name_to_id(paths_or_dir: ProjectPaths | str | Path) -> dict[str, s
     """
     characters, _ = load_project_entities(paths_or_dir)
     return {name: c.get("id", "") for name, c in characters.items() if name and c.get("id")}
+
+
+def load_scene_name_to_id(paths_or_dir: ProjectPaths | str | Path) -> dict[str, str]:
+    """从场景 YAML 中提取 name→id 映射（与 load_char_name_to_id 对称）
+
+    返回 {name: id} dict，过滤掉 name 或 id 为空的条目。
+    所有需要 scene_name_to_id 的地方统一调用此函数。
+    """
+    _, scenes = load_project_entities(paths_or_dir)
+    return {name: s.get("id", "") for name, s in scenes.items() if name and s.get("id")}
