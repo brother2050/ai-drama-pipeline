@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import logging
 
+from infra.constants import IMAGE_GLOB_PATTERNS
+
 logger = logging.getLogger(__name__)
 
 __all__ = ["ensure_portraits_and_scenes"]
@@ -35,7 +37,7 @@ def _check_scene_readiness(paths) -> list[str]:
         if not sid:
             continue
         asset_dir = paths.scene_asset_dir(sid)
-        has_images = asset_dir.exists() and list(asset_dir.glob("*.png")) + list(asset_dir.glob("*.jpg"))
+        has_images = asset_dir.exists() and any(asset_dir.glob(ext) for ext in IMAGE_GLOB_PATTERNS)
         if not has_images:
             need_image.append(scene.get("name", sid))
     return need_image

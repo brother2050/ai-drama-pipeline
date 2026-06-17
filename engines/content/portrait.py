@@ -421,7 +421,8 @@ def _generate_single_outfit(comfyui, wb, char_id: str, outfit_key: str,
     """为单个 outfit 生成参考图，返回 URL 或 None"""
     outfit_dir = portrait_dir / outfit_key
     if not force and outfit_dir.exists():
-        existing = list(outfit_dir.glob("*.png")) + list(outfit_dir.glob("*.jpg"))
+        from infra.constants import IMAGE_GLOB_PATTERNS
+        existing = [f for ext in IMAGE_GLOB_PATTERNS for f in outfit_dir.glob(ext)]
         if existing:
             return None
 

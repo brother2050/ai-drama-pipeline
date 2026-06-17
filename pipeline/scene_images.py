@@ -81,7 +81,8 @@ def _process_single_scene(f: Path, wb, comfyui, paths, cfg, force: bool) -> tupl
 def _existing_images(asset_dir: Path) -> list:
     if not asset_dir.exists():
         return []
-    return list(asset_dir.glob("*.png")) + list(asset_dir.glob("*.jpg"))
+    from infra.constants import IMAGE_GLOB_PATTERNS
+    return [f for ext in IMAGE_GLOB_PATTERNS for f in asset_dir.glob(ext)]
 
 
 def _resolve_scene_desc(scene: dict, sname: str) -> str:
