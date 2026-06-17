@@ -183,11 +183,10 @@ class OpenAISdkLLM(ConfigMixin, ErrorLearningMixin, HttpRetryMixin, BaseLLM):
         response = client.chat.completions.create(
             model=self._model,
             messages=self._build_message(prompt, system),
-            max_tokens=kwargs.get("max_tokens", 2048),
+            max_tokens=kwargs.get("max_tokens", 4096),
             temperature=kwargs.get("temperature", self._temperature),
             top_p=kwargs.get("top_p", self._top_p),
             stream=True,
-            stream_options={"include_usage": False},
         )
         parts: list[str] = []
         for chunk in response:
@@ -201,7 +200,7 @@ class OpenAISdkLLM(ConfigMixin, ErrorLearningMixin, HttpRetryMixin, BaseLLM):
         response = client.chat.completions.create(
             model=self._model,
             messages=self._build_message(prompt, system),
-            max_tokens=kwargs.get("max_tokens", 2048),
+            max_tokens=kwargs.get("max_tokens", 4096),
             temperature=kwargs.get("temperature", self._temperature),
             top_p=kwargs.get("top_p", self._top_p),
             stream=False,

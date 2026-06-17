@@ -31,8 +31,8 @@ models:
 llm:
   enabled: true
   backend: openai-sdk
-  base_url: https://open.bigmodel.cn/api/paas/v4
-  model: GLM-4.7-Flash
+  base_url: https://api.moonshot.cn/v1
+  model: kimi-k2.6
   api_key: ''
   stream: true
 training:

@@ -722,17 +722,16 @@ models_thinking:
 
 llm_models:
   # ── 精确匹配（优先级最高） ──
-  # SiliconFlow / 魔搭（带命名空间前缀）
   "Qwen/Qwen2.5-72B-Instruct":   { context_window: 131072,  max_output: 8192  }
-  "Qwen/Qwen3-8B":   { context_window: 131072,  max_output: 8192  }
-  "Qwen/Qwen2.5-14B-Instruct":   { context_window: 131072,  max_output: 8192  }
-  "Qwen/Qwen2.5-7B-Instruct":    { context_window: 32768,   max_output: 8192  }
-  "THUDM/glm-4-9b-chat":         { context_window: 128000,  max_output: 8192  }
+  "Qwen/Qwen3-8B":                { context_window: 131072,  max_output: 8192  }
+  "Qwen/Qwen2.5-14B-Instruct":    { context_window: 131072,  max_output: 8192  }
+  "Qwen/Qwen2.5-7B-Instruct":     { context_window: 131072,  max_output: 8192  }
+  "THUDM/glm-4-9b-chat":          { context_window: 128000,  max_output: 8192  }
   "internlm/internlm2_5-7b-chat": { context_window: 32768,   max_output: 8192  }
   "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B": { context_window: 32768, max_output: 8192 }
   # 智谱 AI
   "glm-4-flash":                  { context_window: 128000,  max_output: 8192  }
-  "glm-4.7-flash":                { context_window: 200000,  max_output: 128000}
+  "glm-4.7-flash":                { context_window: 200000,  max_output: 8192  }
   "glm-z1-flash":                 { context_window: 128000,  max_output: 8192  }
   "glm-4.7":                      { context_window: 200000,  max_output: 128000}
   # 阿里云百炼
@@ -740,7 +739,7 @@ llm_models:
   "qwen-plus":                    { context_window: 131072,  max_output: 8192  }
   "qwen-turbo":                   { context_window: 131072,  max_output: 8192  }
   "qwen-long":                    { context_window: 1000000, max_output: 6000  }
-  # 火山引擎（豆包）— model 填推理接入点 ID（ep-xxxx）
+  # 火山引擎（豆包）
   "doubao-pro-32k":               { context_window: 32768,   max_output: 4096  }
   "doubao-pro-128k":              { context_window: 131072,  max_output: 4096  }
   "doubao-lite-32k":              { context_window: 32768,   max_output: 4096  }
@@ -750,13 +749,13 @@ llm_models:
   # 腾讯混元
   "hunyuan-lite":                 { context_window: 32768,   max_output: 4096  }
   "hunyuan-standard":             { context_window: 32768,   max_output: 4096  }
-  "hunyuan-pro":                  { context_window: 32768,   max_output: 4096  }
+  "hunyuan-pro":                  { context_window: 262144,  max_output: 4096  }
   # 月之暗面
   "moonshot-v1-8k":               { context_window: 8192,    max_output: 4096  }
   "moonshot-v1-32k":              { context_window: 32768,   max_output: 4096  }
   "moonshot-v1-128k":             { context_window: 131072,  max_output: 4096  }
-  "kimi-k2.6":                     { context_window: 131072,  max_output: 8192  }
-  "kimi-k2":                       { context_window: 131072,  max_output: 8192  }
+  "kimi-k2.6":                    { context_window: 131072,  max_output: 16384 }
+  "kimi-k2":                      { context_window: 131072,  max_output: 16384 }
   # 百度千帆
   "ernie-speed-128k":             { context_window: 128000,  max_output: 4096  }
   "ernie-speed-8k":               { context_window: 8192,    max_output: 4096  }
@@ -764,8 +763,8 @@ llm_models:
   "ernie-bot-4.5":                { context_window: 8192,    max_output: 4096  }
   # 讯飞星火
   "spark-lite":                   { context_window: 8192,    max_output: 4096  }
-  "spark-pro":                    { context_window: 8192,    max_output: 4096  }
-  "spark-max":                    { context_window: 8192,    max_output: 4096  }
+  "spark-pro":                    { context_window: 131072,  max_output: 4096  }
+  "spark-max":                    { context_window: 131072,  max_output: 4096  }
   # DeepSeek
   "deepseek-v3":                  { context_window: 128000,  max_output: 8192  }
   "deepseek-chat":                { context_window: 128000,  max_output: 8192  }
@@ -781,7 +780,7 @@ llm_models:
   "deepseek-ai/":                 { context_window: 32768,   max_output: 8192  }
   "THUDM/":                       { context_window: 128000,  max_output: 8192  }
   "internlm/":                    { context_window: 32768,   max_output: 8192  }
-  "Qwen/Qwen2.5":                { context_window: 32768,   max_output: 8192  }
+  "Qwen/Qwen2.5":                 { context_window: 32768,   max_output: 8192  }
   "Qwen/":                        { context_window: 32768,   max_output: 8192  }
   "deepseek-":                    { context_window: 128000,  max_output: 8192  }
   "gemini-":                      { context_window: 1048576, max_output: 65536 }
@@ -811,7 +810,7 @@ llm_models:
   "phi-3-medium":                 { context_window: 32768,   max_output: 4096  }
   "phi-4-mini":                   { context_window: 131072,  max_output: 8192  }
   "qwen2.5-7b":                   { context_window: 32768,   max_output: 8192  }
-  "qwen2.5-14b":                  { context_window: 32768,   max_output: 8192  }
+  "qwen2.5-14b":                  { context_window: 131072,  max_output: 8192  }
   "qwen2.5-0.5b":                 { context_window: 32768,   max_output: 8192  }
   "llama-3":                      { context_window: 8192,    max_output: 4096  }
   "mistral":                      { context_window: 32768,   max_output: 8192  }
