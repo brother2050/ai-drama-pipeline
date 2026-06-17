@@ -96,7 +96,8 @@ def _inject_ref_image(wf: dict, ref_image: str, char_id: str, project_dir: str, 
         return
     from infra.storage.asset_tracker import comfyui_asset_name, AssetTracker
     remote_name = comfyui_asset_name(project_dir, char_id, os.path.basename(ref_image))
-    wf[char_nodes[0]]["inputs"]["image"] = remote_name
+    for nid in char_nodes:
+        wf[nid]["inputs"]["image"] = remote_name
     try:
         AssetTracker(project_dir).upload_if_needed(comfyui, ref_image, remote_name, comfyui.url)
     except Exception as e:
