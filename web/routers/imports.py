@@ -1,5 +1,6 @@
 """API 路由 — 项目管理 / 导入 / Seko / 训练"""
 from __future__ import annotations
+from engines.dialogue import is_empty_dialogue
 from infra.config import load_yaml_full
 from infra.models import ImportPlan
 
@@ -403,7 +404,7 @@ def _get_last_shot_info(episode: int = 1) -> str:
         if last.get("action"):
             action = last["action"]
             parts.append(f"action: {action[:80]}{'...' if len(action) > 80 else ''}")
-        if last.get("dialogue") and last.get("dialogue") != "......":
+        if not is_empty_dialogue(last.get("dialogue")):
             parts.append(f"dialogue: {last['dialogue'][:50]}")
         if last.get("emotion"):
             parts.append(f"emotion: {last['emotion']}")

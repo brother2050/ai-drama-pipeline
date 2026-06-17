@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import re
 
+from engines.dialogue import is_empty_dialogue
 from infra.constants import VALID_EMOTIONS, VALID_SHOT_TYPES, VALID_CAMERAS
 
 logger = logging.getLogger(__name__)
@@ -77,7 +78,7 @@ def postprocess_shots(shots: list[dict], episode: int, *, strict: bool = False) 
         # LLM 有时误将 shot_id 混入角色名（如 "狮虎兽_001：台词" → "狮虎兽：台词"）
         for _dlg_key in ("dialogue", "dialogue_en"):
             _dlg = shot.get(_dlg_key, "")
-            if _dlg and _dlg != "......":
+            if _dlg and not is_empty_dialogue(_dlg):
                 _dlg = re.sub(r"_\d{3}([：:])", r"\1", _dlg)   # 角色名_数字：→ 角色名：
                 _dlg = re.sub(r"^\d{3}[：:]\s*", "", _dlg)       # 纯数字：→ 去除
                 shot[_dlg_key] = _dlg

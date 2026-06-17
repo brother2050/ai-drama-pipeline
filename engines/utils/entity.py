@@ -12,6 +12,7 @@ from pathlib import Path
 
 from infra.constants import STATUS_DONE, STATUS_ERROR
 from infra.config import save_yaml, load_existing_entities
+from engines.dialogue import is_empty_dialogue
 
 logger = logging.getLogger(__name__)
 
@@ -211,7 +212,7 @@ def build_entity_descriptions(
 
         actions = [s.get("action", "") for s in entity_shots[:5]]
         dialogues = [s.get("dialogue", "") for s in entity_shots[:5]
-                     if s.get("dialogue") and s.get("dialogue") != "......"]
+                     if not is_empty_dialogue(s.get("dialogue"))]
 
         label = "角色" if entity_key == "character" else "场景"
         parts = [f"根据以下信息生成{label}「{eid}」的配置。"]
