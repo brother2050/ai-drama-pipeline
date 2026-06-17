@@ -8,7 +8,6 @@
 """
 from __future__ import annotations
 
-from engines.dialogue import is_empty_dialogue
 from infra.constants import STATUS_DONE, STATUS_ERROR
 import json
 import logging
@@ -163,7 +162,7 @@ def _collect_missing_texts(paths, episode: int, force: bool = False) -> tuple[li
         if shot.get("action") and (force or not shot.get("action_en")):
             all_texts.append(shot["action"])
             text_meta.append(("shot", sid, "action", "action_en"))
-        if not is_empty_dialogue(shot.get("dialogue")) and (force or not shot.get("dialogue_en")):
+        if shot.get("dialogue") and shot.get("dialogue") != "......" and (force or not shot.get("dialogue_en")):
             all_texts.append(shot["dialogue"])
             text_meta.append(("shot", sid, "dialogue", "dialogue_en"))
 

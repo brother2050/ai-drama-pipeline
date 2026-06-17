@@ -14,7 +14,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["DialogueLine", "parse_dialogue", "is_empty_dialogue", "concat_wav"]
+__all__ = ["DialogueLine", "parse_dialogue", "concat_wav"]
 
 
 def _extract_wav_data_chunk(raw: bytes) -> bytes | None:
@@ -53,15 +53,6 @@ class DialogueLine:
 def _is_empty_text(text: str) -> bool:
     """判断台词内容是否等同于无台词（纯省略号/空白/标点）"""
     return not text.strip() or set(text.strip()) <= _EMPTY_DIALOGUE
-
-
-def is_empty_dialogue(raw: str | None) -> bool:
-    """判断台词字段是否等同于无台词（供外部模块统一调用）。
-
-    覆盖所有 LLM 可能的无台词写法：
-      "......" / "角色名：......" / "" / None
-    """
-    return not parse_dialogue(raw or "")
 
 
 def parse_dialogue(raw: str) -> list[DialogueLine]:

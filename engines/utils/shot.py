@@ -4,7 +4,6 @@ from __future__ import annotations
 import logging
 import re
 
-from engines.dialogue import is_empty_dialogue
 from infra.constants import VALID_EMOTIONS, VALID_SHOT_TYPES, VALID_CAMERAS
 
 logger = logging.getLogger(__name__)
@@ -74,11 +73,22 @@ def postprocess_shots(shots: list[dict], episode: int, *, strict: bool = False) 
         if not shot.get("dialogue", "").strip():
             shot["dialogue"] = "......"
 
+        # dialogue 归一化："角色名：......" → 移除空台词行（LLM 有时在省略号前加角色名）
+        # 从 parse 结果重建，过滤掉纯省略号行
+        if shot.get("dialogue") and shot["dialogue"] != "......":
+            from engines.dialogue import parse_dialogue
+            lines = parse_dialogue(shot["dialogue"])
+            if not lines:
+                shot["dialogue"] = "......"
+            elif len(lines) < len(shot["dialogue"].split("\n")):
+                # 部分行被过滤，重建
+                shot["dialogue"] = "\n".join(f"{ln.speaker}\uff1a{ln.text}" for ln in lines)
+
         # 清理 dialogue/dialogue_en 中的 shot_id 前缀
         # LLM 有时误将 shot_id 混入角色名（如 "狮虎兽_001：台词" → "狮虎兽：台词"）
         for _dlg_key in ("dialogue", "dialogue_en"):
             _dlg = shot.get(_dlg_key, "")
-            if _dlg and not is_empty_dialogue(_dlg):
+            if _dlg and _dlg != "......":
                 _dlg = re.sub(r"_\d{3}([：:])", r"\1", _dlg)   # 角色名_数字：→ 角色名：
                 _dlg = re.sub(r"^\d{3}[：:]\s*", "", _dlg)       # 纯数字：→ 去除
                 shot[_dlg_key] = _dlg
