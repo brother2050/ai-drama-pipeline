@@ -172,22 +172,30 @@ class OpenAICompatLLM:
 
     @property
     def context_length(self) -> int:
-        """模型上下文长度（优先配置值，否则查询 API，最后回退注册表）"""
+        """模型上下文长度（优先配置值 → API 探测 → 注册表 → 默认值）"""
         if self._ctx > 0:
             return self._ctx
-        # 尝试从 API 获取实际 context window（llama.cpp /v1/models 返回 n_ctx）
         try:
             self._fast_client = _ensure_client(self._fast_client, 5)
             r = self._fast_client.get(f"{self._url}/models", headers=self._headers)
             if r.status_code == 200:
                 data = r.json()
-                models = data.get("data", data.get("models", []))
+                models = data.get("data", [])
                 if models:
-                    meta = models[0].get("meta", {})
-                    n_ctx = meta.get("n_ctx", 0)
-                    if n_ctx > 0:
+                    model = models[0]
+                    # 标准 OpenAI 格式：顶层直接返回上下文窗口字段
+                    for key in ("context_length", "context_window",
+                                "max_context_length", "max_context_window", "max_model_len"):
+                        val = model.get(key, 0)
+                        if isinstance(val, int) and val > 0:
+                            self._ctx = val
+                            logger.info(f"从 /models.{key} 检测到上下文窗口: {val}")
+                            return val
+                    # llama.cpp 格式：嵌套在 meta.n_ctx 中
+                    n_ctx = model.get("meta", {}).get("n_ctx", 0)
+                    if isinstance(n_ctx, int) and n_ctx > 0:
                         self._ctx = n_ctx
-                        logger.info(f"从 API 检测到模型上下文窗口: {n_ctx} tokens")
+                        logger.info(f"从 /models.meta.n_ctx 检测到上下文窗口: {n_ctx}")
                         return n_ctx
         except Exception as e:
             logger.debug(f"从 API 检测上下文窗口失败: {e}")
@@ -198,8 +206,22 @@ class OpenAICompatLLM:
             self._ctx = limits["context_window"]
             return self._ctx
         except Exception:
+            logger.warning(f"无法检测 {self._model} 上下文窗口，使用默认 8192")
             self._ctx = 8192
             return 8192
+
+    def _parse_api_error(self, resp: dict) -> None:
+        """检测 API 返回的 error 对象，有则抛出异常"""
+        if "error" not in resp:
+            return
+        err = resp["error"]
+        if isinstance(err, dict):
+            msg = err.get("message", str(err))
+            code = err.get("code") or err.get("type") or ""
+        else:
+            msg = str(err)
+            code = ""
+        raise ValueError(f"API 错误 [{code}]: {msg}")
 
     def chat(self, prompt: str, system: str = "", **kwargs) -> str:
         messages = []
@@ -211,7 +233,6 @@ class OpenAICompatLLM:
             "messages": messages,
             "max_tokens": kwargs.get("max_tokens", 2048),
         }
-        # 生成参数：配置文件默认值 < 调用方 kwargs 显式传入
         temp = kwargs.get("temperature", self._temperature)
         if temp is not None:
             body["temperature"] = temp
@@ -220,6 +241,12 @@ class OpenAICompatLLM:
             body["top_p"] = top_p
         self._client = _ensure_client(self._client, self._timeout)
         use_stream = kwargs.get("stream", self._stream)
+        # 思考模型（Kimi k2 / Qwen3 / DeepSeek-R1 等）跳过流式：
+        # 思考阶段只输出 reasoning_content，content 迟迟不出现，SSE 连接容易超时截断
+        is_thinking = self._is_thinking_model()
+        if use_stream and is_thinking:
+            logger.info(f"LLM [{self._model}] 为思考模型，跳过流式，直接使用非流式请求")
+            use_stream = False
         body["stream"] = use_stream
         logger.info(f"LLM 请求 [{self._model}] system={system[:80]!r} prompt={prompt[:200]!r}")
         t0 = time.time()
@@ -238,10 +265,16 @@ class OpenAICompatLLM:
             r = self._client.post(f"{self._url}/chat/completions",
                                   json=body, headers=self._headers)
             r.raise_for_status()
-            choices = r.json().get("choices", [])
+            resp = r.json()
+            self._parse_api_error(resp)
+            choices = resp.get("choices", [])
             if not choices:
-                raise ValueError("LLM 返回空 choices（无生成结果）")
-            result = choices[0].get("message", {}).get("content", "")
+                raise ValueError(f"LLM 返回空 choices（无生成结果）: {resp}")
+            msg = choices[0].get("message", {})
+            # thinking 模型：只取 content（最终输出），reasoning_content 为思考过程应忽略
+            result = msg.get("content") or ""
+            if not result:
+                logger.warning(f"LLM 非流式返回空内容，message keys={list(msg.keys())}, resp keys={list(resp.keys())}")
             elapsed = time.time() - t0
             logger.info(f"LLM 响应 [{self._model}] {elapsed:.1f}s len={len(result)} preview={result[:200]!r}")
             return result
@@ -251,35 +284,78 @@ class OpenAICompatLLM:
             _try_learn_limits(self._model, e)
             raise
 
+    def _is_thinking_model(self) -> bool:
+        """检测当前模型是否为思考模型（需要 inference 阶段，不适合流式）"""
+        try:
+            from infra.config.registry import ModelRegistry
+            return ModelRegistry().is_thinking_model(self._model)
+        except Exception:
+            return False
+
     @staticmethod
     def _parse_sse_stream(response) -> str:
-        """解析 OpenAI 兼容 SSE 流式响应（data: {...} 行）"""
+        """解析 OpenAI 兼容 SSE 流式响应（data: {...} 行）
+
+        使用 iter_bytes() 手动分行，比 iter_lines() 对大模型长连接更可靠。
+        兼容 thinking 模型：只取 delta.content，忽略 delta.reasoning_content（思考过程）。
+        """
         import json as _json
         parts: list[str] = []
-        for line in response.iter_lines():
-            if not line:
+        raw_lines_sample: list[str] = []
+        buffer = b""
+        for chunk in response.iter_bytes():
+            if not chunk:
                 continue
-            # SSE 格式: "data: {...}" 或 "data:{...}"（部分提供商无空格）或 "data: [DONE]"
-            if line.startswith("data:"):
-                data = line[5:].lstrip()
+            buffer += chunk
+            while b"\n" in buffer:
+                line_bytes, buffer = buffer.split(b"\n", 1)
+                line = line_bytes.decode("utf-8", errors="replace").strip()
+                if not line:
+                    continue
+                if not line.startswith("data:"):
+                    continue
+                data = line[5:].strip()
                 if data == "[DONE]":
-                    break
+                    # 收到结束标记，返回已收集的 content
+                    result = "".join(parts)
+                    if not result:
+                        logger.warning(f"OpenAI SSE 流式响应为空（收到 [DONE]），原始行样例: {raw_lines_sample}")
+                    return result
                 if not data:
                     continue
                 try:
                     obj = _json.loads(data)
-                    choices = obj.get("choices", [])
-                    if not choices:
-                        continue
-                    delta = choices[0].get("delta", {})
-                    content = delta.get("content", "")
-                    if content:
-                        parts.append(content)
                 except _json.JSONDecodeError:
+                    logger.debug(f"SSE 非 JSON 行: {data[:200]}")
                     continue
+                # 检测 API 流式错误（Kimi 等平台在 SSE 流中返回 error 对象）
+                if "error" in obj:
+                    err = obj["error"]
+                    if isinstance(err, dict):
+                        msg = err.get("message", str(err))
+                        err_type = err.get("type", "")
+                    else:
+                        msg = str(err)
+                        err_type = ""
+                    raise ValueError(f"API 流式错误 [{err_type}]: {msg}")
+                choices = obj.get("choices", [])
+                if not choices:
+                    # 某些 API（如 Kimi）可能在 model 级返回 usage 等元数据
+                    if "usage" in obj or "model" in obj:
+                        continue
+                    continue
+                delta = choices[0].get("delta", {})
+                # thinking 模型：只取 content（最终输出），忽略 reasoning_content（思考过程）
+                content = delta.get("content")
+                if content:
+                    parts.append(content)
+                # 调试：采集前 5 行原始数据
+                if len(raw_lines_sample) < 5:
+                    raw_lines_sample.append(data[:300])
+        # 流结束但未收到 [DONE]（连接异常断开或超时）
         result = "".join(parts)
         if not result:
-            logger.warning("OpenAI SSE 流式响应为空")
+            logger.warning(f"OpenAI SSE 流式响应为空（连接提前关闭），原始行样例: {raw_lines_sample}")
         return result
 
     def health_check(self) -> tuple[bool, str]:

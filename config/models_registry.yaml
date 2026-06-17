@@ -668,6 +668,42 @@ pipeline_steps:
     timeout: 300
 
 # ══════════════════════════════════════════════════════════
+#  LLM 模型是否需要thinking
+# ══════════════════════════════════════════════════════════
+models_thinking:
+  # ===== Qwen =====
+  - "Qwen/Qwen2.5-"
+  - "Qwen/Qwen3-"
+
+  # ===== DeepSeek =====
+  - "deepseek-ai/DeepSeek-R1"
+
+  # ===== GLM =====
+  - "THUDM/glm"
+  - "glm-4"
+  - "glm-z1"
+
+  # ===== InternLM =====
+  - "internlm/"
+
+  # ===== Kimi =====
+  - "kimi-k"
+  - "moonshot-"
+
+  # ===== OpenAI o系列 =====
+  - "o1"
+  - "o3"
+  - "o4"
+
+  # ===== Claude (extended thinking) =====
+  - "claude-sonnet-4"
+  - "claude-opus-4"
+  - "claude-3-7-sonnet"
+
+  # ===== Gemini (thinking mode) =====
+  - "gemini-2.5-"
+
+# ══════════════════════════════════════════════════════════
 #  LLM 模型限制（自适应批处理器使用）
 #  数据来源：官方文档验证，prefix 匹配按长度降序
 #  新增模型请查阅官方文档后添加，不可靠猜测
@@ -708,6 +744,8 @@ llm_models:
   "moonshot-v1-8k":               { context_window: 8192,    max_output: 4096  }
   "moonshot-v1-32k":              { context_window: 32768,   max_output: 4096  }
   "moonshot-v1-128k":             { context_window: 131072,  max_output: 4096  }
+  "kimi-k2.6":                     { context_window: 131072,  max_output: 8192  }
+  "kimi-k2":                       { context_window: 131072,  max_output: 8192  }
   # 百度千帆
   "ernie-speed-128k":             { context_window: 128000,  max_output: 4096  }
   "ernie-speed-8k":               { context_window: 8192,    max_output: 4096  }

@@ -23,6 +23,7 @@ _MOOD_PROMPTS = {
     "fearful": "dark eerie horror background music, creepy and unsettling",
     "action": "action energetic fast-paced background music, exciting and dynamic",
     "serious": "serious dramatic cinematic background music, grand and impactful",
+    "smug": "smug confident triumphant background music, self-assured and slightly arrogant",
 }
 
 

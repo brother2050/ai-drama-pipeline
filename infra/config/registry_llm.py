@@ -18,6 +18,9 @@ class LLMRegistryMixin:
     # ══════════════════════════════════════════════════════════
     #  LLM 模型限制查询
     # ══════════════════════════════════════════════════════════
+    def is_thinking_model(self, model_name: str = "") -> bool:
+        thinking_models = tuple(self._data.get("models_thinking", ()))
+        return model_name.startswith(thinking_models)
 
     def get_model_limits(self, model_name: str) -> dict[str, int]:
         m = model_name.lower()

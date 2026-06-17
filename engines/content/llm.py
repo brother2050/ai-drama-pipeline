@@ -63,7 +63,12 @@ def _compute_storyboard_max_tokens(llm: object, target_duration: int, character_
     from infra.json_parse import get_max_output_tokens
     model_max = get_max_output_tokens(llm, default=4096)
     # Qwen3 等 thinking 模型需要额外 50% token 用于推理
-    is_thinking_model = getattr(llm, "_model", "").lower().startswith("qwen/qwen3")
+    is_thinking_model = False
+    try:
+        from infra.config.registry import ModelRegistry
+        is_thinking_model = ModelRegistry().is_thinking_model(getattr(llm, "_model", ""))
+    except Exception:
+        logger.error("检查模型是否为 thinking 模型时出错")
     if is_thinking_model:
         estimated_tokens = int(estimated_tokens * 1.5)
     result = min(estimated_tokens + context_overhead, model_max)

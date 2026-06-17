@@ -466,7 +466,14 @@ async function deleteShot(idx) {
   const sid = _shotId(shots[idx], idx);
   if (!await modalConfirm(t('confirm.delete_shot', { id: sid }))) return;
   pushUndo(`${t('btn.delete')} ${sid}`); shots.splice(idx, 1);
-  try { await api(`/storyboard/${ep}`, { method: 'POST', body: { shots: _prepareShotsForSave(shots) } }); invalidateCache(`storyboard/${ep}`); toast(t('toast.deleted')); renderShotsGrid(); } catch (e) { toast(e.message, 'error'); }
+  try {
+    await api(`/storyboard/${ep}`, { method: 'POST', body: { shots: _prepareShotsForSave(shots) } });
+    invalidateCache(`storyboard/${ep}`);
+    toast(t('toast.deleted'));
+    renderShotsGrid();
+    // 分镜表页面的时间轴视图也需要刷新（loadStoryboard 在 ai-gen.js 中定义）
+    if (typeof loadStoryboard === 'function') loadStoryboard();
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 // ── 执行 ──
