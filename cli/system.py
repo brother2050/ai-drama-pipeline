@@ -200,6 +200,17 @@ def register_system_commands(cli):
             sys.exit(1)
 
     @cli.command()
+    @click.option("--insightface", "insightface_", is_flag=True, help="预下载 InsightFace buffalo_l 人脸检测模型")
+    def setup(insightface_) -> None:
+        """⚙️  一次性环境预配置（预下载模型等）"""
+        if not insightface_:
+            console.print("[yellow]请指定选项，例如: drama setup --insightface[/yellow]")
+            return
+
+        if insightface_:
+            _setup_insightface()
+
+    @cli.command()
     @click.option("--logs", is_flag=True)
     @click.option("--cache", is_flag=True)
     @click.option("--yes", "-y", is_flag=True, help="跳过确认")
@@ -325,3 +336,37 @@ def _print_status_warnings(redis, celery_ok, llm_enabled, llm_ok, llm_base_url):
     if llm_enabled and not llm_ok:
         console.print("\n[yellow]⚠ LLM 已启用但连接失败[/yellow]")
         console.print(f"  检查地址: {llm_base_url}")
+
+
+# ── setup 子功能 ──────────────────────────────────
+
+def _setup_insightface():
+    """预下载 InsightFace buffalo_l 人脸检测模型（避免 worker 任务中极慢下载）"""
+    from pathlib import Path
+
+    model_dir = Path.home() / ".insightface" / "models" / "buffalo_l"
+    if model_dir.exists() and any(model_dir.iterdir()):
+        console.print(f"[green]✅ InsightFace buffalo_l 模型已存在: {model_dir}[/green]")
+        return
+
+    console.print("[cyan]⬇  正在下载 InsightFace buffalo_l 人脸检测模型...[/cyan]")
+    console.print("[dim]（注意：从 GitHub 下载约 275MB，速度可能较慢，请耐心等待）[/dim]")
+
+    try:
+        from insightface.app import FaceAnalysis
+    except ImportError:
+        console.print("[red]❌ insightface 未安装。pip install insightface[/red]")
+        sys.exit(1)
+
+    try:
+        # 触发 insightface 自动下载（下载+解压到 ~/.insightface/models/buffalo_l）
+        app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
+        app.prepare(ctx_id=0, det_size=(640, 640))
+        console.print(f"[green]✅ InsightFace buffalo_l 预下载完成: {model_dir}[/green]")
+        for f in sorted(model_dir.iterdir()):
+            console.print(f"     {f.name} ({f.stat().st_size / 1024 / 1024:.1f} MB)")
+    except Exception as e:
+        console.print(f"[red]❌ 下载失败: {e}[/red]")
+        console.print("[dim]可手动下载: https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip[/dim]")
+        console.print(f"[dim]解压到: {model_dir}[/dim]")
+        sys.exit(1)

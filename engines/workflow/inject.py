@@ -344,6 +344,7 @@ def inject_ip_adapter_chain(wf: dict, char_id: str, ref_images: list[str],
 
 _face_app = None
 _face_app_lock = threading.Lock()
+_insightface_warned = False
 
 
 def _check_face_detectable(ref_image: str) -> bool:
@@ -352,13 +353,25 @@ def _check_face_detectable(ref_image: str) -> bool:
     返回 True 表示检测到人脸，False 表示未检测到。
     InsightFace 不可用时返回 True（不阻断，让 ComfyUI 端处理）。
     使用模块级单例缓存 FaceAnalysis，避免每次调用重新加载模型。
+    模型未预下载时跳过检查，避免在任务中触发极慢的 GitHub 下载。
     """
-    global _face_app
+    global _face_app, _insightface_warned
     try:
         from insightface.app import FaceAnalysis
         import cv2
     except ImportError:
         logger.debug("InsightFace 不可用，跳过参考图人脸预检")
+        return True
+
+    # 检查模型是否已预下载（避免在 worker 任务中触发极慢的下载）
+    model_dir = Path.home() / ".insightface" / "models" / "buffalo_l"
+    if not model_dir.exists() or not any(model_dir.iterdir()):
+        if not _insightface_warned:
+            _insightface_warned = True
+            logger.warning(
+                f"InsightFace buffalo_l 模型未下载，跳过人脸预检。"
+                f"请运行 `drama setup --insightface` 一次性预下载模型。"
+            )
         return True
 
     try:
