@@ -437,6 +437,15 @@ def _generate_single_outfit(comfyui, wb, char_id: str, outfit_key: str,
 
     _inject_ref_image(wf, str(cover_path) if cover_path.exists() else None, char_id, project_dir, comfyui, raise_on_error=True)
 
+    # 全身服装图面部占比小，提高 PuLID 权重确保面部一致性
+    from engines.workflow.utils import find_nodes_by_class
+    pulid_nodes = find_nodes_by_class(wf, "ApplyPulidFlux")
+    for nid in pulid_nodes:
+        old_weight = wf[nid]["inputs"].get("weight", 0.75)
+        new_weight = min(old_weight * 1.2, 0.95)
+        wf[nid]["inputs"]["weight"] = new_weight
+        logger.debug(f"  Outfit PuLID weight: {old_weight:.2f} → {new_weight:.2f}")
+
     try:
         files = comfyui.generate(wf, str(outfit_dir))
     except Exception as e:

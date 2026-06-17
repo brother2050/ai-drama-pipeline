@@ -751,8 +751,18 @@ drama export 1 -o output.csv           # 指定输出路径
 # 清理
 drama clean --logs                     # 清理日志
 drama clean --cache                    # 清理缓存
+
+# 角色管理
+drama outfit-regenerate <project> <char_id>   # 重新生成角色服装参考图
+                                             # 用于调试服装图面部一致性（提高 PuLID 权重）
+
+# 声线库
 drama voices                           # 同步声线库
 drama voices --index-only              # 已有 WAV 直接生成索引
+
+# 环境预配置
+drama setup --insightface              # 预下载 InsightFace buffalo_l 人脸检测模型
+                                       # 避免 worker 任务中触发极慢的 GitHub 下载（~275MB）
 ```
 
 > 所有生产操作（AI 生成、翻译、生产、后期、项目管理）均通过 Web 工作台完成。
