@@ -284,7 +284,7 @@ def _update_view_refs(char: dict, char_id: str, generated_urls: list[str]) -> No
     view_filenames = {fn for fn, *_ in _FIVE_VIEWS}
     char["reference_images"] = [
         u for u in char["reference_images"]
-        if not u.startswith(prefix) or "/" in u[len(prefix):] or u[len(prefix):] not in view_filenames
+        if not u.startswith(prefix) or u[len(prefix):] not in view_filenames
     ]
     existing_set = set(char["reference_images"])
     for url in generated_urls:
@@ -324,8 +324,9 @@ def ensure_portrait(char_id: str, config: dict, container=None, force: bool = Fa
             char_data = load_character(paths, char_id)
             existing_refs = set(char_data.get("reference_images", []))
             view_filenames = {fn for fn, *_ in _FIVE_VIEWS}
+            char_prefix = f"/api/assets/characters/{char_id}/"
             has_view_refs = any(
-                u.startswith(f"/api/assets/characters/{char_id}/") and u.rsplit("/", 1)[-1] in view_filenames
+                u.startswith(char_prefix) and u[len(char_prefix):] in view_filenames
                 for u in existing_refs
             )
             if not has_view_refs:
