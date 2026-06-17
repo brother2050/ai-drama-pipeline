@@ -438,7 +438,7 @@ class NodeGraphInjector:
                 if value == "{ref_image}":
                     project_dir = ctx.get("project_dir", "")
                     char_id = ctx.get("char_id", "")
-                    prefix = node_id.rsplit("_", 1)[0] if "_" in node_id else f"ref_{node_id}"
+                    prefix = f"{node_id.split('_')[0]}_ref"
                     ref_node = _create_ref_nodes(wf, ref_images, prefix, suffix, project_dir, char_id)
                     resolved[key] = [ref_node, 0]
                 elif value == "{ref_node}":
