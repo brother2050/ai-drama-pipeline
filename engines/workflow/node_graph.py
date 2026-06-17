@@ -236,7 +236,7 @@ class NodeGraphInjector:
         """Build template resolution context."""
         project_dir = getattr(builder, 'project_dir', '')
         name_to_id = getattr(builder, '_char_name_to_id', {})
-        char_id = name_to_id.get(char_name, char_name) if char_name else ""
+        char_id = name_to_id.get(char_name, "")
 
         # Resolve model source and KSampler
         ksampler, model_source = _find_model_pipeline(wf={})  # placeholder, resolved per-wf
