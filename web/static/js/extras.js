@@ -454,6 +454,20 @@ Drama._workerTimer = setInterval(_updateWorkerStatus, 15000);
 
 applyI18n();
 _updateWorkerStatus();
+
+// ── 侧边栏显示当前项目名 ──
+async function _updateSidebarProject() {
+  try {
+    const data = await cachedFetch('projects', () => api('/projects'), 30000);
+    const projects = data.projects || [];
+    const current = projects.find(p => p.active) || projects[0];
+    const el = document.getElementById('sidebar-project');
+    if (el) el.textContent = current?.name ? `📂 ${current.name}` : '';
+  } catch {}
+}
+_updateSidebarProject();
+Drama.updateSidebarProject = _updateSidebarProject;
+
 // loadDashboard 定义在 dashboard.js（并行加载），延迟调用确保就绪
 setTimeout(() => { if (typeof loadDashboard !== 'undefined') loadDashboard(); }, 0);
 

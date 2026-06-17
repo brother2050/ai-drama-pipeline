@@ -374,6 +374,7 @@ async function _pollImportTask(taskId) {
           } else {
             toast(`✅ 导入成功！${res.project_name || ''} (${res.characters || 0}角色, ${res.scenes || 0}场景, ${res.shots || 0}镜头)`);
           }
+          if (typeof _updateSidebarProject !== 'undefined') _updateSidebarProject();
           loadProjects();
           return;
         }
@@ -442,6 +443,7 @@ async function newProj() {
     if (!result) return;
     api('/projects/new', { method: 'POST', body: result }).then(() => {
       toast(t('toast.created'));
+      if (typeof _updateSidebarProject !== 'undefined') _updateSidebarProject();
       loadProjects();
     }).catch(e => toast(e.message, 'error'));
   });
@@ -457,6 +459,7 @@ async function switchProj(name) {
     _sbDirty = false;
     ep = 1;
     toast(t('toast.switched'));
+    if (typeof _updateSidebarProject !== 'undefined') _updateSidebarProject();
     loadProjects();
     const p = document.querySelector('.page.active');
     if (p) { const pageName = p.id.replace('page-', ''); const fn = PAGES[pageName]; if (fn && typeof window[fn] === 'function') window[fn](); }
@@ -467,6 +470,7 @@ async function deleteProj(n) {
   api(`/projects/${encodeURIComponent(n)}`, { method: 'DELETE' }).then(() => {
     _cache.clear();
     toast(t('proj.deleted'));
+    if (typeof _updateSidebarProject !== 'undefined') _updateSidebarProject();
     loadProjects();
   }).catch(e => toast(e.message, 'error'));
 }
