@@ -8,7 +8,7 @@ import copy
 
 from infra.constants import _BIBLE_STR_FIELDS, _BIBLE_DICT_FIELDS, _BIBLE_LIST_FIELDS
 
-__all__ = ["normalize_character", "normalize_scene", "name_to_id"]
+__all__ = ["normalize_character", "normalize_scene", "name_to_id", "name_to_safe_id"]
 
 # bible dict 字段必需 key（normalize 时自动补全空值占位）
 _BIBLE_REQUIRED_KEYS = {
@@ -55,6 +55,12 @@ def name_to_id(name: str) -> str:
     """
     import hashlib
     return hashlib.sha256(name.encode()).hexdigest()[:6]
+
+
+def name_to_safe_id(name: str, prefix: str = "item") -> str:
+    """中文名 → 安全 ID（仅保留字母数字和 - _），空时返回 prefix"""
+    safe = "".join(c for c in name if c.isalnum() or c in ("-", "_")).strip()
+    return safe or prefix
 
 
 def normalize_character(char: dict) -> dict:

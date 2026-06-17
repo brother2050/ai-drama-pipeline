@@ -12,6 +12,7 @@ __all__ = [
     "VALID_EMOTIONS", "EMOTION_MAP",
     "SHOT_TYPE_MAP", "VALID_SHOT_TYPES",
     "CAMERA_MAP", "VALID_CAMERAS",
+    "IMAGE_EXTENSIONS", "IMAGE_GLOB_PATTERNS",
     "STATUS_PENDING", "STATUS_RUNNING", "STATUS_DONE", "STATUS_ERROR", "STATUS_SKIPPED",
     "STEP_TTS", "STEP_FIRST_FRAME", "STEP_VIDEO", "STEP_LIPSYNC",
     "clip_duration",
@@ -65,6 +66,35 @@ CAMERA_MAP: dict[str, str] = _ca
 VALID_EMOTIONS = frozenset(EMOTION_MAP.keys())
 VALID_SHOT_TYPES = frozenset(SHOT_TYPE_MAP.keys())
 VALID_CAMERAS = frozenset(CAMERA_MAP.keys())
+
+# 图片文件扩展名（唯一数据源）
+IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp")
+IMAGE_GLOB_PATTERNS = ("*.png", "*.jpg", "*.jpeg", "*.webp")
+
+
+def check_emotion_sync() -> list[str]:
+    """检查 TTS/配乐 emotion 映射是否与 system.yaml 同步，返回漂移警告列表"""
+    warnings: list[str] = []
+    if not VALID_EMOTIONS:
+        return warnings
+    try:
+        from api.backends.tts._mimo_common import EMOTION_STYLE, EMOTION_STYLE_V2
+        tts_missing = VALID_EMOTIONS - set(EMOTION_STYLE.keys())
+        if tts_missing:
+            warnings.append(f"TTS EMOTION_STYLE 缺少: {', '.join(sorted(tts_missing))}")
+        v2_missing = VALID_EMOTIONS - set(EMOTION_STYLE_V2.keys())
+        if v2_missing:
+            warnings.append(f"TTS EMOTION_STYLE_V2 缺少: {', '.join(sorted(v2_missing))}")
+    except Exception:
+        pass
+    try:
+        from api.backends.music.musicgen import _MOOD_PROMPTS
+        music_missing = VALID_EMOTIONS - set(_MOOD_PROMPTS.keys())
+        if music_missing:
+            warnings.append(f"MusicGen _MOOD_PROMPTS 缺少: {', '.join(sorted(music_missing))}")
+    except Exception:
+        pass
+    return warnings
 
 # ══════════════════════════════════════════════════════════
 #  管线状态

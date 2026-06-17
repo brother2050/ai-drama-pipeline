@@ -26,6 +26,14 @@ def _get_api_key(config: dict | None = None) -> str:
     return os.environ.get("SEKO_API_KEY", "")
 
 
+_SEKO_KEY_ERR = {"code": 500, "msg": "SEKO_API_KEY 未配置"}
+
+
+def _require_key(api_key: str = "", config: dict | None = None) -> str:
+    """获取 API Key，为空时返回空字符串（调用方检查后返回 _SEKO_KEY_ERR）"""
+    return api_key or _get_api_key(config)
+
+
 def _headers(api_key: str) -> dict:
     return {
         "Seko-API-Key": api_key,
@@ -49,9 +57,9 @@ def generate_proposal(prompt: str, *, api_key: str = "", config: dict | None = N
     Returns:
         API 响应字典，包含 taskId 等信息
     """
-    key = api_key or _get_api_key(config)
+    key = _require_key(api_key, config)
     if not key:
-        return {"code": 500, "msg": "SEKO_API_KEY 未配置"}
+        return _SEKO_KEY_ERR
 
     try:
         with httpx.Client(timeout=_TIMEOUT) as client:
@@ -69,9 +77,9 @@ def generate_proposal(prompt: str, *, api_key: str = "", config: dict | None = N
 
 def check_proposal_status(task_id: str, *, api_key: str = "", config: dict | None = None) -> dict:
     """查询策划案任务状态（单次查询，不轮询）"""
-    key = api_key or _get_api_key(config)
+    key = _require_key(api_key, config)
     if not key:
-        return {"code": 500, "msg": "SEKO_API_KEY 未配置"}
+        return _SEKO_KEY_ERR
 
     try:
         with httpx.Client(timeout=_TIMEOUT) as client:
@@ -149,9 +157,9 @@ def modify_proposal(
     config: dict | None = None,
 ) -> dict:
     """修改已有策划案"""
-    key = api_key or _get_api_key(config)
+    key = _require_key(api_key, config)
     if not key:
-        return {"code": 500, "msg": "SEKO_API_KEY 未配置"}
+        return _SEKO_KEY_ERR
 
     try:
         with httpx.Client(timeout=_TIMEOUT) as client:

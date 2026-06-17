@@ -7,6 +7,8 @@ import re
 import tempfile
 from pathlib import Path
 
+from engines.dialogue import EMPTY_DIALOGUE
+
 logger = logging.getLogger(__name__)
 
 __all__ = ["generate_srt"]
@@ -74,12 +76,12 @@ def _build_subtitle_text(shot: dict, bilingual: bool) -> str:
         dialogue = "\\N".join(
             f"{ln.speaker}：{_sanitize_dialogue(ln.text)}" for ln in lines
         )
-    if not dialogue or set(dialogue) <= {".", "…"}:
+    if not dialogue or set(dialogue) <= EMPTY_DIALOGUE:
         return ""
     if not bilingual:
         return dialogue
     dialogue_en = _sanitize_dialogue(shot.get("dialogue_en", ""))
-    if dialogue_en and not set(dialogue_en) <= {".", "…"}:
+    if dialogue_en and not set(dialogue_en) <= EMPTY_DIALOGUE:
         return f"{dialogue}\\N{dialogue_en}"
     return dialogue
 

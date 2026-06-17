@@ -14,7 +14,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["DialogueLine", "parse_dialogue", "concat_wav"]
+__all__ = ["DialogueLine", "parse_dialogue", "EMPTY_DIALOGUE", "concat_wav"]
 
 
 def _extract_wav_data_chunk(raw: bytes) -> bytes | None:
@@ -40,7 +40,7 @@ def _extract_wav_data_chunk(raw: bytes) -> bytes | None:
     return None
 
 # 无台词标记
-_EMPTY_DIALOGUE = {".", "…"}
+EMPTY_DIALOGUE = {".", "…"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,7 +52,7 @@ class DialogueLine:
 
 def _is_empty_text(text: str) -> bool:
     """判断台词内容是否等同于无台词（纯省略号/空白/标点）"""
-    return not text.strip() or set(text.strip()) <= _EMPTY_DIALOGUE
+    return not text.strip() or set(text.strip()) <= EMPTY_DIALOGUE
 
 
 def parse_dialogue(raw: str) -> list[DialogueLine]:
@@ -62,13 +62,13 @@ def parse_dialogue(raw: str) -> list[DialogueLine]:
     无台词（"......" 等）返回空列表。
     """
     raw = raw.strip()
-    if not raw or set(raw) <= _EMPTY_DIALOGUE:
+    if not raw or set(raw) <= EMPTY_DIALOGUE:
         return []
 
     lines: list[DialogueLine] = []
     for part in raw.split("\n"):
         part = part.strip()
-        if not part or set(part) <= _EMPTY_DIALOGUE:
+        if not part or set(part) <= EMPTY_DIALOGUE:
             continue
         speaker, sep, text = part.partition("：")
         if not sep:

@@ -3,6 +3,7 @@ from __future__ import annotations
 from infra.config import load_yaml_full
 
 from infra.constants import STATUS_DONE
+from infra.normalize import name_to_safe_id
 import logging
 import re
 from pathlib import Path
@@ -39,9 +40,7 @@ def _parse_seko_characters(steps: list[dict], elements: list[dict] | None = None
         prompt_text = prompt_match.group(1).strip() if prompt_match else ""
 
         # 生成 ID：名字转 safe id，去重
-        safe_id = "".join(c for c in char_name if c.isalnum() or c in ("-", "_")).strip()
-        if not safe_id:
-            safe_id = f"char_{len(characters) + 1:02d}"
+        safe_id = name_to_safe_id(char_name, f"char_{len(characters) + 1:02d}")
         base_id = safe_id
         suffix = 2
         while safe_id in used_ids:
@@ -95,9 +94,7 @@ def _parse_seko_scenes(steps: list[dict], elements: list[dict] | None = None) ->
         prompt_match = re.search(r"<Prompt>(.*?)</Prompt>", block, re.DOTALL)
         prompt_text = prompt_match.group(1).strip() if prompt_match else ""
 
-        safe_id = "".join(c for c in scene_name if c.isalnum() or c in ("-", "_")).strip()
-        if not safe_id:
-            safe_id = f"scene_{len(scenes) + 1:02d}"
+        safe_id = name_to_safe_id(scene_name, f"scene_{len(scenes) + 1:02d}")
         base_id = safe_id
         suffix = 2
         while safe_id in used_ids:
@@ -455,7 +452,7 @@ def _resolve_element(elem_type: str, name: str, idx: int,
                     entity_id = c["id"]
                     break
         if not entity_id:
-            entity_id = "".join(c for c in name if c.isalnum() or c in ("-", "_")).strip() or f"char_{idx + 1:02d}"
+            entity_id = name_to_safe_id(name, f"char_{idx + 1:02d}")
         return (entity_id, paths.character_asset_dir(entity_id),
                 paths.character_yaml(entity_id), "characters", "character")
 
@@ -468,7 +465,7 @@ def _resolve_element(elem_type: str, name: str, idx: int,
                     entity_id = s["id"]
                     break
         if not entity_id:
-            entity_id = "".join(c for c in name if c.isalnum() or c in ("-", "_")).strip() or f"scene_{idx + 1:02d}"
+            entity_id = name_to_safe_id(name, f"scene_{idx + 1:02d}")
         return (entity_id, paths.scene_asset_dir(entity_id),
                 paths.scene_yaml(entity_id), "scenes", "scene")
 

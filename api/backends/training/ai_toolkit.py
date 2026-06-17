@@ -49,6 +49,7 @@ from typing import Any, Callable
 
 from api.registry import BackendMeta, registry
 from infra.config import ProjectPaths
+from infra.constants import IMAGE_GLOB_PATTERNS
 
 logger = logging.getLogger(__name__)
 
@@ -143,12 +144,12 @@ class AIToolkitTrainer:
         if not img_dir.exists():
             return []
         paths = []
-        for ext in ("*.png", "*.jpg", "*.jpeg", "*.webp"):
+        for ext in IMAGE_GLOB_PATTERNS:
             paths.extend(str(p) for p in img_dir.glob(ext))
         # 也收集子目录（如 outfit 子目录）
         for sub in img_dir.iterdir():
             if sub.is_dir():
-                for ext in ("*.png", "*.jpg", "*.jpeg", "*.webp"):
+                for ext in IMAGE_GLOB_PATTERNS:
                     paths.extend(str(p) for p in sub.glob(ext))
         paths.sort()
         return paths[:MAX_IMAGES]

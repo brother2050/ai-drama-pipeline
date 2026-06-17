@@ -46,6 +46,10 @@ def create_app() -> FastAPI:
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     logger.info("🎬 AI 短剧工作台 v2 已启动")
+    # 启动时检查 emotion 映射同步
+    from infra.constants import check_emotion_sync
+    for w in check_emotion_sync():
+        logger.warning(f"⚠ emotion 映射漂移: {w}")
     yield
     _shutdown()
     logger.info("🎬 工作台已关闭")

@@ -28,6 +28,7 @@ from engines.workflow.inject import (
     inject_lora as _inject_lora,
     _next_suffix,
 )
+from infra.constants import IMAGE_EXTENSIONS
 from infra.compute.gpu import get_generation_config as get_gpu_config
 from infra.config import ProjectPaths
 
@@ -374,7 +375,7 @@ class WorkflowBuilder:
         outfit_dir = paths.character_outfit_dir(cid, outfit)
         if outfit_dir.exists():
             for f in outfit_dir.iterdir():
-                if f.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp"):
+                if f.suffix.lower() in IMAGE_EXTENSIONS:
                     return str(f)
 
         # 回退到定妆照 cover.png

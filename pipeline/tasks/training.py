@@ -1,7 +1,7 @@
 """Celery 任务 — LoRA 训练 / JSON 导入"""
 from __future__ import annotations
 
-from infra.constants import STATUS_DONE, STATUS_ERROR, STATUS_SKIPPED
+from infra.constants import STATUS_DONE, STATUS_ERROR, STATUS_SKIPPED, IMAGE_GLOB_PATTERNS
 import logging
 import os
 from pathlib import Path
@@ -46,7 +46,7 @@ def _validate_lora_training(paths, char_id: str, force: bool) -> tuple[Path | No
 def _count_training_images(char_assets_dir: Path) -> int:
     """统计训练图片数量（递归搜索所有子目录）"""
     count = 0
-    for ext in ("*.png", "*.jpg", "*.jpeg", "*.webp"):
+    for ext in IMAGE_GLOB_PATTERNS:
         count += len(list(char_assets_dir.rglob(ext)))
     return count
 
