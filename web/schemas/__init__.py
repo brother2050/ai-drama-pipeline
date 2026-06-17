@@ -6,6 +6,7 @@ import re
 
 from infra.models import validate_id
 from infra.constants import MIN_DURATION, MAX_DURATION
+from infra.config.loader import CHARACTER_NAME_PATTERN
 
 __all__ = [
     "StepRequest", "TTSRequest", "PostRequest", "MusicRequest",
@@ -119,7 +120,8 @@ class PipelineRequest(BaseModel):
 class CharacterData(BaseModel):
     """角色数据（创建/更新）"""
     id: str = Field(..., min_length=1, max_length=50)
-    name: str = Field("", max_length=100)
+    name: str = Field("", max_length=100, pattern=CHARACTER_NAME_PATTERN,
+                      description="角色名，括号外不允许含逗号（括号内逗号不受限）")
     gender: str = Field("", max_length=10)
     appearance: str = Field("", max_length=2000)
     voice: dict | None = None

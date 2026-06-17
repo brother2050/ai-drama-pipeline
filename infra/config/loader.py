@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,17 @@ import yaml
 from infra.config.paths import ProjectPaths
 
 logger = logging.getLogger(__name__)
+
+# 角色名约束：括号外不允许含逗号，括号内逗号不受限
+CHARACTER_NAME_PATTERN = r"^([^,(]|\([^)]*\))*$"
+_CHAR_NAME_PARENS = re.compile(r"\([^)]*\)")
+
+
+def validate_character_name(name: str) -> str | None:
+    """校验角色名，括号外的逗号非法。返回错误信息，合法则返回 None。"""
+    if "," in _CHAR_NAME_PARENS.sub("", name):
+        return f"角色名括号外不得含逗号: '{name}'"
+    return None
 
 
 def cfg_get(cfg: dict[str, Any], dotted_key: str, default: Any = "") -> Any:
@@ -109,11 +121,24 @@ def load_existing_entities(entities_dir: Path, entity_key: str) -> list[dict[str
 
 
 def load_project_entities(paths_or_dir: ProjectPaths | str | Path) -> tuple[dict[str, dict[str, Any]], dict[str, dict[str, Any]]]:
-    """加载项目的角色和场景数据"""
+    """加载项目的角色和场景数据
+
+    角色 dict 以 name 为 key。角色名约束：括号外不得包含逗号（括号内逗号不受限）。
+    多角色需各自独立 YAML，不允许合并（如 "李飞, 叶凝" 应拆为两个文件）。
+    """
     if hasattr(paths_or_dir, 'characters_dir'):
         paths = paths_or_dir
     else:
         paths = ProjectPaths(paths_or_dir)
-    characters = {c["name"]: c for c in load_yaml_entities(paths.characters_dir, "character") if c.get("name")}
+    characters: dict[str, dict[str, Any]] = {}
+    for c in load_yaml_entities(paths.characters_dir, "character"):
+        name = c.get("name", "")
+        if not name:
+            continue
+        if err := validate_character_name(name):
+            cid = c.get("id", "?")
+            logger.error(f"角色名非法: {paths.character_yaml(cid)} → {err}，请修正或删除该文件后重试。")
+            continue
+        characters[name] = c
     scenes = {s["name"]: s for s in load_yaml_entities(paths.scenes_dir, "scene") if s.get("name")}
     return characters, scenes
