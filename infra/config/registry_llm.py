@@ -53,8 +53,19 @@ class LLMRegistryMixin:
 
         m_lower = m.lower()
         sorted_keys = sorted((k for k in models if k != "_default"), key=len, reverse=True)
+
+        # 1. 完整名称前缀匹配
         for key in sorted_keys:
             if m_lower.startswith(key.lower()):
+                return _extract(models[key])
+
+        # 2. 最后一段 / 尾部匹配（处理 "Pro/THUDM/glm-4-9b-chat" 等路径前缀）
+        last_segment = m.rsplit("/", 1)[-1].lower()
+        for key in sorted_keys:
+            key_last = key.rsplit("/", 1)[-1].lower()
+            if not key_last:  # 跳过 "deepseek-ai/" 等空尾键
+                continue
+            if last_segment.startswith(key_last):
                 return _extract(models[key])
 
         return _extract(models.get("_default", {}))

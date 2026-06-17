@@ -111,16 +111,6 @@ lipsync_backends:
 # ══════════════════════════════════════════════════════════
 
 llm_backends:
-  openai:
-    module: "api.backends.llm.ollama"
-    priority: 50
-    description: "OpenAI 兼容 API（SiliconFlow / Zhipu / llama.cpp / vLLM / ...）"
-    requires_api_key: false
-    health_check:
-      type: "openai_chat"
-      config_key: "llm.base_url"
-      api_key_from: "llm.api_key"
-
   ollama:
     module: "api.backends.llm.ollama"
     priority: 10
@@ -129,6 +119,16 @@ llm_backends:
     health_check:
       type: "ollama_tags"
       config_key: "llm.base_url"
+
+  openai-sdk:
+    module: "api.backends.llm.openai_sdk"
+    priority: 45
+    description: "OpenAI 官方 SDK（兼容所有 OpenAI 格式 API：智谱/百炼/火山/混元/Kimi/DeepSeek/llama.cpp/vLLM 等）"
+    requires_api_key: false
+    health_check:
+      type: "openai_chat"
+      config_key: "llm.base_url"
+      api_key_from: "llm.api_key"
 
 # ══════════════════════════════════════════════════════════
 #  LLM 服务商预设（国内免费/低价平台）
@@ -202,6 +202,17 @@ providers:
     base_url: "https://spark-api-open.xf-yun.com/v1"
     free_models: ["spark-lite"]
     notes: "spark-lite 总量不限，QPS 2"
+
+  llama-cpp:
+    name: "llama.cpp（本地 GGUF）"
+    base_url: "http://127.0.0.1:8080/v1"
+    free_models:
+      - "llama-3.2-3b"
+      - "llama-3.1-8b"
+      - "qwen2.5-7b"
+      - "mistral-7b"
+      - "phi-3-mini"
+    notes: "llama-server 原生 OpenAI 兼容，零依赖本地运行；启动: llama-server -m model.gguf --port 8080"
 
 # ══════════════════════════════════════════════════════════
 #  配乐后端
@@ -787,6 +798,21 @@ llm_models:
   "qwen2.5":                      { context_window: 32768,   max_output: 8192  }
   "qwen":                         { context_window: 32768,   max_output: 8192  }
   "yi-":                          { context_window: 200000,  max_output: 4096  }
+  # ── llama.cpp GGUF 常用模型 ──
+  "llama-3.1-70b":                { context_window: 131072,  max_output: 8192  }
+  "llama-3.1-8b":                 { context_window: 131072,  max_output: 8192  }
+  "llama-3.2-3b":                 { context_window: 131072,  max_output: 8192  }
+  "llama-3.2-1b":                 { context_window: 131072,  max_output: 8192  }
+  "mistral-7b":                   { context_window: 32768,   max_output: 8192  }
+  "mixtral-8x7b":                 { context_window: 32768,   max_output: 8192  }
+  "gemma-2-9b":                   { context_window: 8192,    max_output: 4096  }
+  "gemma-2-2b":                   { context_window: 8192,    max_output: 4096  }
+  "phi-3-mini":                   { context_window: 4096,    max_output: 4096  }
+  "phi-3-medium":                 { context_window: 32768,   max_output: 4096  }
+  "phi-4-mini":                   { context_window: 131072,  max_output: 8192  }
+  "qwen2.5-7b":                   { context_window: 32768,   max_output: 8192  }
+  "qwen2.5-14b":                  { context_window: 32768,   max_output: 8192  }
+  "qwen2.5-0.5b":                 { context_window: 32768,   max_output: 8192  }
   "llama-3":                      { context_window: 8192,    max_output: 4096  }
   "mistral":                      { context_window: 32768,   max_output: 8192  }
   "phi-3":                        { context_window: 128000,  max_output: 4096  }
