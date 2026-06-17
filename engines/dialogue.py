@@ -50,6 +50,11 @@ class DialogueLine:
     text: str       # 纯台词内容（冒号右侧）
 
 
+def _is_empty_text(text: str) -> bool:
+    """判断台词内容是否等同于无台词（纯省略号/空白/标点）"""
+    return not text.strip() or set(text.strip()) <= _EMPTY_DIALOGUE
+
+
 def parse_dialogue(raw: str) -> list[DialogueLine]:
     """解析台词文本为结构化对话行列表。
 
@@ -70,6 +75,9 @@ def parse_dialogue(raw: str) -> list[DialogueLine]:
             # 兼容英文冒号
             speaker, sep, text = part.partition(":")
         if sep:
+            # text 是纯省略号 → 视同无台词（LLM 有时写 "角色名：......"）
+            if _is_empty_text(text):
+                continue
             lines.append(DialogueLine(speaker=speaker.strip(), text=text.strip()))
         else:
             # 无冒号 → 整行作为台词（降级兼容）
