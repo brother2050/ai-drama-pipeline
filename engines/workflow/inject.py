@@ -714,8 +714,8 @@ def inject_controlnet_depth(builder: object, wf: dict, char_names: list[str],
     支持多角色：主角色 full strength，次要角色降权。
 
     需要 ComfyUI 安装：
-    - ComfyUI-FluxControlNetWrapper（Flux ControlNet 支持）
-    - ComfyUI-DepthAnythingV2（深度估计）
+    - ComfyUI-DepthAnythingV2（kijai 维护版，深度估计）
+    - Flux ControlNet 已内置在新版 ComfyUI 中，无需额外 wrapper
 
     注意: 就地修改 wf，调用方需确保已 deepcopy。
     """
@@ -733,7 +733,7 @@ def inject_controlnet_depth(builder: object, wf: dict, char_names: list[str],
         return wf
 
     project_dir = getattr(builder, 'project_dir', '')
-    model_name = cn_config.get("model", "diffusers_Flux-ControlNet-depth.safetensors")
+    model_name = cn_config.get("model", "flux-depth-controlnet-v3.safetensors")
     start_percent = cn_config.get("start_percent", 0.0)
     end_percent = cn_config.get("end_percent", 1.0)
 

@@ -19,6 +19,7 @@
 | **Seko 策划案** | 集成 seko.sensetime.com 影视策划案生成/修改 |
 | **IP-Adapter Plus** | 基于 ip-adapter-plus-face 模型的角色面部一致性（SD1.5/SDXL 后端） |
 | **PuLID-Flux** | 基于 PuLID 的 Flux 面部一致性（Flux 后端，推荐） |
+| **Flux IP-Adapter FaceID** | Shakker-Labs IP-Adapter FaceID Plus（Flux 身份加固，InsightFace + CLIP 双锚定） |
 | **自动节点检测** | 启动时自动查询 ComfyUI /object_info，一致性方案按可用节点动态跳过 |
 | **声线库** | 1000 种声线一键选用，搜索/试听/分配到角色 |
 | **安全加固** | 输入校验、路径遍历防护、速率限制 |
@@ -254,7 +255,8 @@ ComfyUI/models/
 ├── vae/                  # VAE 解码器
 │   ├── wan_2.1_vae.safetensors       # Cosmos
 │   └── cogvideox_vae.safetensors     # CogVideoX
-├── ipadapter/            # IP-Adapter 模型（第 6 节）
+├── ipadapter/            # IP-Adapter 模型（SD1.5/SDXL，第 6 节）
+├── ipadapter-flux/       # Flux IP-Adapter FaceID 模型（第 8.5 节）
 ├── pulid/                # PuLID-Flux 模型（第 7 节）
 ├── clip_vision/          # CLIP Vision 编码器
 ├── insightface/          # InsightFace 人脸模型
@@ -354,16 +356,18 @@ drama serve
 
 | 图像后端 | 架构 | 可用一致性方案 | 说明 |
 |---------|------|:-------------:|------|
-| `flux` | DiT | **PuLID-Flux** | **推荐**，画质最佳 + 面部一致性强 |
+| `flux` | DiT | **PuLID-Flux + Flux IP-Adapter FaceID** | **推荐**，双层管道：PuLID 做主锚定 + FaceID IP-Adapter 加固 |
 | `sd15` | UNet | IP-Adapter Plus | 成熟稳定，面部一致性好 |
 | `cosmos` | DiT | 无 | 仅 LoRA 训练 |
 
+> Flux 后端默认启用 `flux_identity` **一致性管道**：PuLID-Flux（Layer 1）→ Flux IP-Adapter FaceID（Layer 2），两层叠加实现最强的身份保持。若 ComfyUI 缺少 FaceID 插件，自动降级为纯 PuLID。
+>
 > 一致性方案与后端**独立配置**，通过 `consistency_method` 字段选择：
 
 ```yaml
 # config/system.yaml
 consistency_method: auto   # auto / pulid_flux / ip_adapter / none
-#   auto:        根据 image_backend 自动选择（flux→pulid, sd15→ip_adapter, cosmos→none）
+#   auto:        根据 image_backend 自动选择（flux→pulid_flux + flux_ip_adapter 管道, sd15→ip_adapter, cosmos→none）
 #   pulid_flux:  强制使用 PuLID-Flux（需 Flux 后端）
 #   ip_adapter:  强制使用 IP-Adapter Plus（需 SD1.5/SDXL 后端）
 #   none:        不使用一致性方案（仅靠 LoRA + seed）
@@ -514,56 +518,184 @@ pulid_flux:
 - **Euler + simple** 调度器始终可用；Euler + beta 对低质量参考图效果更好
 - **多角色同框**：自动链式注入，主角色 weight=0.9，次要角色自动降权
 
-### 8.5 ControlNet Depth（Flux 全身结构一致性，可选）
+#### 8.4 管道联动
 
-> 基于 ControlNet Depth 实现全身结构一致性。从角色全身参考图生成 depth map，通过 ControlNet 强制身体结构（体型、姿态、服装轮廓）在不同镜头间保持一致。
-> **与 IP-Adapter/PuLID 并行工作**：IP-Adapter/PuLID 负责面部一致性，ControlNet Depth 负责身体结构一致性。
+Flux 后端默认启用 `flux_identity` 一致性管道，PuLID-Flux 作为 Layer 1（人脸锚定），自动叠加 Layer 2 的 Flux IP-Adapter FaceID 做身份加固。管道各层独立可用性检测，ComfyUI 缺少某层插件时自动降级。
+
+### 8.5 Flux IP-Adapter FaceID（Shakker-Labs，身份加固层）
+
+> 基于 [Shakker-Labs/ComfyUI-IPAdapter-Flux](https://github.com/Shakker-Labs/ComfyUI-IPAdapter-Flux.git) 的 FaceID Plus 版本。通过 InsightFace ArcFace 提取人脸 ID embedding + CLIP-ViT-L 图像嵌入，双重锚定实现跨镜头身份一致。
+>
+> **在 `flux_identity` 管道中作为 Layer 2 运行**（Layer 1 为 PuLID-Flux），两层的 weight 独立可调。
 
 #### 8.5.1 安装 ComfyUI 自定义节点
 
 ```bash
 cd ComfyUI/custom_nodes/
-
-# 1. Flux ControlNet 支持
-git clone https://github.com/Artrily/ComfyUI-FluxControlNetWrapper.git
-
-# 2. Depth Anything V2 深度估计
-git clone https://github.com/DepthAnything/ComfyUI-DepthAnythingV2.git
-
+git clone https://github.com/Shakker-Labs/ComfyUI-IPAdapter-Flux.git
 # 重启 ComfyUI
 ```
 
+或在 ComfyUI Manager 中搜索 `ComfyUI-IPAdapter-Flux` 安装。
+
+节点类名：`IPAdapterFluxLoader` / `ApplyIPAdapterFlux`
+
 #### 8.5.2 下载模型文件
 
-```bash
-# 1. Flux ControlNet Depth 模型 → ComfyUI/models/controlnet/
-mkdir -p ComfyUI/models/controlnet/
-wget -O ComfyUI/models/controlnet/diffusers_Flux-ControlNet-depth.safetensors \
-  "https://huggingface.co/InstantX/FLUX.1-dev-ControlNet-Depth/resolve/main/diffusers_Flux-ControlNet-depth.safetensors"
+> 模型来自 [InstantX/FLUX.1-dev-IP-Adapter](https://huggingface.co/InstantX/FLUX.1-dev-IP-Adapter)。
+> InsightFace ArcFace 提取人脸 ID embedding + CLIP-ViT-L (SigLIP) 图像嵌入，双重锚定实现跨镜头身份一致。
 
-# 2. Depth Anything V2 模型（首次运行自动下载，或手动放到 ComfyUI/models/depthanything/）
+| 文件名 | 位置 | 说明 |
+|--------|------|------|
+| `ip-adapter.bin` | `ComfyUI/models/ipadapter-flux/` | IP-Adapter 权重 |
+| `siglip-so400m-patch14-384.safetensors` | `ComfyUI/models/clip_vision/` | CLIP Vision 编码器 |
+
+```bash
+# 1. IP-Adapter 模型 → ComfyUI/models/ipadapter-flux/
+mkdir -p ComfyUI/models/ipadapter-flux/
+wget -O ComfyUI/models/ipadapter-flux/ip-adapter.bin \
+  https://huggingface.co/InstantX/FLUX.1-dev-IP-Adapter/resolve/main/ip-adapter.bin
+
+# 2. SigLIP CLIP Vision → ComfyUI/models/clip_vision/
+mkdir -p ComfyUI/models/clip_vision/
+wget -O ComfyUI/models/clip_vision/siglip-so400m-patch14-384.safetensors \
+  https://huggingface.co/InstantX/FLUX.1-dev-IP-Adapter/resolve/main/model.safetensors
+```
+
+**国内镜像**（HuggingFace 不可用时）：
+```bash
+# ip-adapter.bin
+wget -O ComfyUI/models/ipadapter-flux/ip-adapter.bin \
+  https://hf-mirror.com/InstantX/FLUX.1-dev-IP-Adapter/resolve/main/ip-adapter.bin
+
+# siglip
+wget -O ComfyUI/models/clip_vision/siglip-so400m-patch14-384.safetensors \
+  https://hf-mirror.com/google/siglip-so400m-patch14-384/resolve/main/model.safetensors
 ```
 
 #### 8.5.3 配置
+
+Flux IP-Adapter FaceID 配置在 `config/system.yaml` 中：
+
+```yaml
+ip_adapter_flux_shakker:
+  enabled: true
+  model: "ip-adapter.bin"                            # InstantX IP-Adapter 权重
+  weight: 0.7              # 管道 Layer 2 权重（Layer 1 PuLID 为主锚，此层为加固）
+```
+
+#### 8.5.4 验证
+
+```bash
+drama status   # 检查 IPAdapterFluxLoader / ApplyIPAdapterFlux 节点是否可用
+```
+
+#### 8.5.5 管道协同
+
+```
+UNETLoader
+    │
+    ▼ (model)
+ApplyPulidFlux          ← Layer 1, PuLID-Flux, weight=0.85（主锚定）
+    │
+    ▼ (model)
+ApplyIPAdapterFlux      ← Layer 2, FaceID IP-Adapter, weight=0.7（加固）
+    │
+    ▼ (model)
+KSampler
+```
+
+> 降级行为：若 ComfyUI 缺少 Flux IP-Adapter 节点 → 自动回退为纯 PuLID-Flux（单层）。不会报错中断。
+
+## 8.6 ControlNet Depth（Flux 全身结构一致性，可选）
+
+> 基于 ControlNet Depth 实现全身结构一致性。从角色全身参考图生成 depth map，通过 ControlNet 强制身体结构（体型、姿态、服装轮廓）在不同镜头间保持一致。
+> **与 IP-Adapter/PuLID 并行工作**：IP-Adapter/PuLID 负责面部一致性，ControlNet Depth 负责身体结构一致性。
+
+### 8.6.1 安装 ComfyUI 自定义节点
+
+```bash
+cd ComfyUI/custom_nodes/
+
+# 1. Depth Anything V2 深度估计（kijai 维护版）
+git clone https://github.com/kijai/ComfyUI-DepthAnythingV2.git
+
+# 注：新版 ComfyUI 已原生支持 Flux ControlNet，无需额外安装 wrapper 节点。
+```
+
+### 8.6.2 下载模型文件
+
+```bash
+# 1. Flux ControlNet Depth V3 模型 → ComfyUI/models/controlnet/
+mkdir -p ComfyUI/models/controlnet/
+wget -O ComfyUI/models/controlnet/flux-depth-controlnet-v3.safetensors \
+  "https://hf-mirror.com/XLabs-AI/flux-controlnet-depth-v3/resolve/main/flux-depth-controlnet-v3.safetensors"
+
+# 2. Depth Anything V2 权重 → ComfyUI/models/depthanything/
+mkdir -p ComfyUI/models/depthanything/
+wget -O ComfyUI/models/depthanything/depth_anything_v2_vitl.pth \
+  "https://huggingface.co/depth-anything/Depth-Anything-V2-Large/resolve/main/depth_anything_v2_vitl.pth"
+```
+
+> **说明**：
+> - Depth Anything V2 权重可由 kijai 的节点首次运行时自动下载，也可按上述命令手动下载。
+
+### 8.6.3 工作流搭建
+
+在 ComfyUI 中搭建如下流程：
+
+```
+[角色全身参考图]
+       │
+       ▼
+[Depth Anything V2]  ← 生成 depth map
+       │
+       ▼
+[Apply ControlNet (Flux)]  ← 加载 flux-controlnet-depth-v3
+       │
+       ▼
+[KSampler]  ← 与 IP-Adapter/PuLID 的输出合并，共同控制生成
+```
+
+**关键节点与参数：**
+
+| 节点 | 说明 |
+|------|------|
+| **Load Depth Anything V2 Model** | 加载 `depth_anything_v2_vitl.pth`，选择 device 为 cuda |
+| **Depth Anything V2** | 输入角色全身参考图，输出 depth map |
+| **Load ControlNet Model (Flux)** | 加载 `flux-controlnet-depth-v3.safetensors` |
+| **Apply ControlNet** | strength 建议 0.6–0.8（过高会限制其他条件的灵活性） |
+
+**与 IP-Adapter/PuLID 并行使用的注意事项：**
+
+- ControlNet Depth 控制身体结构，IP-Adapter/PuLID 控制面部——两者不冲突，可同时接入 KSampler。
+- 如果同时使用 IP-Adapter，建议 ControlNet Depth strength 设为 **0.5–0.7**，避免两者权重叠加过高导致画面僵硬。
+- 全身参考图应选择姿态自然、服装完整的图片，Depth Anything V2 对这类图片的深度估计最准确。
+
+### 8.6.4 配置
 
 ControlNet Depth 默认禁用，配置在 `config/system.yaml` 中：
 
 ```yaml
 controlnet_depth:
   enabled: true                # 启用 ControlNet Depth
-  model: "diffusers_Flux-ControlNet-depth.safetensors"
+  model: "flux-depth-controlnet-v3.safetensors"
   strength: 0.8                # ControlNet 强度（0.5-1.0，越高结构越严格）
   start_percent: 0.0           # 生效起始步（0.0 = 从头开始）
   end_percent: 1.0             # 生效结束步（1.0 = 全程生效）
 ```
 
-#### 8.5.4 验证
+### 8.6.5 验证
 
 ```bash
 drama status   # 检查 ControlNet 节点是否可用
 ```
 
-#### 8.5.5 说明
+- 用同一张角色全身参考图生成 3 张不同场景的图片，检查体型、姿态、服装轮廓是否一致。
+- 如果身体结构偏移过大，提高 ControlNet strength；如果画面过于僵硬，降低 strength。
+- 可同时结合 IP-Adapter 的面部一致性，确认面部和身体均保持一致。
+
+### 8.6.6 说明
 
 - **工作原理**：从角色全身参考图（`full_body.png`）生成 depth map，通过 ControlNet 强制生成图像的深度结构与参考图一致
 - **适用场景**：Flux 后端的全身/半身镜头，需要保持角色体型、姿态、服装轮廓一致性

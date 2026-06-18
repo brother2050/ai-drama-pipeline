@@ -262,6 +262,7 @@ image_backends:
     workflow: "01_first_frame_flux.json"
     prompt_style: "natural"
     consistency_default: "pulid_flux"
+    consistency_pipeline: "flux_identity"
     negative_prompt: "ugly, deformed, blurry, text, watermark, logo, signature, subtitle, caption, text overlay, speech bubble, comic text, numbers in corner, date stamp, border, frame"
     default_params:
       width: 1024
@@ -414,11 +415,31 @@ consistency_methods:
     description: "无面部一致性（仅靠 LoRA + seed）"
     compatible_backends: ["*"]
 
+  flux_ip_adapter:
+    description: "Flux IP-Adapter v2（Shakker-Labs，CLIP-ViT-L + InsightFace 身份加固）"
+    compatible_backends: ["flux"]
+    config_key: "ip_adapter_flux_shakker"
+    required_comfyui_node: "IPAdapterFluxLoader"
+
   controlnet_depth:
     description: "ControlNet Depth（Flux 全身结构一致性）"
     compatible_backends: ["flux"]
     config_key: "controlnet_depth"
     required_comfyui_node: "FluxControlNetLoader"
+
+# ══════════════════════════════════════════════════════════
+#  一致性管道（命名管道，按 layer 顺序串联多个一致性方法）
+#  每层独立可用性检查 + fallback 降级
+# ══════════════════════════════════════════════════════════
+
+consistency_pipelines:
+  flux_identity:
+    description: "PuLID-Flux + Flux IP-Adapter v2 联合身份保持（纯 Flux 生态）"
+    compatible_backends: ["flux"]
+    layers:
+      - pulid_flux
+      - flux_ip_adapter
+    fallback: "pulid_flux"
 
 # ══════════════════════════════════════════════════════════
 #  Node Graph 定义（配置驱动的 ComfyUI 节点注入模板）
@@ -519,6 +540,43 @@ node_graphs:
       target: "ksampler"
       input: "model"
 
+  flux_ip_adapter:
+    description: "Flux IP-Adapter v2 (Shakker-Labs) — 身份加固层（CLIP-ViT-L + InsightFace）"
+    compatible_backends: ["flux"]
+    config_key: "ip_adapter_flux_shakker"
+    required_comfyui_nodes: ["IPAdapterFluxLoader", "ApplyIPAdapterFlux"]
+
+    # Multi-character chain support
+    chainable: true
+    chain:
+      find_by_class: "ApplyIPAdapterFlux"
+      rewire_input: "model"
+      reuse_nodes: ["IPAdapterFluxLoader"]
+      weight_decay: 0.6
+      min_weight: 0.3
+
+    nodes:
+      flux_ipa_loader_{suffix}:
+        class_type: "IPAdapterFluxLoader"
+        inputs:
+          ipadapter_file: "{config.model|ip-adapter.bin}"
+          clip_name: "google/siglip-so400m-patch14-384"
+          device: "cuda"
+
+      flux_ipa_apply_{suffix}:
+        class_type: "ApplyIPAdapterFlux"
+        inputs:
+          weight: "{chain_weight}"
+          start_percent: 0.0
+          end_percent: 1.0
+          model: ["{model_source}", 0]
+          ipadapter_flux: ["flux_ipa_loader_{suffix}", 0]
+          image: "{ref_image}"
+
+    output_wiring:
+      target: "ksampler"
+      input: "model"
+
   controlnet_depth:
     description: "ControlNet Depth body structure consistency (Flux only)"
     compatible_backends: ["flux"]
@@ -534,10 +592,9 @@ node_graphs:
 controlnet_depth_models:
   flux-depth:
     description: "Flux ControlNet Depth — 全身结构一致性"
-    file: "diffusers_Flux-ControlNet-depth.safetensors"
+    file: "flux-depth-controlnet-v3.safetensors"
     base: "flux"
     requires_custom_nodes:
-      - "ComfyUI-FluxControlNetWrapper"
       - "ComfyUI-DepthAnythingV2"
 
 # ══════════════════════════════════════════════════════════

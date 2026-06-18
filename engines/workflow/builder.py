@@ -478,18 +478,22 @@ class WorkflowBuilder:
                 logger.debug(f"角色 '{cid}' 无 LoRA（skip_consistency，跳过一致性注入）")
             return wf
 
-        # 一致性方案选择
+        # 一致性方案选择 — 管道优先（命名管道 → 单方法 → auto → consistency_default）
         consistency = self.models.get("consistency_method",
                                       self.config.get("consistency_method", "auto"))
         if consistency == "auto":
-            consistency = self.registry.get_consistency_default(img_backend) or "none"
+            pipeline = self.registry.get_consistency_pipeline(
+                img_backend, available_nodes=getattr(self, "available_nodes", None))
+        else:
+            pipeline = [] if consistency == "none" else [consistency]
 
-        # 无 LoRA 角色 → 注入一致性方案
-        if chars_without_lora:
+        # 无 LoRA 角色 → 按管道逐层注入
+        if chars_without_lora and pipeline:
             ip_config = self.config.get("ip_adapter", {})
             chars_with_refs = self._filter_chars_with_refs(chars_without_lora, ip_config=ip_config)
             if chars_with_refs:
-                wf = self._inject_consistency_method(wf, consistency, chars_with_refs)
+                for method in pipeline:
+                    wf = self._inject_consistency_method(wf, method, chars_with_refs)
 
         # ControlNet Depth：全身结构一致性
         if self.config.get("controlnet_depth", {}).get("enabled") and chars_without_lora:

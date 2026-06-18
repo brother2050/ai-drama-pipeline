@@ -92,13 +92,19 @@ ip_adapter_flux:
 pulid_flux:
   enabled: true
   model: pulid_flux_v0.9.0.safetensors
-  weight: 0.75
+  weight: 0.85
   start_at: 0.0
   end_at: 1.0
   fusion: mean
+ip_adapter_flux_shakker:
+  enabled: true
+  model: ip-adapter.bin
+  weight: 0.7
+  start_percent: 0.0
+  end_percent: 1.0
 controlnet_depth:
   enabled: false
-  model: diffusers_Flux-ControlNet-depth.safetensors
+  model: flux-depth-controlnet-v3.safetensors
   strength: 0.8
   start_percent: 0.0
   end_percent: 1.0

@@ -26,13 +26,18 @@ def build_upload_map(builder, shot: dict, wf: dict) -> dict[str, str]:
     pulid_primary_nodes = [n for n in all_load_nodes if n.startswith("pulid_ref_") and not n.startswith("pulid_ref2_")]
     pulid_secondary_nodes = [n for n in all_load_nodes if n.startswith("pulid_ref2_")]
     controlnet_ref_nodes = [n for n in all_load_nodes if n.startswith("controlnet_ref_")]
+    # Shakker-Labs Flux IP-Adapter: 参考图前缀 flux_ref_
+    flux_ipa_primary_nodes = [n for n in all_load_nodes if n.startswith("flux_ref_") and not n.startswith("flux_ref2_")]
+    flux_ipa_secondary_nodes = [n for n in all_load_nodes if n.startswith("flux_ref2_")]
     ipa_node_set = (set(ipa_primary_nodes) | set(ipa_secondary_nodes)
                     | set(pulid_primary_nodes) | set(pulid_secondary_nodes)
-                    | set(controlnet_ref_nodes))
+                    | set(controlnet_ref_nodes)
+                    | set(flux_ipa_primary_nodes) | set(flux_ipa_secondary_nodes))
     scene_nodes = [n for n in all_load_nodes if n not in ipa_node_set
                    and not n.startswith("ipadapter_")
                    and not n.startswith("pulid_")
-                   and not n.startswith("controlnet_ref_")]
+                   and not n.startswith("controlnet_ref_")
+                   and not n.startswith("flux_ref_")]
 
     img_backend = builder.models.get("image_backend", "flux")
     ip_config = builder.config.get("ip_adapter", {})
@@ -56,6 +61,10 @@ def build_upload_map(builder, shot: dict, wf: dict) -> dict[str, str]:
         elif refs and all_load_nodes:
             uploads[all_load_nodes[0]] = refs[0]
 
+        # Flux IP-Adapter (Shakker-Labs) 参考图映射
+        if refs and flux_ipa_primary_nodes:
+            uploads[flux_ipa_primary_nodes[0]] = refs[0]
+
         if controlnet_ref_nodes and refs:
             resolved_id = builder._char_name_to_id.get(char_names[0], char_names[0])
             full_body = builder._paths.full_body_ref(resolved_id)
@@ -74,9 +83,13 @@ def build_upload_map(builder, shot: dict, wf: dict) -> dict[str, str]:
                     if j < len(group):
                         uploads[group[j]] = ref_path
         elif refs:
-            secondary_pool = pulid_secondary_nodes + ipa_secondary_nodes
+            secondary_pool = pulid_secondary_nodes + ipa_secondary_nodes + flux_ipa_secondary_nodes
             if i < len(secondary_pool):
                 uploads[secondary_pool[i]] = refs[0]
+
+        # Flux IP-Adapter (Shakker-Labs) 次要角色参考图映射
+        if refs and flux_ipa_secondary_nodes and i < len(flux_ipa_secondary_nodes):
+            uploads[flux_ipa_secondary_nodes[i]] = refs[0]
 
     depth_map = shot.get("depth_map", "")
     scene_ref = shot.get("scene_ref", "")
