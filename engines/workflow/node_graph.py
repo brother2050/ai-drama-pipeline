@@ -113,11 +113,6 @@ def _find_model_pipeline(wf: dict) -> tuple[str | None, str | None]:
         return None, None
     return ksampler, resolve_model_source(wf, ksampler)
 
-
-def _connect_to_model_pipeline(wf: dict, ksampler: str, node_id: str) -> None:
-    wf[ksampler]["inputs"]["model"] = [node_id, 0]
-
-
 def _find_downstream_consumer(wf: dict, source_node: str) -> tuple[str | None, str | None]:
     """Find the node that receives source_node's output. Returns (node_id, input_name)."""
     for nid, node in wf.items():
@@ -146,9 +141,8 @@ class NodeGraphInjector:
         method_config: method-specific config dict (ip_adapter, pulid_flux, etc.)
     """
 
-    def __init__(self, graph_def: dict, config: dict, method_config: dict | None = None):
+    def __init__(self, graph_def: dict, method_config: dict | None = None):
         self.graph = graph_def
-        self.config = config
         self.method_config = method_config or {}
 
     def inject(self, wf: dict, char_names: list[str], builder) -> dict:
@@ -181,8 +175,6 @@ class NodeGraphInjector:
 
         # Collect reference images for each character
         char_refs: list[tuple[str, list[str]]] = []
-        name_to_id = getattr(builder, '_char_name_to_id', {})
-        project_dir = getattr(builder, 'project_dir', '')
         no_auto_gen = getattr(builder, 'no_auto_gen', False)
 
         for char_name in char_names:
@@ -238,24 +230,18 @@ class NodeGraphInjector:
         name_to_id = getattr(builder, '_char_name_to_id', {})
         char_id = name_to_id.get(char_name, "")
 
-        # Resolve model source and KSampler
-        ksampler, model_source = _find_model_pipeline(wf={})  # placeholder, resolved per-wf
-        method_cfg = self.method_config
-
         # Calculate chain weight for secondary characters
-        base_weight = method_cfg.get("weight", 0.75)
+        base_weight = self.method_config.get("weight", 0.75)
         if weight_decay < 1.0:
             chain_weight = max(min_weight, base_weight * weight_decay)
         else:
             chain_weight = base_weight
 
         return {
-            "config": method_cfg,
-            "model_source": None,  # resolved per-workflow
+            "config": self.method_config,
             "ref_image": ref_images[0] if ref_images else "",
             "ref_images": ref_images,
             "suffix": suffix,
-            "ksampler": None,  # resolved per-workflow
             "project_dir": project_dir,
             "char_id": char_id,
             "chain_weight": chain_weight,
@@ -312,7 +298,6 @@ class NodeGraphInjector:
         """Chain secondary character after existing nodes."""
         chain_cfg = self.graph.get("chain", {})
         find_class = chain_cfg.get("find_by_class", "")
-        rewire_input = chain_cfg.get("rewire_input", "model")
         reuse_classes = set(chain_cfg.get("reuse_nodes", []))
 
         if not find_class:
@@ -444,9 +429,11 @@ class NodeGraphInjector:
                 else:
                     resolved[key] = _resolve_value(value, ctx)
             elif isinstance(value, list) and len(value) == 2 and chain_source:
-                # Remap template-key references to reused node IDs
                 ref_id = value[0] if isinstance(value[0], str) else ""
-                if isinstance(ref_id, str) and ref_id in remap:
+                # Chain mode: {model_source} → 上一个链式节点；template_key → 可复用加载器
+                if isinstance(ref_id, str) and ref_id == "{model_source}":
+                    resolved[key] = [chain_source, value[1]]
+                elif isinstance(ref_id, str) and ref_id in remap:
                     resolved[key] = [remap[ref_id], value[1]]
                 else:
                     resolved[key] = _resolve_value(value, ctx)
@@ -515,7 +502,7 @@ def inject_from_registry(builder, wf: dict, char_names: list[str],
         for k, v in defaults.items():
             method_config.setdefault(k, v)
 
-    injector = NodeGraphInjector(graph_def, config, method_config)
+    injector = NodeGraphInjector(graph_def, method_config)
     return injector.inject(wf, char_names, builder)
 
 

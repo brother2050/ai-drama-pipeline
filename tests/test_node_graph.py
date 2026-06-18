@@ -273,7 +273,7 @@ class TestNodeGraphInjector:
                 "embeds_scaling": "V only",
             }
         }
-        injector = NodeGraphInjector(ip_adapter_graph_def, config, config["ip_adapter"])
+        injector = NodeGraphInjector(ip_adapter_graph_def, config["ip_adapter"])
         wf = injector.inject(wf, ["Alice"], mock_builder)
 
         # 应该有 IPAdapterModelLoader, CLIPVisionLoader, IPAdapterAdvanced 节点
@@ -296,7 +296,7 @@ class TestNodeGraphInjector:
         """禁用的一致性配置应跳过注入"""
         wf = dict(basic_wf)
         config = {"ip_adapter": {"enabled": False}}
-        injector = NodeGraphInjector(ip_adapter_graph_def, config, config["ip_adapter"])
+        injector = NodeGraphInjector(ip_adapter_graph_def, config["ip_adapter"])
         wf = injector.inject(wf, ["Alice"], mock_builder)
 
         # 不应该创建任何 IP-Adapter 节点
@@ -308,7 +308,7 @@ class TestNodeGraphInjector:
         """权重应从配置中读取"""
         wf = dict(basic_wf)
         config = {"ip_adapter": {"weight": 0.9}}
-        injector = NodeGraphInjector(ip_adapter_graph_def, config, config["ip_adapter"])
+        injector = NodeGraphInjector(ip_adapter_graph_def, config["ip_adapter"])
         wf = injector.inject(wf, ["Alice"], mock_builder)
 
         ipa_nodes = find_nodes_by_class(wf, "IPAdapterAdvanced")
@@ -324,7 +324,7 @@ class TestNodeGraphInjector:
         # 清除 Alice 的参考图
         mock_builder._get_character_refs = MagicMock(return_value=[])
 
-        injector = NodeGraphInjector(ip_adapter_graph_def, config, config["ip_adapter"])
+        injector = NodeGraphInjector(ip_adapter_graph_def, config["ip_adapter"])
         wf = injector.inject(wf, ["Alice"], mock_builder)
 
         ipa_nodes = find_nodes_by_class(wf, "IPAdapterAdvanced")
@@ -335,7 +335,7 @@ class TestNodeGraphInjector:
         """链式注入次要角色"""
         wf = dict(basic_wf)
         config = {"ip_adapter": {"weight": 0.75}}
-        injector = NodeGraphInjector(ip_adapter_graph_def, config, config["ip_adapter"])
+        injector = NodeGraphInjector(ip_adapter_graph_def, config["ip_adapter"])
         wf = injector.inject(wf, ["Alice", "Bob"], mock_builder)
 
         # 应该有两个 IPAdapterAdvanced 节点（主 + 链）
@@ -358,7 +358,7 @@ class TestNodeGraphInjector:
         """链式权重衰减不低於最小值"""
         wf = dict(basic_wf)
         config = {"ip_adapter": {"weight": 0.3}}  # 原权重已接近 min_weight (0.3)
-        injector = NodeGraphInjector(ip_adapter_graph_def, config, config["ip_adapter"])
+        injector = NodeGraphInjector(ip_adapter_graph_def, config["ip_adapter"])
         wf = injector.inject(wf, ["Alice", "Bob"], mock_builder)
 
         ipa_nodes = find_nodes_by_class(wf, "IPAdapterAdvanced")
@@ -411,7 +411,7 @@ class TestNodeGraphInjector:
         }
         config = {"ip_adapter": {"weight": 0.9, "weight_type": "linear"}}
 
-        injector = NodeGraphInjector(graph_def, config, config["ip_adapter"])
+        injector = NodeGraphInjector(graph_def, config["ip_adapter"])
         wf = injector.inject(wf, ["Alice"], mock_builder)
 
         # 权重应该被更新
