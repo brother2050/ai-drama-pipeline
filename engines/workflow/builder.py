@@ -487,19 +487,25 @@ class WorkflowBuilder:
         else:
             pipeline = [] if consistency == "none" else [consistency]
 
-        # 无 LoRA 角色 → 按管道逐层注入
+        # ControlNet Depth：全身结构一致性（必须在身份注入 PuLID/IP-Adapter 之前，
+        # ApplyFluxControlNet 需要对原始模型（仅带 LoRA）做结构约束，接收已被
+        # PuLID/IP-Adapter 多层 patch 的模型会导致 ComfyUI 验证 tuple index out of range）
+        if self.config.get("controlnet_depth", {}).get("enabled") and chars_without_lora:
+            cn_chars = self._filter_chars_with_refs(chars_without_lora)
+            if cn_chars:
+                wf = self._inject_consistency_method(wf, "controlnet_depth", cn_chars)
+                # 后续 PuLID/IP-Adapter 需作用在同一角色集合上，确保身份注入
+                # 覆盖 ControlNet 的输出
+                if cn_chars != chars_without_lora:
+                    logger.debug(f"ControlNet 仅对 {len(cn_chars)}/{len(chars_without_lora)} 个角色注入（部分缺参考图）")
+
+        # 身份层面注入：PuLID-Flux → Flux IP-Adapter（按管道逐层注入）
         if chars_without_lora and pipeline:
             ip_config = self.config.get("ip_adapter", {})
             chars_with_refs = self._filter_chars_with_refs(chars_without_lora, ip_config=ip_config)
             if chars_with_refs:
                 for method in pipeline:
                     wf = self._inject_consistency_method(wf, method, chars_with_refs)
-
-        # ControlNet Depth：全身结构一致性
-        if self.config.get("controlnet_depth", {}).get("enabled") and chars_without_lora:
-            chars_with_refs = self._filter_chars_with_refs(chars_without_lora)
-            if chars_with_refs:
-                wf = self._inject_consistency_method(wf, "controlnet_depth", chars_with_refs)
 
         return wf
 

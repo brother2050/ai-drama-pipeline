@@ -1,5 +1,5 @@
 comfyui:
-  url: https://f0884998acd74a63a3dee293264273fd--8188.ap-shanghai2.cloudstudio.club
+  url: https://1f83d70e2f574010a689aca3313e28d8--8188.ap-shanghai2.cloudstudio.club
   api_key: ''
   models_dir: ''
 local_first: false
@@ -97,7 +97,7 @@ pulid_flux:
   end_at: 1.0
   fusion: mean
 ip_adapter_flux_shakker:
-  enabled: false
+  enabled: true
   model: ip-adapter.bin
   weight: 0.7
   start_percent: 0.0

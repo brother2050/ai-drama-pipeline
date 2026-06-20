@@ -80,9 +80,14 @@ class ComfyUI:
 
     def generate(self, workflow: dict, output_dir: str) -> list[str]:
         """提交工作流并等待结果，返回生成的文件路径列表"""
+        import json as _json
         # 统计工作流节点信息
         node_types = [n.get("class_type", "?") for n in workflow.values() if isinstance(n, dict)]
         logger.info(f"ComfyUI 请求 nodes={len(workflow)} types={node_types[:8]}{'...' if len(node_types)>8 else ''}")
+        # 调试：记录 sampler 节点的 inputs（排查 self-reference 问题）
+        for nid, node in workflow.items():
+            if isinstance(node, dict) and node.get("class_type", "") in ("XlabsSampler", "KSampler", "KSamplerAdvanced"):
+                logger.info(f"  🔍 [{nid}] {node['class_type']} inputs: {_json.dumps(node.get('inputs', {}), ensure_ascii=False)}")
         t0 = time.time()
         client_id = uuid.uuid4().hex
         r = self._client.post(f"{self._url}/prompt", json={"prompt": workflow, "client_id": client_id},
@@ -92,6 +97,9 @@ class ComfyUI:
                 detail = _extract_error(r)
             except (ValueError, KeyError):
                 detail = r.text[:500]
+            # 400 时输出完整 JSON 排查
+            if r.status_code == 400:
+                logger.info(f"ComfyUI 400 完整工作流 JSON:\n{_json.dumps(workflow, ensure_ascii=False, indent=2)}")
             raise RuntimeError(f"ComfyUI /prompt 提交失败 (HTTP {r.status_code}): {detail}")
         try:
             resp = r.json()
