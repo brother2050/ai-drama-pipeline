@@ -443,9 +443,28 @@ class WorkflowBuilder:
 
         return {"positive": positive, "negative": negative}, img_backend
 
+    def _apply_view_overrides(self, view_key: str) -> dict:
+        """应用视图级覆盖到 self.config（copy-on-write），返回 lora 覆盖字典。
+
+        所有方法启用/禁用、参数覆盖统一通过修改 config 实现，
+        下游 inject_from_registry() 原生检查 config.enabled，无需额外分支。
+        """
+        overrides = self.models.get("view_overrides", {}).get(view_key, {})
+        if not overrides:
+            return {}
+
+        import copy
+        self.config = copy.deepcopy(self.config)
+
+        for cfg_key, cfg_val in overrides.get("config", {}).items():
+            self.config.setdefault(cfg_key, {}).update(cfg_val)
+
+        return overrides.get("lora", {})
+
     def _inject_character_consistency(self, wf: dict, char_names: list[str],
                                        img_backend: str,
-                                       skip_consistency: bool = False) -> dict:
+                                       skip_consistency: bool = False,
+                                       lora_overrides: dict | None = None) -> dict:
         """注入角色 LoRA 和一致性方案（IP-Adapter / PuLID）
 
         注意: 就地修改 wf，由 build_first_frame 负责初始 deepcopy。
@@ -453,7 +472,9 @@ class WorkflowBuilder:
 
         Args:
             skip_consistency: True 时只注入 LoRA，跳过 PuLID/IP-Adapter。
-                正面定妆照无参考图时使用，避免注入后再清理导致的孤儿节点。
+                正面定妆照无参考图时使用。
+            lora_overrides: 视图级 LoRA 覆盖（来自 _apply_view_overrides 返回）。
+                支持的 key: character_lora_strength
         """
         # 分 LoRA 角色 vs 无 LoRA 角色
         chars_with_lora: list[dict] = []
@@ -469,10 +490,12 @@ class WorkflowBuilder:
         from infra.storage.asset_tracker import comfyui_asset_name
         for item in chars_with_lora:
             cid, lora_path = item["cid"], item["lora_path"]
-            strength = self.models.get("character_lora_strength", 0.7)
+            strength = (lora_overrides or {}).get("character_lora_strength")
+            if strength is None:
+                strength = self.models.get("character_lora_strength", 0.7)
             name = comfyui_asset_name(self.project_dir, Path(lora_path).stem, Path(lora_path).name)
             wf = _inject_lora(wf, lora_path, strength=strength, lora_name=name)
-            logger.info(f"使用角色 LoRA: {cid} → {lora_path}")
+            logger.info(f"使用角色 LoRA: {cid} → {lora_path} (strength={strength})")
 
         # skip_consistency: 只注入 LoRA，不注入 PuLID/IP-Adapter
         if skip_consistency:
@@ -490,6 +513,8 @@ class WorkflowBuilder:
             pipeline = [] if consistency == "none" else [consistency]
 
         # 身份层面注入：PuLID-Flux → Flux IP-Adapter（按管道逐层注入）
+        # 方法级启用/禁用由 inject_from_registry() 原生检查 config.enabled 处理，
+        # 无需在 builder 中额外分支过滤。
         if chars_without_lora and pipeline:
             ip_config = self.config.get("ip_adapter", {})
             chars_with_refs = self._filter_chars_with_refs(chars_without_lora, ip_config=ip_config)
@@ -500,7 +525,9 @@ class WorkflowBuilder:
         # ControlNet Depth：全身结构一致性（位于身份注入之后，即管道最外层；
         # ApplyFluxControlNet 接收已 patch 的 MODEL，输出 baked-in MODEL →
         # 对 XlabsSampler 仅设 model，不设 controlnet_condition）
-        if self.config.get("controlnet_depth", {}).get("enabled") and chars_without_lora:
+        # 视图级禁用通过 config.controlnet_depth.enabled=false 实现，无需额外检查。
+        if (self.config.get("controlnet_depth", {}).get("enabled")
+                and chars_without_lora):
             cn_chars = self._filter_chars_with_refs(chars_without_lora)
             if cn_chars:
                 wf = self._inject_consistency_method(wf, "controlnet_depth", cn_chars)
@@ -571,6 +598,12 @@ class WorkflowBuilder:
 
         # 3c. 注入全局 LoRA（必须在一致性管道之前；同上）
         # 仅在有角色时注入 — 全局 LoRA 通常是人物肖像类（如 ACE++ Portrait）
+        #
+        # 视图级覆盖通过 _apply_view_overrides() 统一修改 config + 返回 lora 字典，
+        # 无需在 builder 中为每个 override key 写专用分支。
+        view_key = shot.get("view_key") or shot.get("shot_type", "")
+        lora = self._apply_view_overrides(view_key)
+
         if char_names:
             for gl in self.models.get("global_loras", []):
                 name = gl.get("name", "")
@@ -579,7 +612,9 @@ class WorkflowBuilder:
                 if not self._lora_file_exists(name):
                     logger.warning(f"全局 LoRA 文件不存在，跳过: {name}（请放入 ComfyUI/models/loras/）")
                     continue
-                strength = gl.get("strength", 0.7)
+                strength = lora.get("global_lora_strength")
+                if strength is None:
+                    strength = gl.get("strength", 0.7)
                 wf = _inject_lora(wf, name, strength=strength, lora_name=name)
                 logger.info(f"使用全局 LoRA: {name} (strength={strength})")
         elif self.models.get("global_loras"):
@@ -589,7 +624,8 @@ class WorkflowBuilder:
         #    正面定妆照无参考图时 skip_consistency=True，仅注入 LoRA 跳过 PuLID/IP-Adapter
         if char_names:
             wf = self._inject_character_consistency(wf, char_names, img_backend,
-                                                     skip_consistency=skip_consistency)
+                                                     skip_consistency=skip_consistency,
+                                                     lora_overrides=lora)
 
         # 6. Seed 控制
         if seed is not None:

@@ -1,5 +1,5 @@
 comfyui:
-  url: https://1f83d70e2f574010a689aca3313e28d8--8188.ap-shanghai2.cloudstudio.club
+  url: https://52eeb03065fb4de68ca1eac37bc505e5--8188.ap-shanghai2.cloudstudio.club
   api_key: ''
   models_dir: ''
 local_first: false
@@ -12,6 +12,16 @@ models:
   global_loras:
   - name: comfyui_portrait_lora64.safetensors
     strength: 0.7
+  view_overrides:
+    full_body:
+      config:
+        ip_adapter_flux_shakker:
+          enabled: false
+        controlnet_depth:
+          enabled: false
+      lora:
+        global_lora_strength: 0.3
+        character_lora_strength: 0.3
   gpt_sovits:
     api_url: https://1de6f982768c4831be6dac4a5855239a--9880.ap-shanghai2.cloudstudio.club
     refs_dir: /workspace/refs

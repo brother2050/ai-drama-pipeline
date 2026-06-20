@@ -201,7 +201,8 @@ def _generate_view(params: ViewGenParams) -> str:
         return ""
 
     fake_shot = {"characters": p.char_id, "emotion": "neutral",
-                 "shot_type": p.shot_type, "camera": "固定", "scene_name": ""}
+                 "shot_type": p.shot_type, "camera": "固定", "scene_name": "",
+                 "view_key": p.view_key}
     # 正面视图（view_key="front"）无参考图，跳过一致性注入（PuLID/IP-Adapter），
     # 避免注入后 _remove_consistency_nodes 清理不彻底的问题。
     # LoRA 仍由 build_first_frame 内部按 skip_consistency 分支注入。
@@ -430,7 +431,8 @@ def _generate_single_outfit(comfyui, wb, char_id: str, outfit_key: str,
     from engines.prompt.builder import _ensure_gender_tag
     full_desc = _ensure_gender_tag(f"{appearance_en}, wearing {outfit_desc_en}", gender)
 
-    fake_shot = {"characters": char_id, "emotion": "neutral", "shot_type": "全身", "camera": "固定", "scene_name": ""}
+    fake_shot = {"characters": char_id, "emotion": "neutral", "shot_type": "全身",
+                 "camera": "固定", "scene_name": "", "view_key": "full_body"}
     _, wf = wb.build_first_frame(fake_shot, character_desc=full_desc, seed=outfit_seed)
     if not wf:
         return None
