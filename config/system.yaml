@@ -97,7 +97,7 @@ pulid_flux:
   end_at: 1.0
   fusion: mean
 ip_adapter_flux_shakker:
-  enabled: true
+  enabled: false
   model: ip-adapter.bin
   weight: 0.7
   start_percent: 0.0
@@ -106,7 +106,7 @@ controlnet_depth:
   enabled: true
   model: flux-depth-controlnet-v3.safetensors
   base_model: flux-dev
-  strength: 0.8
+  strength: 0.55
   start_percent: 0.0
   end_percent: 1.0
 timeouts:

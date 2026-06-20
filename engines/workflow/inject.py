@@ -795,6 +795,9 @@ def inject_controlnet_depth(builder: object, wf: dict, char_names: list[str],
         # 次要角色降权
         char_strength = strength if idx == 0 else max(0.3, strength * 0.6)
 
+        # 获取当前模型连入 sampler 的源节点（可能已被 PuLID/IP-Adapter 改写）
+        current_model_src = wf[ksampler]["inputs"].get("model", [None, 0])
+
         nodes = {
             f"depth_estimation_{suffix}": {
                 "class_type": "MiDaS-DepthMapPreprocessor",
@@ -814,6 +817,7 @@ def inject_controlnet_depth(builder: object, wf: dict, char_names: list[str],
                 "class_type": "ApplyFluxControlNet",
                 "inputs": {
                     "strength": char_strength,
+                    "model": current_model_src,
                     "controlnet": [f"controlnet_model_{suffix}", 0],
                     "image": [f"depth_estimation_{suffix}", 0],
                 }
@@ -825,9 +829,12 @@ def inject_controlnet_depth(builder: object, wf: dict, char_names: list[str],
         logger.info(f"ControlNet Depth: {char_name} (strength={char_strength:.2f})")
 
     if injected_count:
-        # ControlNet 输出 ControlNetCondition，注入为 sampler 的侧通道输入
+        # ApplyFluxControlNet 返回 (MODEL, CONDITIONING):
+        #   output 0: 带 ControlNet patch 的模型 → sampler.model
+        #   output 1: controlnet 条件信号        → sampler.controlnet_condition
         # 多角色时仅最后一个生效（sampler 只有一个 controlnet_condition 槽位）
-        wf[ksampler]["inputs"]["controlnet_condition"] = [f"controlnet_apply_{suffix}", 0]
+        wf[ksampler]["inputs"]["model"] = [f"controlnet_apply_{suffix}", 0]
+        wf[ksampler]["inputs"]["controlnet_condition"] = [f"controlnet_apply_{suffix}", 1]
 
         # 修复 XlabsSampler image_to_image_strength=0.0 的 bug:
         # 公式 t_idx = int((1 - strength) * len(timesteps)):
