@@ -41,10 +41,12 @@ def _next_suffix() -> int:
 # ══════════════════════════════════════════════════════════
 
 def _find_model_pipeline(wf: dict) -> tuple[str | None, str | None]:
-    """查找 KSampler / KSamplerAdvanced 和其 model source 节点"""
+    """查找 KSampler / XlabsSampler 和其 model source 节点"""
     ksampler = find_first_node(wf, "KSampler")
     if not ksampler:
         ksampler = find_first_node(wf, "KSamplerAdvanced")
+    if not ksampler:
+        ksampler = find_first_node(wf, "XlabsSampler")
     if not ksampler:
         return None, None
     model_source = resolve_model_source(wf, ksampler)
@@ -83,6 +85,22 @@ def _create_ref_nodes(wf: dict, ref_images: list[str], prefix: str,
         }
         batch_prev = batch_nid
     return batch_prev
+
+
+def _upload_controlnet_ref(builder: object, local_path: str,
+                          project_dir: str, char_id: str) -> None:
+    """将 ControlNet 全身参考图上传到 ComfyUI 服务器"""
+    try:
+        comfyui = getattr(builder, 'comfyui', None)
+        if not comfyui:
+            logger.debug("builder 无 comfyui 引用，跳过 ControlNet 参考图上传")
+            return
+        from infra.storage.asset_tracker import AssetTracker, comfyui_asset_name
+        remote_name = comfyui_asset_name(project_dir, char_id, os.path.basename(local_path))
+        AssetTracker(project_dir).upload_if_needed(comfyui, local_path, remote_name, comfyui.url)
+        logger.debug(f"ControlNet 参考图已上传: {remote_name}")
+    except Exception as e:
+        logger.warning(f"ControlNet 参考图上传失败: {e}")
 
 
 def _connect_to_model_pipeline(wf: dict, ksampler: str, node_id: str) -> None:
@@ -407,9 +425,9 @@ def inject_pulid_flux(builder: object, wf: dict, char_names: list[str],
         logger.info(f"PuLID-Flux weight={weight}，跳过注入")
         return wf
 
-    ksampler = find_first_node(wf, "KSampler")
+    ksampler = find_first_node(wf, "KSampler") or find_first_node(wf, "KSamplerAdvanced") or find_first_node(wf, "XlabsSampler")
     if not ksampler:
-        logger.warning("未找到 KSampler，无法注入 PuLID-Flux")
+        logger.warning("未找到 KSampler / XlabsSampler，无法注入 PuLID-Flux")
         return wf
     model_source = resolve_model_source(wf, ksampler)
     if not model_source:
@@ -613,12 +631,22 @@ def _rewire_clip_to_text_encoders(wf: dict, ksampler: str, source_node: str) -> 
     """将 source_node 的 clip 输出连到 KSampler 引用的所有 CLIPTextEncode 节点
 
     KSampler 不接受 clip 输入（ComfyUI v0.24+），clip 应连到 CLIPTextEncode
-    用于编码 prompt。此函数自动找到 KSampler positive/negative 引用的
-    CLIPTextEncode 节点并重定向其 clip 输入。
+    用于编码 prompt。此函数自动找到 KSampler positive/negative（或 XlabsSampler
+    conditioning/neg_conditioning）引用的 CLIPTextEncode 节点并重定向其 clip 输入。
     """
     text_encoder_ids: set[str] = set()
-    for key in ("positive", "negative"):
-        ref = wf.get(ksampler, {}).get("inputs", {}).get(key, [])
+    sampler_node = wf.get(ksampler, {})
+    sampler_inputs = sampler_node.get("inputs", {})
+    sampler_class = sampler_node.get("class_type", "")
+
+    # KSampler: positive/negative; XlabsSampler: conditioning/neg_conditioning
+    if sampler_class == "XlabsSampler":
+        pos_key, neg_key = "conditioning", "neg_conditioning"
+    else:
+        pos_key, neg_key = "positive", "negative"
+
+    for key in (pos_key, neg_key):
+        ref = sampler_inputs.get(key, [])
         if isinstance(ref, list) and len(ref) >= 1:
             text_encoder_ids.add(str(ref[0]))
     # 也处理 DualCFGGuider 等节点引用的 CLIPTextEncode
@@ -650,9 +678,9 @@ def inject_lora(wf: dict, lora_path: str, strength: float = 0.7,
             - None: 回退到 os.path.basename()
     """
 
-    ksampler = find_first_node(wf, "KSampler")
+    ksampler = find_first_node(wf, "KSampler") or find_first_node(wf, "KSamplerAdvanced") or find_first_node(wf, "XlabsSampler")
     if not ksampler:
-        logger.warning("未找到 KSampler 节点，无法注入 LoRA")
+        logger.warning("未找到 KSampler / XlabsSampler 节点，无法注入 LoRA")
         return wf
 
     # 追踪当前 KSampler 的实际 model/clip 来源（可能是前一个 LoRA 的输出）
@@ -714,8 +742,8 @@ def inject_controlnet_depth(builder: object, wf: dict, char_names: list[str],
     支持多角色：主角色 full strength，次要角色降权。
 
     需要 ComfyUI 安装：
-    - ComfyUI-DepthAnythingV2（kijai 维护版，深度估计）
-    - Flux ControlNet 已内置在新版 ComfyUI 中，无需额外 wrapper
+    - comfyui_controlnet_aux（提供 MiDaS-DepthMapPreprocessor 深度估计节点）
+    - x-flux-comfyui（XLabs 提供 LoadFluxControlNet / ApplyFluxControlNet 节点）
 
     注意: 就地修改 wf，调用方需确保已 deepcopy。
     """
@@ -733,11 +761,9 @@ def inject_controlnet_depth(builder: object, wf: dict, char_names: list[str],
         return wf
 
     project_dir = getattr(builder, 'project_dir', '')
-    model_name = cn_config.get("model", "flux-depth-controlnet-v3.safetensors")
-    start_percent = cn_config.get("start_percent", 0.0)
-    end_percent = cn_config.get("end_percent", 1.0)
+    cn_model = cn_config.get("model", "flux-depth-controlnet-v3.safetensors")
+    base_model = cn_config.get("base_model", "flux-dev")
 
-    current_model = model_source
     injected_count = 0
 
     for idx, char_name in enumerate(char_names):
@@ -763,40 +789,53 @@ def inject_controlnet_depth(builder: object, wf: dict, char_names: list[str],
         # 使用通用辅助函数创建参考图节点
         ref_node = _create_ref_nodes(wf, [str(full_body_ref)], "controlnet_ref", suffix, project_dir, resolved_id)
 
+        # 上传全身参考图到 ComfyUI（ControlNet Depth 在工作流中引用它）
+        _upload_controlnet_ref(builder, str(full_body_ref), project_dir, resolved_id)
+
         # 次要角色降权
         char_strength = strength if idx == 0 else max(0.3, strength * 0.6)
 
         nodes = {
             f"depth_estimation_{suffix}": {
-                "class_type": "DepthAnythingV2Estimation",
+                "class_type": "MiDaS-DepthMapPreprocessor",
                 "inputs": {
                     "image": [ref_node, 0],
                     "resolution": 512,
                 }
             },
             f"controlnet_model_{suffix}": {
-                "class_type": "FluxControlNetLoader",
-                "inputs": {"control_net_name": model_name}
+                "class_type": "LoadFluxControlNet",
+                "inputs": {
+                    "model_name": base_model,
+                    "controlnet_path": cn_model,
+                }
             },
             f"controlnet_apply_{suffix}": {
                 "class_type": "ApplyFluxControlNet",
                 "inputs": {
                     "strength": char_strength,
-                    "start_percent": start_percent,
-                    "end_percent": end_percent,
-                    "model": [current_model, 0],
-                    "control_net": [f"controlnet_model_{suffix}", 0],
+                    "controlnet": [f"controlnet_model_{suffix}", 0],
                     "image": [f"depth_estimation_{suffix}", 0],
                 }
             },
         }
 
         wf.update(nodes)
-        current_model = f"controlnet_apply_{suffix}"
         injected_count += 1
         logger.info(f"ControlNet Depth: {char_name} (strength={char_strength:.2f})")
 
     if injected_count:
-        _connect_to_model_pipeline(wf, ksampler, current_model)
+        # ControlNet 输出 ControlNetCondition，注入为 sampler 的侧通道输入
+        # 多角色时仅最后一个生效（sampler 只有一个 controlnet_condition 槽位）
+        wf[ksampler]["inputs"]["controlnet_condition"] = [f"controlnet_apply_{suffix}", 0]
+
+        # 修复 XlabsSampler image_to_image_strength=0.0 的 bug:
+        # 公式 t_idx = int((1 - strength) * len(timesteps)):
+        #   0.0 → t_idx=len 越界 → denoise_controlnet 崩溃
+        #   0.0 → t_idx=27 (clip后) → sigma=0 → 无去噪 → 纯噪音输出
+        # 1.0 → t_idx=0 → 完整去噪 ✅
+        if wf[ksampler]["inputs"].get("image_to_image_strength", None) == 0.0:
+            wf[ksampler]["inputs"]["image_to_image_strength"] = 1.0
+            logger.debug("image_to_image_strength 0.0→1.0 (XlabsSampler: t_idx=0 完整去噪)")
 
     return wf

@@ -107,8 +107,8 @@ def _coerce(s: str):
 # ══════════════════════════════════════════════════════════
 
 def _find_model_pipeline(wf: dict) -> tuple[str | None, str | None]:
-    """Find KSampler and its model source node."""
-    ksampler = find_first_node(wf, "KSampler") or find_first_node(wf, "KSamplerAdvanced")
+    """Find KSampler / XlabsSampler and its model source node."""
+    ksampler = find_first_node(wf, "KSampler") or find_first_node(wf, "KSamplerAdvanced") or find_first_node(wf, "XlabsSampler")
     if not ksampler:
         return None, None
     return ksampler, resolve_model_source(wf, ksampler)
@@ -121,7 +121,7 @@ def _find_downstream_consumer(wf: dict, source_node: str) -> tuple[str | None, s
         for inp_name, inp_val in node.get("inputs", {}).items():
             if isinstance(inp_val, list) and len(inp_val) == 2 and inp_val[0] == source_node:
                 return nid, inp_name
-    ksampler = find_first_node(wf, "KSampler") or find_first_node(wf, "KSamplerAdvanced")
+    ksampler = find_first_node(wf, "KSampler") or find_first_node(wf, "KSamplerAdvanced") or find_first_node(wf, "XlabsSampler")
     return (ksampler, "model") if ksampler else (None, None)
 
 
@@ -228,7 +228,8 @@ class NodeGraphInjector:
         """Build template resolution context."""
         project_dir = getattr(builder, 'project_dir', '')
         name_to_id = getattr(builder, '_char_name_to_id', {})
-        char_id = name_to_id.get(char_name, "")
+        # char_name 可能是角色名或 hash ID；查不到映射意味着已经是 ID 本体
+        char_id = name_to_id.get(char_name, char_name)
 
         # Calculate chain weight for secondary characters
         base_weight = self.method_config.get("weight", 0.75)

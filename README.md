@@ -617,28 +617,26 @@ KSampler
 ```bash
 cd ComfyUI/custom_nodes/
 
-# 1. Depth Anything V2 深度估计（kijai 维护版）
-git clone https://github.com/kijai/ComfyUI-DepthAnythingV2.git
+# 1. ControlNet Aux（提供 MiDaS-DepthMapPreprocessor 深度估计节点）
+git clone https://github.com/Fannovel16/comfyui_controlnet_aux.git
 
-# 注：新版 ComfyUI 已原生支持 Flux ControlNet，无需额外安装 wrapper 节点。
+# 2. XLabs Flux ControlNet（提供 LoadFluxControlNet / ApplyFluxControlNet）
+git clone https://github.com/XLabs-AI/x-flux-comfyui.git
 ```
 
 ### 8.6.2 下载模型文件
 
 ```bash
-# 1. Flux ControlNet Depth V3 模型 → ComfyUI/models/controlnet/
+# Flux ControlNet Depth V3 模型 → ComfyUI/models/controlnet/
 mkdir -p ComfyUI/models/controlnet/
 wget -O ComfyUI/models/controlnet/flux-depth-controlnet-v3.safetensors \
   "https://hf-mirror.com/XLabs-AI/flux-controlnet-depth-v3/resolve/main/flux-depth-controlnet-v3.safetensors"
 
-# 2. Depth Anything V2 权重 → ComfyUI/models/depthanything/
-mkdir -p ComfyUI/models/depthanything/
-wget -O ComfyUI/models/depthanything/depth_anything_v2_vitl.pth \
-  "https://huggingface.co/depth-anything/Depth-Anything-V2-Large/resolve/main/depth_anything_v2_vitl.pth"
+# 注：MiDaS 深度估计模型由 comfyui_controlnet_aux 首次运行时自动下载，无需手动操作。
 ```
 
 > **说明**：
-> - Depth Anything V2 权重可由 kijai 的节点首次运行时自动下载，也可按上述命令手动下载。
+> - MiDaS 深度估计由 `comfyui_controlnet_aux` 插件提供，模型会在首次使用时自动下载。
 
 ### 8.6.3 工作流搭建
 
@@ -648,29 +646,28 @@ wget -O ComfyUI/models/depthanything/depth_anything_v2_vitl.pth \
 [角色全身参考图]
        │
        ▼
-[Depth Anything V2]  ← 生成 depth map
+[MiDaS Depth Preprocessor]  ← 生成 depth map
        │
        ▼
-[Apply ControlNet (Flux)]  ← 加载 flux-controlnet-depth-v3
-       │
+[ApplyFluxControlNet]  ← 加载 flux-controlnet-depth-v3
+       │  controlnet_condition
        ▼
-[KSampler]  ← 与 IP-Adapter/PuLID 的输出合并，共同控制生成
+[KSampler / XlabsSampler]  ← 与 model / IP-Adapter / PuLID 并行输入
 ```
 
 **关键节点与参数：**
 
 | 节点 | 说明 |
 |------|------|
-| **Load Depth Anything V2 Model** | 加载 `depth_anything_v2_vitl.pth`，选择 device 为 cuda |
-| **Depth Anything V2** | 输入角色全身参考图，输出 depth map |
-| **Load ControlNet Model (Flux)** | 加载 `flux-controlnet-depth-v3.safetensors` |
-| **Apply ControlNet** | strength 建议 0.6–0.8（过高会限制其他条件的灵活性） |
+| **MiDaS-DepthMapPreprocessor** | 输入角色全身参考图，输出 depth map（由 comfyui_controlnet_aux 提供） |
+| **LoadFluxControlNet** | 加载 `flux-depth-controlnet-v3.safetensors`，选择 base 为 flux-dev |
+| **ApplyFluxControlNet** | strength 建议 0.6–0.8（过高会限制其他条件的灵活性） |
 
 **与 IP-Adapter/PuLID 并行使用的注意事项：**
 
 - ControlNet Depth 控制身体结构，IP-Adapter/PuLID 控制面部——两者不冲突，可同时接入 KSampler。
 - 如果同时使用 IP-Adapter，建议 ControlNet Depth strength 设为 **0.5–0.7**，避免两者权重叠加过高导致画面僵硬。
-- 全身参考图应选择姿态自然、服装完整的图片，Depth Anything V2 对这类图片的深度估计最准确。
+- 全身参考图应选择姿态自然、服装完整的图片，MiDaS 对这类图片的深度估计最准确。
 
 ### 8.6.4 配置
 
@@ -700,7 +697,7 @@ drama status   # 检查 ControlNet 节点是否可用
 - **工作原理**：从角色全身参考图（`full_body.png`）生成 depth map，通过 ControlNet 强制生成图像的深度结构与参考图一致
 - **适用场景**：Flux 后端的全身/半身镜头，需要保持角色体型、姿态、服装轮廓一致性
 - **与 IP-Adapter 的关系**：两者可以并行使用，IP-Adapter 负责面部特征，ControlNet Depth 负责身体结构
-- **显存需求**：额外占用约 2-4GB 显存（Depth Anything V2 + ControlNet 模型）
+- **显存需求**：额外占用约 2-4GB 显存（MiDaS 深度估计 + ControlNet 模型）
 
 ### 9. TTS 后端（语音合成）
 

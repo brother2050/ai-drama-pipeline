@@ -84,7 +84,7 @@ def find_character_load_image_nodes(wf: dict) -> list[str]:
     all_nodes = find_load_image_nodes(wf)
     # 排除场景图节点，只保留角色参考图节点（按命名约定识别）
     char_nodes = [n for n in all_nodes
-                  if n.startswith("ipadapter_ref") or n.startswith("pulid_ref")]
+                  if n.startswith("ipadapter_ref") or n.startswith("pulid_ref") or n.startswith("flux_ref")]
     return char_nodes
 
 
@@ -117,6 +117,13 @@ def set_clip_text_prompts(wf: dict, positive: str, negative: str = "") -> dict:
             if isinstance(neg_ref, list) and len(neg_ref) >= 1:
                 negative_node_ids.add(str(neg_ref[0]))
             pos_ref = inp.get("positive", [])
+            if isinstance(pos_ref, list) and len(pos_ref) >= 1:
+                positive_node_ids.add(str(pos_ref[0]))
+        elif ct == "XlabsSampler":
+            neg_ref = inp.get("neg_conditioning", [])
+            if isinstance(neg_ref, list) and len(neg_ref) >= 1:
+                negative_node_ids.add(str(neg_ref[0]))
+            pos_ref = inp.get("conditioning", [])
             if isinstance(pos_ref, list) and len(pos_ref) >= 1:
                 positive_node_ids.add(str(pos_ref[0]))
         if ct == "DualCFGGuider":
@@ -153,6 +160,10 @@ def append_negative_prompt(wf: dict, extra_negative: str) -> None:
         inp = node.get("inputs", {})
         if ct in ("KSampler", "KSamplerAdvanced"):
             neg_ref = inp.get("negative", [])
+            if isinstance(neg_ref, list) and len(neg_ref) >= 1:
+                negative_node_ids.add(str(neg_ref[0]))
+        elif ct == "XlabsSampler":
+            neg_ref = inp.get("neg_conditioning", [])
             if isinstance(neg_ref, list) and len(neg_ref) >= 1:
                 negative_node_ids.add(str(neg_ref[0]))
         if ct == "DualCFGGuider":

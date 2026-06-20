@@ -89,7 +89,7 @@ def mock_builder():
         "IPAdapterAdvanced", "IPAdapterModelLoader", "CLIPVisionLoader",
         "ApplyPulidFlux", "PulidFluxModelLoader", "PulidFluxInsightFaceLoader",
         "PulidFluxEvaClipLoader",
-        "FluxControlNetLoader", "ApplyFluxControlNet",
+        "LoadFluxControlNet", "ApplyFluxControlNet",
         "KSampler", "CheckpointLoaderSimple",
     }
 

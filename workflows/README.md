@@ -24,5 +24,5 @@
 - `CLIPTextEncode` → Prompt 自动注入
 - `IPAdapterAdvanced` → IP-Adapter 角色一致性权重调整
 - `PulidFluxModelLoader` / `ApplyPulidFlux` → PuLID-Flux 面部一致性（启动时通过 /object_info 自动检测）
-- `FluxControlNetLoader` / `ApplyFluxControlNet` → ControlNet Depth 全身结构一致性
+- `LoadFluxControlNet` / `ApplyFluxControlNet` → ControlNet Depth 全身结构一致性
 - `KSampler` → 采样参数调整

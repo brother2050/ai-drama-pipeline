@@ -425,7 +425,7 @@ consistency_methods:
     description: "ControlNet Depth（Flux 全身结构一致性）"
     compatible_backends: ["flux"]
     config_key: "controlnet_depth"
-    required_comfyui_node: "FluxControlNetLoader"
+    required_comfyui_node: "LoadFluxControlNet"
 
 # ══════════════════════════════════════════════════════════
 #  一致性管道（命名管道，按 layer 顺序串联多个一致性方法）
@@ -559,9 +559,9 @@ node_graphs:
       flux_ipa_loader_{suffix}:
         class_type: "IPAdapterFluxLoader"
         inputs:
-          ipadapter_file: "{config.model|ip-adapter.bin}"
-          clip_name: "google/siglip-so400m-patch14-384"
-          device: "cuda"
+          provider: "cpu"
+          clip_vision: "google/siglip-so400m-patch14-384"
+          ipadapter: "{config.model|ip-adapter.bin}"
 
       flux_ipa_apply_{suffix}:
         class_type: "ApplyIPAdapterFlux"
@@ -581,7 +581,7 @@ node_graphs:
     description: "ControlNet Depth body structure consistency (Flux only)"
     compatible_backends: ["flux"]
     config_key: "controlnet_depth"
-    required_comfyui_nodes: ["FluxControlNetLoader", "ApplyFluxControlNet"]
+    required_comfyui_nodes: ["LoadFluxControlNet", "ApplyFluxControlNet", "MiDaS-DepthMapPreprocessor"]
     # 使用 Python 覆盖（ControlNet Depth 需要特殊的 full_body 参考图查找逻辑）
     inject_method: "_inject_controlnet_depth"
 
@@ -595,7 +595,7 @@ controlnet_depth_models:
     file: "flux-depth-controlnet-v3.safetensors"
     base: "flux"
     requires_custom_nodes:
-      - "ComfyUI-DepthAnythingV2"
+      - "comfyui_controlnet_aux"
 
 # ══════════════════════════════════════════════════════════
 #  IP-Adapter 模型定义
