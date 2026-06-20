@@ -298,7 +298,7 @@ class WorkflowBuilder:
         """查找 source_node 的下游消费者（接收其输出的节点+输入名）
 
         优先找非 LoadImage 节点中引用 source_node 的输入，
-        回退到 KSampler.model。
+        回退到 sampler.model。
 
         Returns:
             (node_id, input_name) 或 (None, None)
@@ -309,8 +309,10 @@ class WorkflowBuilder:
             for inp_name, inp_val in node.get("inputs", {}).items():
                 if isinstance(inp_val, list) and len(inp_val) == 2 and inp_val[0] == source_node:
                     return nid, inp_name
-        # 回退到 KSampler
-        ksampler = find_first_node(wf, "KSampler")
+        # 回退到 sampler（所有类型）
+        ksampler = (find_first_node(wf, "KSampler")
+                    or find_first_node(wf, "KSamplerAdvanced")
+                    or find_first_node(wf, "XlabsSampler"))
         return (ksampler, "model") if ksampler else (None, None)
 
     # ── img2img 处理 ────────────────────────────────────────
@@ -487,18 +489,6 @@ class WorkflowBuilder:
         else:
             pipeline = [] if consistency == "none" else [consistency]
 
-        # ControlNet Depth：全身结构一致性（必须在身份注入 PuLID/IP-Adapter 之前，
-        # ApplyFluxControlNet 需要对原始模型（仅带 LoRA）做结构约束，接收已被
-        # PuLID/IP-Adapter 多层 patch 的模型会导致 ComfyUI 验证 tuple index out of range）
-        if self.config.get("controlnet_depth", {}).get("enabled") and chars_without_lora:
-            cn_chars = self._filter_chars_with_refs(chars_without_lora)
-            if cn_chars:
-                wf = self._inject_consistency_method(wf, "controlnet_depth", cn_chars)
-                # 后续 PuLID/IP-Adapter 需作用在同一角色集合上，确保身份注入
-                # 覆盖 ControlNet 的输出
-                if cn_chars != chars_without_lora:
-                    logger.debug(f"ControlNet 仅对 {len(cn_chars)}/{len(chars_without_lora)} 个角色注入（部分缺参考图）")
-
         # 身份层面注入：PuLID-Flux → Flux IP-Adapter（按管道逐层注入）
         if chars_without_lora and pipeline:
             ip_config = self.config.get("ip_adapter", {})
@@ -506,6 +496,14 @@ class WorkflowBuilder:
             if chars_with_refs:
                 for method in pipeline:
                     wf = self._inject_consistency_method(wf, method, chars_with_refs)
+
+        # ControlNet Depth：全身结构一致性（位于身份注入之后，即管道最外层；
+        # ApplyFluxControlNet 接收已 patch 的 MODEL，输出 baked-in MODEL →
+        # 对 XlabsSampler 仅设 model，不设 controlnet_condition）
+        if self.config.get("controlnet_depth", {}).get("enabled") and chars_without_lora:
+            cn_chars = self._filter_chars_with_refs(chars_without_lora)
+            if cn_chars:
+                wf = self._inject_consistency_method(wf, "controlnet_depth", cn_chars)
 
         return wf
 
@@ -558,14 +556,10 @@ class WorkflowBuilder:
         if backend_meta.get("img2img"):
             self._setup_img2img(wf, shot, backend_meta)
 
-        # 4. 注入角色一致性（LoRA + IP-Adapter/PuLID）
-        #    正面定妆照无参考图时 skip_consistency=True，仅注入 LoRA 跳过 PuLID/IP-Adapter
         char_names = parse_char_names(shot)
-        if char_names:
-            wf = self._inject_character_consistency(wf, char_names, img_backend,
-                                                     skip_consistency=skip_consistency)
 
-        # 5. 注入风格 LoRA
+        # 3b. 注入风格 LoRA（必须在一致性管道之前；LoRA 在 ControlNet/PuLID 之后
+        #     会因 ApplyFluxControlNet 输出 ControlNetCondition 导致 type mismatch）
         genre = self.config.get("project", {}).get("genre", "")
         if genre:
             style_lora = _find_style_lora(self, genre)
@@ -575,15 +569,13 @@ class WorkflowBuilder:
                                        lora_name=os.path.basename(style_lora))
                 logger.info(f"使用风格 LoRA: {genre} → {style_lora}")
 
-        # 5b. 注入全局 LoRA（用户手动放入 ComfyUI/models/loras/ 的通用 LoRA）
-        # 仅在有角色时注入 — 全局 LoRA 通常是人物肖像类（如 ACE++ Portrait），
-        # 注入到纯场景图会导致场景被人像特征污染。
+        # 3c. 注入全局 LoRA（必须在一致性管道之前；同上）
+        # 仅在有角色时注入 — 全局 LoRA 通常是人物肖像类（如 ACE++ Portrait）
         if char_names:
             for gl in self.models.get("global_loras", []):
                 name = gl.get("name", "")
                 if not name:
                     continue
-                # 检查 LoRA 文件是否存在于 ComfyUI models 目录
                 if not self._lora_file_exists(name):
                     logger.warning(f"全局 LoRA 文件不存在，跳过: {name}（请放入 ComfyUI/models/loras/）")
                     continue
@@ -592,6 +584,12 @@ class WorkflowBuilder:
                 logger.info(f"使用全局 LoRA: {name} (strength={strength})")
         elif self.models.get("global_loras"):
             logger.debug("无角色镜头，跳过全局 LoRA 注入")
+
+        # 4. 注入角色一致性（LoRA + IP-Adapter/PuLID + ControlNet）
+        #    正面定妆照无参考图时 skip_consistency=True，仅注入 LoRA 跳过 PuLID/IP-Adapter
+        if char_names:
+            wf = self._inject_character_consistency(wf, char_names, img_backend,
+                                                     skip_consistency=skip_consistency)
 
         # 6. Seed 控制
         if seed is not None:

@@ -829,12 +829,19 @@ def inject_controlnet_depth(builder: object, wf: dict, char_names: list[str],
         logger.info(f"ControlNet Depth: {char_name} (strength={char_strength:.2f})")
 
     if injected_count:
-        # ApplyFluxControlNet 返回 (MODEL, CONDITIONING):
-        #   output 0: 带 ControlNet patch 的模型 → sampler.model
-        #   output 1: controlnet 条件信号        → sampler.controlnet_condition
+        # ApplyFluxControlNet 返回 1 个输出:
+        #   output 0: ControlNetCondition → KSampler.controlnet_condition
         # 多角色时仅最后一个生效（sampler 只有一个 controlnet_condition 槽位）
-        wf[ksampler]["inputs"]["model"] = [f"controlnet_apply_{suffix}", 0]
-        wf[ksampler]["inputs"]["controlnet_condition"] = [f"controlnet_apply_{suffix}", 1]
+        sampler_type = wf[ksampler].get("class_type", "")
+
+        if sampler_type not in ("XlabsSampler",):
+            # KSampler / KSamplerAdvanced: 支持 controlnet_condition 输入
+            # ApplyFluxControlNet 的 ControlNetCondition 直接注入，不影响模型链
+            wf[ksampler]["inputs"]["controlnet_condition"] = [f"controlnet_apply_{suffix}", 0]
+        else:
+            # XlabsSampler: 既无 controlnet_condition 输入，ApplyFluxControlNet 的
+            # ControlNetCondition 也无法用作 model（类型不匹配）。保持原模型链不变。
+            logger.debug("XlabsSampler 不支持 controlnet_condition，跳过 ControlNet Depth 连接")
 
         # 修复 XlabsSampler image_to_image_strength=0.0 的 bug:
         # 公式 t_idx = int((1 - strength) * len(timesteps)):
