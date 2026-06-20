@@ -92,14 +92,14 @@ ip_adapter_flux:
 pulid_flux:
   enabled: true
   model: pulid_flux_v0.9.0.safetensors
-  weight: 0.85
+  weight: 0.95
   start_at: 0.0
   end_at: 1.0
   fusion: mean
 ip_adapter_flux_shakker:
   enabled: true
   model: ip-adapter.bin
-  weight: 0.7
+  weight: 0.80
   start_percent: 0.0
   end_percent: 1.0
 controlnet_depth:

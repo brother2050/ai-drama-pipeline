@@ -49,11 +49,11 @@ class ViewGenParams:
 # 五视图配置：文件名 → (shot_type, camera, 描述, view_key)
 _FIVE_VIEWS = [
     ("cover.png",        "特写",     "固定", "正面",  "front"),
+    ("full_body.png",    "全身",     "固定", "全身",  "full_body"),
     ("left_side.png",    "侧面特写", "固定", "左侧",  "left_side"),
     ("right_side.png",   "侧面特写", "固定", "右侧",  "right_side"),
     ("back.png",         "背面特写", "固定", "背面",  "back"),
     ("three_quarter.png","特写",     "固定", "3/4侧", "three_quarter"),
-    ("full_body.png",    "全身",     "固定", "全身",  "full_body"),
 ]
 
 
