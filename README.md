@@ -550,19 +550,7 @@ git clone https://github.com/Shakker-Labs/ComfyUI-IPAdapter-Flux.git
 | `ip-adapter.bin` | `ComfyUI/models/ipadapter-flux/` | IP-Adapter 权重 |
 | `siglip-so400m-patch14-384.safetensors` | `ComfyUI/models/clip_vision/` | CLIP Vision 编码器 |
 
-```bash
-# 1. IP-Adapter 模型 → ComfyUI/models/ipadapter-flux/
-mkdir -p ComfyUI/models/ipadapter-flux/
-wget -O ComfyUI/models/ipadapter-flux/ip-adapter.bin \
-  https://huggingface.co/InstantX/FLUX.1-dev-IP-Adapter/resolve/main/ip-adapter.bin
-
-# 2. SigLIP CLIP Vision → ComfyUI/models/clip_vision/
-mkdir -p ComfyUI/models/clip_vision/
-wget -O ComfyUI/models/clip_vision/siglip-so400m-patch14-384.safetensors \
-  https://huggingface.co/InstantX/FLUX.1-dev-IP-Adapter/resolve/main/model.safetensors
-```
-
-**国内镜像**（HuggingFace 不可用时）：
+**国内镜像**：
 ```bash
 # ip-adapter.bin
 wget -O ComfyUI/models/ipadapter-flux/ip-adapter.bin \
