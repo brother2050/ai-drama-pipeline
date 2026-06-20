@@ -615,9 +615,10 @@ git clone https://github.com/XLabs-AI/x-flux-comfyui.git
 ### 8.6.2 下载模型文件
 
 ```bash
-# Flux ControlNet Depth V3 模型 → ComfyUI/models/controlnet/
-mkdir -p ComfyUI/models/controlnet/
-wget -O ComfyUI/models/controlnet/flux-depth-controlnet-v3.safetensors \
+# Flux ControlNet Depth V3 模型 → ComfyUI/models/xlabs/controlnets/
+# 注意：LoadFluxControlNet（x-flux-comfyui）使用 XLabs 专属目录，非 ComfyUI 标准 controlnet 目录
+mkdir -p ComfyUI/models/xlabs/controlnets/
+wget -O ComfyUI/models/xlabs/controlnets/flux-depth-controlnet-v3.safetensors \
   "https://hf-mirror.com/XLabs-AI/flux-controlnet-depth-v3/resolve/main/flux-depth-controlnet-v3.safetensors"
 
 # 注：MiDaS 深度估计模型由 comfyui_controlnet_aux 首次运行时自动下载，无需手动操作。
