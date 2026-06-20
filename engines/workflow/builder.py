@@ -443,28 +443,34 @@ class WorkflowBuilder:
 
         return {"positive": positive, "negative": negative}, img_backend
 
-    def _apply_view_overrides(self, view_key: str) -> dict:
-        """应用视图级覆盖到 self.config（copy-on-write），返回 lora 覆盖字典。
+    def _apply_view_overrides(self, view_key: str) -> tuple[dict, dict | None]:
+        """返回 (lora_dict, overridden_config_or_None) — 不修改 self.config。
 
-        所有方法启用/禁用、参数覆盖统一通过修改 config 实现，
-        下游 inject_from_registry() 原生检查 config.enabled，无需额外分支。
+        self.config 保持不可变；视图级覆盖通过 deepcopy + merge 产生局部 config，
+        由调用方按需传递给下游方法。下游 inject_from_registry() 原生检查
+        config.enabled 控制启用/禁用，无需额外分支。
+
+        Returns:
+            (lora_dict, overridden_config_or_None):
+            - lora_dict: LoRA 参数覆盖（global_lora_strength, character_lora_strength）
+            - overridden_config: 带视图覆盖的局部 config；无覆盖时为 None（用 self.config）
         """
         overrides = self.models.get("view_overrides", {}).get(view_key, {})
         if not overrides:
-            return {}
+            return {}, None
 
         import copy
-        self.config = copy.deepcopy(self.config)
-
+        cfg = copy.deepcopy(self.config)
         for cfg_key, cfg_val in overrides.get("config", {}).items():
-            self.config.setdefault(cfg_key, {}).update(cfg_val)
+            cfg.setdefault(cfg_key, {}).update(cfg_val)
 
-        return overrides.get("lora", {})
+        return overrides.get("lora", {}), cfg
 
     def _inject_character_consistency(self, wf: dict, char_names: list[str],
                                        img_backend: str,
                                        skip_consistency: bool = False,
-                                       lora_overrides: dict | None = None) -> dict:
+                                       lora_overrides: dict | None = None,
+                                       config: dict | None = None) -> dict:
         """注入角色 LoRA 和一致性方案（IP-Adapter / PuLID）
 
         注意: 就地修改 wf，由 build_first_frame 负责初始 deepcopy。
@@ -475,7 +481,11 @@ class WorkflowBuilder:
                 正面定妆照无参考图时使用。
             lora_overrides: 视图级 LoRA 覆盖（来自 _apply_view_overrides 返回）。
                 支持的 key: character_lora_strength
+            config: 视图级配置覆盖（来自 _apply_view_overrides 返回）。
+                None 时使用 self.config（无覆盖/全局默认配置）。
         """
+        if config is None:
+            config = self.config
         # 分 LoRA 角色 vs 无 LoRA 角色
         chars_with_lora: list[dict] = []
         chars_without_lora: list[str] = []
@@ -505,7 +515,7 @@ class WorkflowBuilder:
 
         # 一致性方案选择 — 管道优先（命名管道 → 单方法 → auto → consistency_default）
         consistency = self.models.get("consistency_method",
-                                      self.config.get("consistency_method", "auto"))
+                                      config.get("consistency_method", "auto"))
         if consistency == "auto":
             pipeline = self.registry.get_consistency_pipeline(
                 img_backend, available_nodes=getattr(self, "available_nodes", None))
@@ -516,21 +526,21 @@ class WorkflowBuilder:
         # 方法级启用/禁用由 inject_from_registry() 原生检查 config.enabled 处理，
         # 无需在 builder 中额外分支过滤。
         if chars_without_lora and pipeline:
-            ip_config = self.config.get("ip_adapter", {})
+            ip_config = config.get("ip_adapter", {})
             chars_with_refs = self._filter_chars_with_refs(chars_without_lora, ip_config=ip_config)
             if chars_with_refs:
                 for method in pipeline:
-                    wf = self._inject_consistency_method(wf, method, chars_with_refs)
+                    wf = self._inject_consistency_method(wf, method, chars_with_refs, config=config)
 
         # ControlNet Depth：全身结构一致性（位于身份注入之后，即管道最外层；
         # ApplyFluxControlNet 接收已 patch 的 MODEL，输出 baked-in MODEL →
         # 对 XlabsSampler 仅设 model，不设 controlnet_condition）
         # 视图级禁用通过 config.controlnet_depth.enabled=false 实现，无需额外检查。
-        if (self.config.get("controlnet_depth", {}).get("enabled")
+        if (config.get("controlnet_depth", {}).get("enabled")
                 and chars_without_lora):
             cn_chars = self._filter_chars_with_refs(chars_without_lora)
             if cn_chars:
-                wf = self._inject_consistency_method(wf, "controlnet_depth", cn_chars)
+                wf = self._inject_consistency_method(wf, "controlnet_depth", cn_chars, config=config)
 
         return wf
 
@@ -546,10 +556,12 @@ class WorkflowBuilder:
         return refs
 
     def _inject_consistency_method(self, wf: dict, consistency: str,
-                                    chars: list[str]) -> dict:
+                                    chars: list[str], *,
+                                    config: dict | None = None) -> dict:
         """根据一致性方案元数据注入对应节点（配置驱动：优先使用 node_graphs YAML）"""
         from engines.workflow.node_graph import inject_from_registry
-        return inject_from_registry(self, wf, chars, consistency, self.config)
+        return inject_from_registry(self, wf, chars, consistency,
+                                     config if config is not None else self.config)
 
     def build_first_frame(self, shot: dict, character_desc: str = "",
                           scene_desc: str = "", multi_char_prompt: str = "",
@@ -602,7 +614,7 @@ class WorkflowBuilder:
         # 视图级覆盖通过 _apply_view_overrides() 统一修改 config + 返回 lora 字典，
         # 无需在 builder 中为每个 override key 写专用分支。
         view_key = shot.get("view_key") or shot.get("shot_type", "")
-        lora = self._apply_view_overrides(view_key)
+        lora, local_config = self._apply_view_overrides(view_key)
 
         if char_names:
             for gl in self.models.get("global_loras", []):
@@ -621,11 +633,13 @@ class WorkflowBuilder:
             logger.debug("无角色镜头，跳过全局 LoRA 注入")
 
         # 4. 注入角色一致性（LoRA + IP-Adapter/PuLID + ControlNet）
-        #    正面定妆照无参考图时 skip_consistency=True，仅注入 LoRA 跳过 PuLID/IP-Adapter
+        #    local_config 为视图级配置覆盖（有覆盖时为 deepcopy，无覆盖时为 None=默认）
+        #    self.config 始终保持不变，无状态泄漏风险。
         if char_names:
             wf = self._inject_character_consistency(wf, char_names, img_backend,
                                                      skip_consistency=skip_consistency,
-                                                     lora_overrides=lora)
+                                                     lora_overrides=lora,
+                                                     config=local_config)
 
         # 6. Seed 控制
         if seed is not None:
