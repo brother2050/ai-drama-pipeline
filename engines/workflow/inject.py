@@ -20,7 +20,9 @@ import threading
 from pathlib import Path
 
 from engines.workflow.utils import (
-    find_character_load_image_nodes, find_first_node, find_nodes_by_class,
+    find_character_load_image_nodes,
+    find_first_node,
+    find_nodes_by_class,
     resolve_model_source,
 )
 
@@ -109,11 +111,16 @@ def _connect_to_model_pipeline(wf: dict, ksampler: str, node_id: str) -> None:
 
 
 __all__ = [
-    "inject_character_refs", "update_existing_ip_adapter",
-    "inject_ip_adapter_plus", "inject_ip_adapter_chain",
-    "inject_pulid_flux", "inject_pulid_flux_chain",
+    "find_character_lora",
+    "find_style_lora",
+    "inject_character_refs",
     "inject_controlnet_depth",
-    "find_character_lora", "find_style_lora", "inject_lora",
+    "inject_ip_adapter_chain",
+    "inject_ip_adapter_plus",
+    "inject_lora",
+    "inject_pulid_flux",
+    "inject_pulid_flux_chain",
+    "update_existing_ip_adapter",
 ]
 
 
@@ -375,8 +382,8 @@ def _check_face_detectable(ref_image: str) -> bool:
     """
     global _face_app, _insightface_warned
     try:
-        from insightface.app import FaceAnalysis
         import cv2
+        from insightface.app import FaceAnalysis
     except ImportError:
         logger.debug("InsightFace 不可用，跳过参考图人脸预检")
         return True
@@ -387,8 +394,8 @@ def _check_face_detectable(ref_image: str) -> bool:
         if not _insightface_warned:
             _insightface_warned = True
             logger.warning(
-                f"InsightFace buffalo_l 模型未下载，跳过人脸预检。"
-                f"请运行 `drama setup --insightface` 一次性预下载模型。"
+                "InsightFace buffalo_l 模型未下载，跳过人脸预检。"
+                "请运行 `drama setup --insightface` 一次性预下载模型。"
             )
         return True
 

@@ -2,19 +2,14 @@
 import re
 import pytest
 
+# 从生产代码导入被测函数，避免测试重实现导致逻辑漂移
+from pipeline.tasks.prepare import _strip_context_markers, _extract_field_marker
+from engines.prompt.translate import _parse_tagged_lines
+
 
 # ══════════════════════════════════════════════════════════
 # 1. _strip_context_markers 单次正则测试
 # ══════════════════════════════════════════════════════════
-
-_RE_CONTEXT_MARKER = re.compile(r'^(?:\[(?:CHAR|SCENE|SHOT|OUTFIT):[^\]]+\]\s*)+')
-
-
-def _strip_context_markers(text: str) -> str:
-    if not text:
-        return text
-    return _RE_CONTEXT_MARKER.sub('', text).strip()
-
 
 def test_strip_single_marker():
     assert _strip_context_markers("[CHAR:钢铁侠|FIELD:voice_description]\nLow magnetic voice") == "Low magnetic voice"
@@ -37,16 +32,6 @@ def test_strip_marker_only():
 # ══════════════════════════════════════════════════════════
 # 2. _extract_field_marker 测试（先剥离 context marker 再找 FIELD）
 # ══════════════════════════════════════════════════════════
-
-def _extract_field_marker(text: str):
-    if not text:
-        return None, text
-    cleaned = _strip_context_markers(text)
-    m = re.match(r'^\[FIELD:\s*(\w+)\]\s*(.*)', cleaned, re.DOTALL)
-    if m:
-        return m.group(1), m.group(2)
-    return None, cleaned
-
 
 def test_extract_field_with_context_prefix():
     """带 context marker 前缀的 FIELD 标记"""
@@ -80,21 +65,6 @@ def test_extract_empty():
 # ══════════════════════════════════════════════════════════
 # 3. _parse_tagged_lines UID 格式测试（t{6位hex}）
 # ══════════════════════════════════════════════════════════
-
-_RE_TAG = re.compile(r'^\[(t[a-fA-F0-9]{6})\]\s*(.*)')
-
-
-def _parse_tagged_lines(raw: str) -> dict[str, str]:
-    if not isinstance(raw, str):
-        return {}
-    parsed: dict[str, str] = {}
-    for line in raw.strip().splitlines():
-        m = _RE_TAG.match(line.strip())
-        if m:
-            uid = m.group(1).lower()
-            parsed[uid] = m.group(2).strip()
-    return parsed
-
 
 def test_parse_tagged_lines_basic():
     raw = "[t000000] Walking down the street\n[t000001] The lab hums\n[t000002] Third line"
@@ -140,10 +110,11 @@ def test_parse_tagged_lines_wrong_format():
 
 # ══════════════════════════════════════════════════════════
 # 4. _deserialize_numbered 测试（含上下文标记混入的边界）
+# 注意：_deserialize_numbered 在生产代码中无对应实现，保留为本地测试辅助函数
 # ══════════════════════════════════════════════════════════
 
 def _deserialize_numbered(raw: str, keys=None, originals=None):
-    """简化版反序列化（与生产代码一致）"""
+    """编号列表反序列化（测试专用辅助函数，无生产代码对应）"""
     lines = []
     for line in raw.strip().splitlines():
         cleaned = re.sub(r'^\[FIELD:\s*\w+\]\s*', '', line.strip())

@@ -54,7 +54,7 @@ def init_globals(
             busy_timeout=busy_timeout,
             check_interval=check_interval,
             on_timeout=lambda h: logger.error(
-                f"[WatchDog] 任务超时告警: {h.task_id} ({h.elapsed}s, backend={h.backend})"),
+                "[WatchDog] 任务超时告警: %s (%ss, backend=%s)", h.task_id, h.elapsed, h.backend),
         )
         _watchdog.start()
 

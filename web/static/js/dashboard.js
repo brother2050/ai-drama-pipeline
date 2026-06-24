@@ -180,7 +180,7 @@ async function dashInspireGen() {
   try {
     const { task_id } = await api('/llm/storyboard', { method: 'POST', body: { episode, outline, duration, append } });
     const result = await pollTask(task_id, info => {
-      _html(statusEl, `<div class="inspire-progress"><div class="batch-bar"><div class="batch-fill" style="width:${info.progress || 0}%"></div></div><span>⏳ ${info.message || 'AI 生成中...'} (${info.progress || 0}%)</span></div>`);
+      _html(statusEl, safeHTML`<div class="inspire-progress"><div class="batch-bar"><div class="batch-fill" style="width:${info.progress || 0}%"></div></div><span>⏳ ${info.message || 'AI 生成中...'} (${info.progress || 0}%)</span></div>`);
     });
 
     if (result.status === 'success' && result.result?.status === 'done') {

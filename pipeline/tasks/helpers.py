@@ -73,7 +73,15 @@ def _find_shot(episode: int, shot_id: str) -> dict | None:
         from infra.database.pool import get_pool
         from infra.database.storyboard_db import get_shot
         return get_shot(get_pool(), episode, shot_id)
-    except Exception:
+    except ConnectionError as e:
+        logger.warning(f"DB 连接失败，使用传入数据: {e}")
+        # DB 不可用时回退到全量加载
+        for s in _load_shots(episode):
+            if s.get("shot_id") == shot_id:
+                return s
+        return None
+    except Exception as e:
+        logger.error(f"DB 读取意外异常: {e}", exc_info=True)
         # DB 不可用时回退到全量加载
         for s in _load_shots(episode):
             if s.get("shot_id") == shot_id:
@@ -101,7 +109,7 @@ def _db_record_step(episode: int, shot_id: str, step: str, result: dict) -> None
                       error=result.get("reason", "") if result.get("status") in (STATUS_SKIPPED, STATUS_ERROR) else "",
                       elapsed=result.get("elapsed", 0.0))
     except Exception as e:
-        logger.warning(f"DB 写入失败 [{episode}/{shot_id}/{step}]: {e}")
+        logger.error(f"AsyncDBWriter 写入失败（数据可能未持久化）[{episode}/{shot_id}/{step}]: {e}", exc_info=True)
 
 
 class AsyncDBWriter:

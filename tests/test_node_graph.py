@@ -23,9 +23,9 @@ from engines.workflow.node_graph import (
     _lookup,
     _coerce,
     _find_model_pipeline,
-    _connect_to_model_pipeline,
     _find_downstream_consumer,
 )
+from engines.workflow.inject import _connect_to_model_pipeline
 from engines.workflow.utils import (
     find_first_node,
     find_nodes_by_class,

@@ -2,13 +2,24 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 import threading
 from pathlib import Path
 
-from fastapi import HTTPException
+from fastapi import Header, HTTPException
 
 logger = logging.getLogger(__name__)
+
+
+def verify_token(x_api_token: str = Header(None)):
+    """简单 Token 鉴权（本地部署场景）"""
+    expected = os.environ.get("AI_DRAMA_API_TOKEN", "")
+    if not expected:
+        return
+    if x_api_token != expected:
+        raise HTTPException(status_code=401, detail="未授权")
+
 
 from infra.config import get_root as _get_root, load_yaml_full  # noqa: E402
 

@@ -1,5 +1,5 @@
 comfyui:
-  url: https://52eeb03065fb4de68ca1eac37bc505e5--8188.ap-shanghai2.cloudstudio.club
+  url: http://127.0.0.1:8188
   api_key: ''
   models_dir: ''
 local_first: false
@@ -23,8 +23,8 @@ models:
         global_lora_strength: 0.3
         character_lora_strength: 0.3
   gpt_sovits:
-    api_url: https://1de6f982768c4831be6dac4a5855239a--9880.ap-shanghai2.cloudstudio.club
-    refs_dir: /workspace/refs
+    api_url: http://127.0.0.1:9880
+    refs_dir: ./refs
     api_key: ''
   musetalk:
     api_url: http://127.0.0.1:8080

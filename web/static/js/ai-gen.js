@@ -183,7 +183,7 @@ async function _loadTimelineThumb(idx) {
     }
     if (r.video && item) item.classList.add('has-video');
     if (r.synced && item) item.classList.add('has-synced');
-  } catch { el.innerHTML = '🎬'; }
+  } catch (e) { console.warn('操作失败:', e); el.innerHTML = '🎬'; }
 }
 
 let _sbDirty = false, _sbSaving = false;

@@ -306,21 +306,23 @@ def test_validate_shot_bad_duration():
 # ── T-05 补充: ComfyUI 不可达 ──
 
 def test_check_available_comfyui_down():
-    """ComfyUI 不可达时返回不可用"""
+    """ComfyUI 不可达时应返回 available=False"""
     from infra.toolcheck import _check_tool_inner
-    from infra.globals import get_health_cache
-    get_health_cache().invalidate()  # 清除缓存
-    with patch("infra.toolcheck._check_tool_inner", return_value={"available": False, "reason": "ComfyUI 不可达"}):
-        result = _check_tool_inner("comfyui", {"comfyui": {"url": "http://127.0.0.1:8188"}})
+    import httpx
+    # mock 底层 HTTP 请求（httpx.Client.get 经由 http_pool），
+    # 而非被测函数本身 — 验证真实分发逻辑能正确判定不可达
+    with patch("infra.http_pool.get_fast_client") as mock_client:
+        mock_client.return_value.get.side_effect = httpx.ConnectError("Connection refused")
+        result = _check_tool_inner("comfyui", {"comfyui": {"url": "http://localhost:8188"}})
         assert result["available"] is False
 
 
 def test_check_available_tool_missing():
-    """工具不存在时返回不可用"""
+    """工具配置缺失时应返回 available=False"""
     from infra.toolcheck import _check_tool_inner
-    with patch("infra.toolcheck._check_tool_inner", return_value={"available": False, "reason": "未知工具"}):
-        result = _check_tool_inner("nonexistent_tool", {})
-        assert result["available"] is False
+    # 未注册的工具名 — 无需 mock，直接验证真实逻辑返回不可用
+    result = _check_tool_inner("nonexistent_tool", {})
+    assert result["available"] is False
 
 
 # ── T-05 补充: 网络超时 ──

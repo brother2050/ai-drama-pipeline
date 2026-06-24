@@ -75,7 +75,7 @@ async function loadQualityWarnings() {
       }
     }
     if (allWarnings.length > 0) showQualityWarnings(allWarnings);
-  } catch {}
+  } catch (e) { console.warn('操作失败:', e); }
 }
 
 function showQualityWarnings(issues) {
@@ -207,7 +207,7 @@ async function loadResources(idx) {
       const badgeEl = headEl.querySelector('.wb-shot-status');
       if (badgeEl) badgeEl.innerHTML = st('🎤',r.audio) + st('🎨',r.frame) + st('🎬',r.video) + st('👄',r.synced);
     }
-  } catch {}
+  } catch (e) { console.warn('操作失败:', e); }
 }
 
 function previewRes(sid, type) {
@@ -379,7 +379,7 @@ async function editShot(idx) {
     ]);
     (charData.characters || []).forEach(c => { const _cv = c.id || c.name; const _cn = c.name || c.id; charOpts += `<option value="${esc(_cv)}" ${(s.characters || '').split('+').map(x=>x.trim()).includes(_cv) ? 'selected' : ''}>${esc(_cn)}</option>`; });
     (sceneData.scenes || []).forEach(sc => { const _sv = sc.id || sc.name; const _sn = sc.name || sc.id; sceneOpts += `<option value="${esc(_sv)}" ${(s.scene_name || '') === _sv ? 'selected' : ''}>${esc(_sn)}</option>`; });
-  } catch {}
+  } catch (e) { console.warn('操作失败:', e); }
   _showOverlay('edit-overlay', `${t('edit.shot_title')} ${sid}`, `
     <div class="edit-field"><label>${t('edit.scene')}</label>
       <div class="edit-field-combo"><select id="ed-scene-sel" onchange="document.getElementById('ed-scene').value=this.value">${sceneOpts}</select><input id="ed-scene" value="${esc(s.scene_name || '')}" placeholder="${t('edit.select_scene')}"></div></div>
@@ -492,7 +492,7 @@ async function runOne(step, idx) {
     const { task_id } = await api(`/steps/${step}`, { method: 'POST', body: { episode: ep, shot_id: sid, force } });
     _currentTaskId = task_id;
     if (typeof TaskPanel !== 'undefined') TaskPanel.trackTask(task_id, `${step} ${sid}`);
-    const result = await pollTask(task_id, info => _html(act, `<span class="run-indicator">⏳ ${info.message || step} (${info.progress || 0}%)</span> <button class="btn btn-xs btn-danger" onclick="cancelCurrentTask()">⏹</button>`));
+    const result = await pollTask(task_id, info => _html(act, safeHTML`<span class="run-indicator">⏳ ${info.message || step} (${info.progress || 0}%)</span> <button class="btn btn-xs btn-danger" onclick="cancelCurrentTask()">⏹</button>`));
     _currentTaskId = null;
     const sub = result.result;
     if (result.status === 'success' && sub?.status !== 'error' && sub?.status !== 'skipped') {
@@ -630,7 +630,7 @@ async function runEntities() {
     const { task_id } = await api('/llm/entities', { method: 'POST', body: { episode: ep } });
     if (typeof TaskPanel !== 'undefined') TaskPanel.trackTask(task_id, 'AI 实体生成');
     const result = await pollTask(task_id, info => {
-      statusEl.innerHTML = `<div class="batch-progress"><div class="batch-bar"><div class="batch-fill" style="width:${info.progress || 10}%"></div></div>
+      statusEl.innerHTML = safeHTML`<div class="batch-progress"><div class="batch-bar"><div class="batch-fill" style="width:${info.progress || 10}%"></div></div>
         <div class="batch-text">⏳ ${info.message || 'AI 实体生成...'} (${info.progress || 0}%)</div></div>`;
     });
     if (result.status === 'success' && result.result?.status !== 'error') {
@@ -668,7 +668,7 @@ async function runPrepare() {
     const { task_id } = await api('/prepare', { method: 'POST', body: { episode: ep, force } });
     if (typeof TaskPanel !== 'undefined') TaskPanel.trackTask(task_id, t('wb.prepare'));
     const result = await pollTask(task_id, info => {
-      statusEl.innerHTML = `<div class="batch-progress"><div class="batch-bar"><div class="batch-fill" style="width:${info.progress || 10}%"></div></div>
+      statusEl.innerHTML = safeHTML`<div class="batch-progress"><div class="batch-bar"><div class="batch-fill" style="width:${info.progress || 10}%"></div></div>
         <div class="batch-text">⏳ ${info.message || t('wb.prepare')} (${info.progress || 0}%)</div></div>`;
     });
     if (result.status === 'success' && result.result?.status !== 'error') {
@@ -712,7 +712,7 @@ async function runAll() {
     const result = await pollTask(task_id, info => {
       const step = info.step || '';
       const pct = info.progress || 5;
-      statusEl.innerHTML = `<div class="batch-progress"><div class="batch-bar"><div class="batch-fill" style="width:${pct}%"></div></div>
+      statusEl.innerHTML = safeHTML`<div class="batch-progress"><div class="batch-bar"><div class="batch-fill" style="width:${pct}%"></div></div>
         <div class="batch-text">⏳ ${info.message || step} (${pct}%)</div></div>`;
     });
     if (result.status === 'success' && result.result?.status !== 'error') {

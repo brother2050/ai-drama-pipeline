@@ -9,6 +9,7 @@
 一致性方案注入逻辑已拆分到 workflow_inject.py。
 """
 from __future__ import annotations
+
 import copy
 import json
 import logging
@@ -18,19 +19,26 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from engines.utils.shot import parse_char_names
-from engines.workflow.utils import (
-    find_first_node, find_load_image_nodes,
-    resolve_node_aliases, set_clip_text_prompts,
+from engines.workflow.inject import (
+    _next_suffix,
 )
 from engines.workflow.inject import (
     find_character_lora as _find_character_lora,
-    find_style_lora as _find_style_lora,
-    inject_lora as _inject_lora,
-    _next_suffix,
 )
-from infra.constants import IMAGE_EXTENSIONS
+from engines.workflow.inject import (
+    find_style_lora as _find_style_lora,
+)
+from engines.workflow.inject import (
+    inject_lora as _inject_lora,
+)
+from engines.workflow.utils import (
+    find_first_node,
+    resolve_node_aliases,
+    set_clip_text_prompts,
+)
 from infra.compute.gpu import get_generation_config as get_gpu_config
 from infra.config import ProjectPaths
+from infra.constants import IMAGE_EXTENSIONS
 
 logger = logging.getLogger(__name__)
 
@@ -392,7 +400,7 @@ class WorkflowBuilder:
     def _build_first_frame_prompt(self, shot: dict, character_desc: str,
                                    scene_desc: str, multi_char_prompt: str) -> tuple[dict, str]:
         """构建首帧 prompt + 返回图像后端名"""
-        from engines.prompt.builder import build_prompt, PromptBuildParams
+        from engines.prompt.builder import PromptBuildParams, build_prompt
 
         style = self.config.get("project", {}).get("style", "cinematic")
         genre = self.config.get("project", {}).get("genre", "urban")
@@ -646,6 +654,20 @@ class WorkflowBuilder:
             self._set_seed(wf, seed)
         else:
             self._randomize_seed(wf)
+
+        # 7. 工作流验证（组装后自动校验完整性）
+        from engines.workflow.graph import WorkflowGraph
+        from engines.workflow.validator import WorkflowValidator
+        errors = WorkflowValidator().validate(WorkflowGraph.from_dict(wf))
+        hard_errors = [e for e in errors if e.level == "error"]
+        if hard_errors:
+            for e in hard_errors:
+                logger.error(f"工作流验证失败: {e}")
+            # 不阻断执行，仅记录错误（渐进式启用）
+            # 未来可改为 raise RuntimeError
+        for e in errors:
+            if e.level == "warning":
+                logger.warning(f"工作流验证警告: {e}")
 
         return prompt, wf
 

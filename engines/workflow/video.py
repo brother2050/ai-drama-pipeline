@@ -7,12 +7,15 @@ import logging
 import math
 import os
 
-from engines.workflow.utils import (
-    find_load_image_nodes, set_clip_text_prompts,
-)
 from engines.workflow.inject import (
     find_style_lora as _find_style_lora,
+)
+from engines.workflow.inject import (
     inject_lora as _inject_lora,
+)
+from engines.workflow.utils import (
+    find_load_image_nodes,
+    set_clip_text_prompts,
 )
 
 logger = logging.getLogger(__name__)
@@ -52,6 +55,18 @@ def build_video(builder, frame_path: str, shot: dict | None = None,
     from engines.workflow.builder import WorkflowBuilder
     WorkflowBuilder._randomize_seed(wf)
 
+    # 工作流验证
+    from engines.workflow.graph import WorkflowGraph
+    from engines.workflow.validator import WorkflowValidator
+    errors = WorkflowValidator().validate(WorkflowGraph.from_dict(wf))
+    hard_errors = [e for e in errors if e.level == "error"]
+    if hard_errors:
+        for e in hard_errors:
+            logger.error(f"视频工作流验证失败: {e}")
+    for e in errors:
+        if e.level == "warning":
+            logger.warning(f"视频工作流验证警告: {e}")
+
     return wf
 
 
@@ -60,8 +75,8 @@ def _inject_video_prompt(builder, wf: dict, shot: dict,
                           scenes: dict | None = None,
                           style: str = "", genre: str = "") -> None:
     """构建并注入视频生成 prompt"""
-    from infra.constants import CAMERA_MAP, EMOTION_MAP
     from engines.utils.shot import parse_char_names
+    from infra.constants import CAMERA_MAP, EMOTION_MAP
     parts = []
 
     video_prompts_cfg = builder.registry.get_video_prompts() if builder.registry else {}

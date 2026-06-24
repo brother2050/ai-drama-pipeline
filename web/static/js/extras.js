@@ -154,7 +154,7 @@ async function _getRefCounts(type) {
       });
     }
     return counts;
-  } catch { return {}; }
+  } catch (e) { console.warn('操作失败:', e); return {}; }
 }
 
 async function deleteCharWithRef(id) {
@@ -444,7 +444,8 @@ async function _updateWorkerStatus() {
     } else {
       el.innerHTML = `<span class="status-dot ok"></span> ${t('worker.idle')}`;
     }
-  } catch {
+  } catch (e) {
+    console.warn('操作失败:', e);
     el.innerHTML = `<span class="status-dot err"></span> ${t('worker.offline')}`;
   }
 }
@@ -463,7 +464,7 @@ async function _updateSidebarProject() {
     const current = projects.find(p => p.active) || projects[0];
     const el = document.getElementById('sidebar-project');
     if (el) el.textContent = current?.name ? `📂 ${current.name}` : '';
-  } catch {}
+  } catch (e) { console.warn('操作失败:', e); }
 }
 _updateSidebarProject();
 Drama.updateSidebarProject = _updateSidebarProject;

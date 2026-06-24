@@ -70,8 +70,15 @@ def _shutdown():
 
 
 def _add_cors(app: FastAPI) -> None:
-    allowed_origins = os.environ.get("CORS_ORIGINS", "*").split(",")
-    app.add_middleware(CORSMiddleware, allow_origins=allowed_origins, allow_methods=["*"], allow_headers=["*"])
+    default_origins = "http://localhost:8888,http://127.0.0.1:8888"
+    allowed_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", default_origins).split(",") if o.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_methods=["GET", "POST", "PUT", "DELETE"],
+        allow_headers=["Authorization", "Content-Type"],
+        allow_credentials=True,
+    )
 
 
 def _add_exception_handlers(app: FastAPI) -> None:

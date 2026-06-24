@@ -103,6 +103,21 @@ async function addEpisode() {
 
 function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
+/**
+ * 安全 HTML 模板标签 — 自动转义插值内容
+ * 用法: element.innerHTML = safeHTML`⏳ ${msg}...`;
+ * @param {string[]} strings - 模板字符串的静态部分
+ * @param {...any} values - 插值内容（自动转义）
+ * @returns {string} 转义后的安全 HTML
+ */
+function safeHTML(strings, ...values) {
+    return strings.reduce((acc, str, i) => {
+        const val = values[i];
+        if (val === undefined || val === null) return acc + str;
+        return acc + str + esc(String(val));
+    }, '');
+}
+
 function debounce(fn, ms = 300) { let _t; return (...a) => { clearTimeout(_t); _t = setTimeout(() => fn(...a), ms); }; }
 function toast(msg, type = 'success') { const el = document.createElement('div'); el.className = `toast toast-${type}`; el.textContent = msg; document.body.appendChild(el); setTimeout(() => el.remove(), 3500); }
 
@@ -259,7 +274,7 @@ function $val(id) { return document.getElementById(id)?.value || ''; }
 
 // ── Module: core ──
 Drama.core = {
-  api, toast, cachedFetch, invalidateCache, esc, debounce, $val,
+  api, toast, cachedFetch, invalidateCache, esc, safeHTML, debounce, $val,
   modalConfirm, modalPrompt, pollTask, _html, _btnLoad,
   pushUndo, undo, redo, loadEpisodeSelector, _episodeSelectHtml,
   switchEpisode, addEpisode, navTo, loadPage, _loadNameMaps,
@@ -284,6 +299,7 @@ window.toast = toast;
 window.cachedFetch = cachedFetch;
 window.invalidateCache = invalidateCache;
 window.esc = esc;
+window.safeHTML = safeHTML;
 window.debounce = debounce;
 window.$val = $val;
 window.modalConfirm = modalConfirm;

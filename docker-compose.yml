@@ -1,0 +1,33 @@
+version: "3.8"
+services:
+  web:
+    build: .
+    ports: ["8888:8888"]
+    env_file: .env
+    depends_on: [redis, postgres]
+    restart: unless-stopped
+
+  worker:
+    build: .
+    command: drama worker -c 2
+    env_file: .env
+    depends_on: [redis, postgres]
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: drama
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-drama_change_me}
+      POSTGRES_DB: ai_drama
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    restart: unless-stopped
+
+volumes:
+  pgdata:

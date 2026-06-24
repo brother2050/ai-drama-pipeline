@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🎬 AI 短剧工作台 v2</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/css/style.css?v=7">
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js"></script>
+<link rel="stylesheet" href="/css/style.css">
+<script defer src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.6/Sortable.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
 <div id="app">
@@ -41,8 +41,6 @@
   </main>
 </div>
 <script>
-  const _v = Date.now().toString(36);
-  
   // 关键依赖：必须顺序加载（定义基础命名空间和工具函数）
   const _critical = ['app.js', 'i18n.js', 'core.js'];
   // 业务模块：关键依赖加载完成后可并行加载
@@ -55,7 +53,8 @@
     return promise.then(() => {
       return new Promise((resolve, reject) => {
         const s = document.createElement('script');
-        s.src = '/js/' + f + '?v=' + _v;
+        s.src = '/js/' + f;
+        s.defer = true;
         s.onload = resolve;
         s.onerror = reject;
         document.body.appendChild(s);
@@ -65,7 +64,8 @@
     // 关键依赖加载完成后，并行加载其余模块
     _modules.forEach(f => {
       const s = document.createElement('script');
-      s.src = '/js/' + f + '?v=' + _v;
+      s.src = '/js/' + f;
+      s.defer = true;
       document.body.appendChild(s);
     });
   });

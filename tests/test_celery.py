@@ -212,22 +212,18 @@ def test_step_lipsync_no_audio(test_project):
 # ── 字幕任务 ──
 
 def test_subtitle_task(test_project):
-    """字幕生成"""
-
-    with patch("pipeline.tasks.subtitle_task.apply") as mock_apply:
-        mock_apply.return_value.get.return_value = {"path": "test.srt", "count": 2}
-        # 直接调用底层函数
-        from post.subtitle import generate_srt
-        shots = [
-            {"dialogue": "你好", "duration": 3},
-            {"dialogue": "世界", "duration": 4},
-        ]
-        out = f"{test_project}/output/e01/test.srt"
-        generate_srt(shots, out)
-        assert Path(out).exists()
-        content = Path(out).read_text(encoding="utf-8")
-        assert "你好" in content
-        assert "世界" in content
+    """字幕生成 — 直接验证 generate_srt 输出"""
+    from post.subtitle import generate_srt
+    shots = [
+        {"dialogue": "你好", "duration": 3},
+        {"dialogue": "世界", "duration": 4},
+    ]
+    out = f"{test_project}/output/e01/test.srt"
+    generate_srt(shots, out)
+    assert Path(out).exists()
+    content = Path(out).read_text(encoding="utf-8")
+    assert "你好" in content
+    assert "世界" in content
 
 
 # ── Celery 应用配置 ──
