@@ -250,6 +250,8 @@ def cli() -> None:
 # 注册子命令组
 from cli.system import register_system_commands  # noqa: E402
 from cli.io import register_io_commands  # noqa: E402
+from cli.workflow import register_workflow_commands  # noqa: E402
 
 register_system_commands(cli)
 register_io_commands(cli)
+register_workflow_commands(cli)

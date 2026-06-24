@@ -55,17 +55,19 @@ def build_video(builder, frame_path: str, shot: dict | None = None,
     from engines.workflow.builder import WorkflowBuilder
     WorkflowBuilder._randomize_seed(wf)
 
-    # 工作流验证
-    from engines.workflow.graph import WorkflowGraph
-    from engines.workflow.validator import WorkflowValidator
-    errors = WorkflowValidator().validate(WorkflowGraph.from_dict(wf))
-    hard_errors = [e for e in errors if e.level == "error"]
-    if hard_errors:
-        for e in hard_errors:
-            logger.error(f"视频工作流验证失败: {e}")
-    for e in errors:
-        if e.level == "warning":
-            logger.warning(f"视频工作流验证警告: {e}")
+    # 工作流预检
+    from engines.workflow.preflight import WorkflowPreflightChecker
+    preflight = WorkflowPreflightChecker()
+    result = preflight.check(wf)
+    if not result.passed:
+        for e in result.errors:
+            logger.error(f"视频工作流预检失败: {e}")
+    for w in result.warnings:
+        logger.warning(f"视频工作流预检警告: {w}")
+    logger.info(
+        f"视频工作流预检: {result.checks_passed}/{result.checks_run} 项通过, "
+        f"{len(result.errors)} error, {len(result.warnings)} warning"
+    )
 
     return wf
 

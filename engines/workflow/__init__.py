@@ -39,6 +39,8 @@ from engines.workflow.utils import (
 )
 from engines.workflow.validator import ValidationError, WorkflowValidator
 from engines.workflow.video import build_video
+from engines.workflow.preflight import WorkflowPreflightChecker, PreflightResult
+from engines.workflow.schema_cache import ComfyUISchemaCache, NodeSchema, InputDef
 
 __all__ = [
     "ALL_CLIP_LOADERS",
@@ -78,4 +80,9 @@ __all__ = [
     "resolve_model_source",
     "resolve_node_aliases",
     "set_clip_text_prompts",
+    "WorkflowPreflightChecker",
+    "PreflightResult",
+    "ComfyUISchemaCache",
+    "NodeSchema",
+    "InputDef",
 ]

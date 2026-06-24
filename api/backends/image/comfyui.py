@@ -87,7 +87,16 @@ class ComfyUI:
         # 调试：记录 sampler 节点的 inputs（排查 self-reference 问题）
         for nid, node in workflow.items():
             if isinstance(node, dict) and node.get("class_type", "") in ("XlabsSampler", "KSampler", "KSamplerAdvanced"):
-                logger.info(f"  🔍 [{nid}] {node['class_type']} inputs: {_json.dumps(node.get('inputs', {}), ensure_ascii=False)}")
+                logger.info(f"  [{nid}] {node['class_type']} inputs: {_json.dumps(node.get('inputs', {}), ensure_ascii=False)}")
+
+        # 提交前预检 — 在发送给 ComfyUI 之前检查工作流完整性
+        preflight_errors = self._preflight_check(workflow)
+        if preflight_errors:
+            for err in preflight_errors:
+                logger.error(f"提交前预检: {err}")
+            # 不阻断（渐进式启用），但记录所有问题
+            # 未来可改为 raise RuntimeError(f"工作流预检失败: {len(preflight_errors)} 个错误")
+
         t0 = time.time()
         client_id = uuid.uuid4().hex
         r = self._client.post(f"{self._url}/prompt", json={"prompt": workflow, "client_id": client_id},
@@ -202,6 +211,41 @@ class ComfyUI:
         except Exception as e:
             logger.warning(f"获取 ComfyUI /object_info 失败: {e}")
             return set()
+
+    def _preflight_check(self, workflow: dict) -> list[str]:
+        """提交前预检 — 在发送给 ComfyUI 之前检查工作流完整性
+
+        使用 WorkflowPreflightChecker 执行 10 项检查，
+        返回 error 级别的问题描述列表（空列表表示无错误）。
+
+        当 schema_cache 可用时（ComfyUI 在线），会做深度检查：
+        节点类型有效性、模型文件存在性等。
+        当 schema_cache 不可用时（ComfyUI 离线），仅做结构检查。
+        """
+        try:
+            from engines.workflow.preflight import WorkflowPreflightChecker
+            from engines.workflow.schema_cache import ComfyUISchemaCache
+
+            # 尝试使用缓存的 schema（如果有）
+            schema_cache = getattr(self, "_schema_cache", None)
+            if schema_cache is None:
+                # 尝试从本地缓存文件加载（不连接服务器）
+                import os
+                cache_path = os.environ.get(
+                    "COMFYUI_SCHEMA_CACHE",
+                    str(Path(__file__).resolve().parent.parent.parent.parent / "data" / "comfyui_schema_cache.json"),
+                )
+                if Path(cache_path).exists():
+                    schema_cache = ComfyUISchemaCache(cache_file=cache_path)
+                    if not schema_cache._load_from_file():
+                        schema_cache = None
+
+            checker = WorkflowPreflightChecker(schema_cache=schema_cache)
+            result = checker.check(workflow)
+            return [str(e) for e in result.errors]
+        except Exception as e:
+            logger.debug(f"预检异常（不阻断）: {e}")
+            return []
 
     def shutdown(self):
         """释放资源（共享连接池由 Container.shutdown_all 统一清理）"""

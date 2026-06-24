@@ -655,19 +655,22 @@ class WorkflowBuilder:
         else:
             self._randomize_seed(wf)
 
-        # 7. 工作流验证（组装后自动校验完整性）
-        from engines.workflow.graph import WorkflowGraph
-        from engines.workflow.validator import WorkflowValidator
-        errors = WorkflowValidator().validate(WorkflowGraph.from_dict(wf))
-        hard_errors = [e for e in errors if e.level == "error"]
-        if hard_errors:
-            for e in hard_errors:
-                logger.error(f"工作流验证失败: {e}")
+        # 7. 工作流预检（组装后全面校验，不连接 ComfyUI）
+        from engines.workflow.preflight import WorkflowPreflightChecker
+        preflight = WorkflowPreflightChecker(
+            schema_cache=getattr(self, "_schema_cache", None),
+        )
+        result = preflight.check(wf)
+        if not result.passed:
+            for e in result.errors:
+                logger.error(f"工作流预检失败: {e}")
             # 不阻断执行，仅记录错误（渐进式启用）
-            # 未来可改为 raise RuntimeError
-        for e in errors:
-            if e.level == "warning":
-                logger.warning(f"工作流验证警告: {e}")
+        for w in result.warnings:
+            logger.warning(f"工作流预检警告: {w}")
+        logger.info(
+            f"工作流预检: {result.checks_passed}/{result.checks_run} 项通过, "
+            f"{len(result.errors)} error, {len(result.warnings)} warning"
+        )
 
         return prompt, wf
 
